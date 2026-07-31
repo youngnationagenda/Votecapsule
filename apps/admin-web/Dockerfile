@@ -6,7 +6,7 @@ WORKDIR /app
 RUN npm install -g pnpm@9 --silent
 
 # Copy monorepo root manifests
-COPY package.json pnpm-workspace.yaml tsconfig.base.json turbo.json ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json turbo.json ./
 
 # Copy shared packages
 COPY packages/ ./packages/
@@ -15,7 +15,7 @@ COPY packages/ ./packages/
 COPY apps/admin-web/ ./apps/admin-web/
 
 # Install dependencies
-RUN pnpm install --no-frozen-lockfile
+RUN pnpm install --frozen-lockfile
 
 # Build shared packages first (types must be built before Vite resolves them)
 RUN pnpm --filter @vote-capsule/types build 2>/dev/null || true
