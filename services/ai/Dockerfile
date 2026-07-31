@@ -20,7 +20,10 @@ ARG SERVICE_PORT
 ARG GIT_SHA
 ENV PORT=$SERVICE_PORT
 ENV GIT_SHA=$GIT_SHA
+# Copy root hoisted node_modules (pnpm workspace deps)
 COPY --from=builder /app/node_modules ./node_modules
+# Copy service-level node_modules (service-specific deps not hoisted)
+COPY --from=builder /app/services/ai/node_modules ./node_modules
 COPY --from=builder /app/services/ai/dist ./dist
 COPY --from=builder /app/services/ai/package.json ./package.json
 COPY --from=builder /app/packages ./packages

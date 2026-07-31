@@ -1,6 +1,5 @@
-# Vote Capsule(tm) -- Identity Service
-# Monorepo-aware Docker build using ECR Public mirror
-ARG SERVICE_PORT=3001
+# Vote Capsule™ — Notification Service
+ARG SERVICE_PORT=3008
 ARG GIT_SHA=local
 
 FROM public.ecr.aws/docker/library/node:20-alpine AS builder
@@ -8,11 +7,11 @@ WORKDIR /app
 RUN npm install -g pnpm@9 --silent
 COPY package.json pnpm-workspace.yaml tsconfig.base.json turbo.json ./
 COPY packages/ ./packages/
-COPY services/identity/ ./services/identity/
+COPY services/notification/ ./services/notification/
 RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @vote-capsule/types build 2>/dev/null || true
 RUN pnpm --filter @vote-capsule/database build 2>/dev/null || true
-RUN pnpm --filter @vote-capsule/identity-service build
+RUN pnpm --filter @vote-capsule/notification-service build
 
 FROM public.ecr.aws/docker/library/node:20-alpine AS runner
 WORKDIR /app
@@ -24,12 +23,11 @@ ENV GIT_SHA=$GIT_SHA
 # Copy root hoisted node_modules (pnpm workspace deps)
 COPY --from=builder /app/node_modules ./node_modules
 # Copy service-level node_modules (service-specific deps not hoisted)
-COPY --from=builder /app/services/identity/node_modules ./node_modules
-COPY --from=builder /app/services/identity/dist ./dist
-COPY --from=builder /app/services/identity/package.json ./package.json
-# Copy built shared packages
+COPY --from=builder /app/services/notification/node_modules ./node_modules
+COPY --from=builder /app/services/notification/dist ./dist
+COPY --from=builder /app/services/notification/package.json ./package.json
 COPY --from=builder /app/packages ./packages
 EXPOSE $SERVICE_PORT
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD wget -qO- http://localhost:$SERVICE_PORT/health || exit 1
 CMD ["node", "dist/main"]
