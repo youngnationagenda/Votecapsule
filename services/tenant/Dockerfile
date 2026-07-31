@@ -10,7 +10,7 @@ COPY packages/ ./packages/
 COPY services/tenant/ ./services/tenant/
 RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @vote-capsule/types build 2>/dev/null || true
-RUN pnpm --filter @vote-capsule/database build 2>/dev/null || true
+RUN pnpm --filter @vote-capsule/database build 2>/dev/null || true && mkdir -p /app/packages/database/dist
 RUN pnpm --filter @vote-capsule/tenant-service build
 RUN pnpm --filter @vote-capsule/tenant-service deploy --prod /app/deploy/tenant
 
