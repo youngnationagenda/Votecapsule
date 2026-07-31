@@ -23,7 +23,7 @@ import {
   RoutingDecision,
   TextractStatus,
 } from './entities/ai-verification-job.entity';
-import { AiAnomalyEvent } from './entities/ai-anomaly-event.entity';
+import { AiAnomalyEvent, AnomalyType } from './entities/ai-anomaly-event.entity';
 import { TextractProcessor }     from './processors/textract.processor';
 import { NecValidatorProcessor } from './processors/nec-validator.processor';
 import { ConfidenceProcessor }   from './processors/confidence.processor';
@@ -306,7 +306,7 @@ export class AiService {
         const event = manager.create(AiAnomalyEvent, {
           jobId:         job.id,
           capsuleId:     job.capsuleId,
-          anomalyType:   anomaly.type,
+          anomalyType:   anomaly.type as AnomalyType,
           severity:      anomaly.severity,
           description:   anomaly.description,
           evidenceData:  anomaly.evidence,
