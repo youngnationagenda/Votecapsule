@@ -417,7 +417,7 @@ export class WorkflowService {
       durationMs,
       ...(output ? { outputPayload: output } : {}),
       ...(error  ? { lastError:     error  } : {}),
-    });
+    } as any);
 
     await this.publishEvent('WORKFLOW_COMPLETED', {
       workflowId:   executionId,
