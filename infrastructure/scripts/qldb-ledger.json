@@ -1,0 +1,91 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Vote Capsule Trust Ledger - Amazon QLDB",
+  "Resources": {
+    "VoteCapsuleTrustLedger": {
+      "Type": "AWS::QLDB::Ledger",
+      "Properties": {
+        "Name": "vote-capsule-trust",
+        "PermissionsMode": "ALLOW_ALL",
+        "DeletionProtection": false,
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Purpose", "Value": "EvidenceCapsuleTrustAnchoring" },
+          { "Key": "ManagedBy", "Value": "CloudFormation" },
+          { "Key": "Environment", "Value": "development" },
+          { "Key": "CriticalData", "Value": "true" }
+        ]
+      }
+    },
+    "TrustServiceRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "vote-capsule-trust-service-role",
+        "Description": "IAM role for Vote Capsule Trust Service - QLDB write access",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": { "Service": "ecs-tasks.amazonaws.com" },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "QldbTrustLedgerAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "QldbTrustLedgerWrite",
+                  "Effect": "Allow",
+                  "Action": [
+                    "qldb:SendCommand",
+                    "qldb:GetDigest",
+                    "qldb:GetRevision",
+                    "qldb:GetBlock",
+                    "qldb:ListJournalS3Exports"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:aws:qldb:${AWS::Region}:${AWS::AccountId}:ledger/vote-capsule-trust"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" }
+        ]
+      }
+    },
+    "QldbOperationsLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/vote-capsule/qldb/trust-ledger",
+        "RetentionInDays": 731
+      }
+    }
+  },
+  "Outputs": {
+    "LedgerName": {
+      "Description": "QLDB Trust Ledger Name",
+      "Value": "vote-capsule-trust",
+      "Export": { "Name": "VoteCapsule-QldbLedgerName" }
+    },
+    "LedgerArn": {
+      "Description": "QLDB Trust Ledger ARN",
+      "Value": {
+        "Fn::Sub": "arn:aws:qldb:${AWS::Region}:${AWS::AccountId}:ledger/vote-capsule-trust"
+      },
+      "Export": { "Name": "VoteCapsule-QldbLedgerArn" }
+    },
+    "TrustServiceRoleArn": {
+      "Description": "Trust Service IAM Role ARN",
+      "Value": { "Fn::GetAtt": ["TrustServiceRole", "Arn"] },
+      "Export": { "Name": "VoteCapsule-TrustServiceRoleArn" }
+    }
+  }
+}

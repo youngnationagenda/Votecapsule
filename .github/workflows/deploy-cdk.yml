@@ -1,0 +1,61 @@
+name: Deploy CDK Stacks
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'infrastructure/cdk/**'
+
+  workflow_dispatch:
+    inputs:
+      stack:
+        description: 'CDK stack to deploy (leave empty for --all)'
+        required: false
+        default: ''
+
+jobs:
+  deploy-cdk:
+    name: CDK Deploy
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_CDK_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: CDK Diff
+        run: |
+          cd infrastructure/cdk
+          STACK="${{ github.event.inputs.stack }}"
+          if [ -z "$STACK" ]; then
+            pnpm cdk diff --all
+          else
+            pnpm cdk diff $STACK
+          fi
+
+      - name: CDK Deploy
+        run: |
+          cd infrastructure/cdk
+          STACK="${{ github.event.inputs.stack }}"
+          if [ -z "$STACK" ]; then
+            pnpm cdk deploy --all --require-approval never
+          else
+            pnpm cdk deploy $STACK --require-approval never
+          fi

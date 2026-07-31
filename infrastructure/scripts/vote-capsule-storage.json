@@ -1,0 +1,112 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Vote Capsule Storage Stack - S3 Evidence Vault + Assets Bucket",
+  "Resources": {
+    "AssetsBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": { "Fn::Sub": "vote-capsule-assets-${AWS::AccountId}" },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            { "ServerSideEncryptionByDefault": { "SSEAlgorithm": "AES256" } }
+          ]
+        },
+        "CorsConfiguration": {
+          "CorsRules": [
+            {
+              "AllowedHeaders": ["*"],
+              "AllowedMethods": ["GET", "PUT"],
+              "AllowedOrigins": [
+                "http://localhost:3000",
+                "https://votecapsule.yna.co.ke",
+                "https://admin.votecapsule.yna.co.ke"
+              ],
+              "MaxAge": 3600
+            }
+          ]
+        },
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Purpose", "Value": "Assets" }
+        ]
+      }
+    },
+    "EvidenceVaultBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": { "Fn::Sub": "vote-capsule-evidence-vault-${AWS::AccountId}" },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            { "ServerSideEncryptionByDefault": { "SSEAlgorithm": "AES256" } }
+          ]
+        },
+        "VersioningConfiguration": { "Status": "Enabled" },
+        "LifecycleConfiguration": {
+          "Rules": [
+            {
+              "Id": "ArchiveApprovedEvidence",
+              "Status": "Enabled",
+              "Transitions": [
+                { "StorageClass": "STANDARD_IA", "TransitionInDays": 90 },
+                { "StorageClass": "GLACIER", "TransitionInDays": 365 }
+              ]
+            }
+          ]
+        },
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Purpose", "Value": "EvidenceVault" },
+          { "Key": "CriticalData", "Value": "true" }
+        ]
+      },
+      "DeletionPolicy": "Retain"
+    },
+    "PublicWebBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": { "Fn::Sub": "vote-capsule-public-web-${AWS::AccountId}" },
+        "PublicAccessBlockConfiguration": {
+          "BlockPublicAcls": true,
+          "BlockPublicPolicy": true,
+          "IgnorePublicAcls": true,
+          "RestrictPublicBuckets": true
+        },
+        "BucketEncryption": {
+          "ServerSideEncryptionConfiguration": [
+            { "ServerSideEncryptionByDefault": { "SSEAlgorithm": "AES256" } }
+          ]
+        },
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Purpose", "Value": "PublicWebHosting" }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "AssetsBucketName": {
+      "Value": { "Ref": "AssetsBucket" },
+      "Export": { "Name": "VoteCapsule-AssetsBucket" }
+    },
+    "EvidenceVaultBucketName": {
+      "Value": { "Ref": "EvidenceVaultBucket" },
+      "Export": { "Name": "VoteCapsule-EvidenceVaultBucket" }
+    },
+    "PublicWebBucketName": {
+      "Value": { "Ref": "PublicWebBucket" },
+      "Export": { "Name": "VoteCapsule-PublicWebBucket" }
+    }
+  }
+}

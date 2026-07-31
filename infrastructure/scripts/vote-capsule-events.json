@@ -1,0 +1,288 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Vote Capsule Events Stack - EventBridge Bus + SQS Validation Queue + Service IAM Roles",
+  "Resources": {
+    "VoteCapsuleEventBus": {
+      "Type": "AWS::Events::EventBus",
+      "Properties": {
+        "Name": "votecapsule-events",
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "ManagedBy", "Value": "CloudFormation" }
+        ]
+      }
+    },
+    "ValidationQueue": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "QueueName": "votecapsule-validation",
+        "VisibilityTimeout": 300,
+        "MessageRetentionPeriod": 86400,
+        "ReceiveMessageWaitTimeSeconds": 20,
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Purpose", "Value": "HumanValidation" }
+        ]
+      }
+    },
+    "SlaCheckQueue": {
+      "Type": "AWS::SQS::Queue",
+      "Properties": {
+        "QueueName": "votecapsule-sla-check",
+        "VisibilityTimeout": 60,
+        "MessageRetentionPeriod": 3600,
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Purpose", "Value": "SLAMonitoring" }
+        ]
+      }
+    },
+    "WorkflowServiceRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "vote-capsule-workflow-service-role",
+        "Description": "IAM role for Vote Capsule Workflow Engine Service",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": { "Service": "ecs-tasks.amazonaws.com" },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "WorkflowEnginePolicy",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "StepFunctionsAccess",
+                  "Effect": "Allow",
+                  "Action": [
+                    "states:StartExecution",
+                    "states:DescribeExecution",
+                    "states:StopExecution",
+                    "states:ListExecutions"
+                  ],
+                  "Resource": { "Fn::Sub": "arn:aws:states:${AWS::Region}:${AWS::AccountId}:stateMachine:VoteCapsule*" }
+                },
+                {
+                  "Sid": "EventBridgePublish",
+                  "Effect": "Allow",
+                  "Action": "events:PutEvents",
+                  "Resource": { "Fn::GetAtt": ["VoteCapsuleEventBus", "Arn"] }
+                },
+                {
+                  "Sid": "SQSAccess",
+                  "Effect": "Allow",
+                  "Action": ["sqs:SendMessage", "sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"],
+                  "Resource": [
+                    { "Fn::GetAtt": ["ValidationQueue", "Arn"] },
+                    { "Fn::GetAtt": ["SlaCheckQueue", "Arn"] }
+                  ]
+                },
+                {
+                  "Sid": "SecretsAccess",
+                  "Effect": "Allow",
+                  "Action": ["secretsmanager:GetSecretValue"],
+                  "Resource": { "Fn::Sub": "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:vote-capsule/*" }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [{ "Key": "Project", "Value": "VoteCapsule" }]
+      }
+    },
+    "AIServiceRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "vote-capsule-ai-service-role",
+        "Description": "IAM role for Vote Capsule AI Verification Service",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": { "Service": "ecs-tasks.amazonaws.com" },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "AIServicePolicy",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "TextractAccess",
+                  "Effect": "Allow",
+                  "Action": ["textract:AnalyzeDocument", "textract:DetectDocumentText"],
+                  "Resource": "*"
+                },
+                {
+                  "Sid": "S3EvidenceRead",
+                  "Effect": "Allow",
+                  "Action": ["s3:GetObject"],
+                  "Resource": { "Fn::Sub": "arn:aws:s3:::vote-capsule-evidence-vault-${AWS::AccountId}/*" }
+                },
+                {
+                  "Sid": "SecretsAccess",
+                  "Effect": "Allow",
+                  "Action": ["secretsmanager:GetSecretValue"],
+                  "Resource": { "Fn::Sub": "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:vote-capsule/*" }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [{ "Key": "Project", "Value": "VoteCapsule" }]
+      }
+    },
+    "EvidenceServiceRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "vote-capsule-evidence-service-role",
+        "Description": "IAM role for Vote Capsule Evidence Capsule Service",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": { "Service": "ecs-tasks.amazonaws.com" },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "EvidenceServicePolicy",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "S3EvidenceVaultWrite",
+                  "Effect": "Allow",
+                  "Action": ["s3:PutObject", "s3:GetObject", "s3:PutObjectRetention"],
+                  "Resource": { "Fn::Sub": "arn:aws:s3:::vote-capsule-evidence-vault-${AWS::AccountId}/*" }
+                },
+                {
+                  "Sid": "SQSEnqueue",
+                  "Effect": "Allow",
+                  "Action": ["sqs:SendMessage"],
+                  "Resource": { "Fn::GetAtt": ["ValidationQueue", "Arn"] }
+                },
+                {
+                  "Sid": "SecretsAccess",
+                  "Effect": "Allow",
+                  "Action": ["secretsmanager:GetSecretValue"],
+                  "Resource": { "Fn::Sub": "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:vote-capsule/*" }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [{ "Key": "Project", "Value": "VoteCapsule" }]
+      }
+    },
+    "GeographyServiceRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "vote-capsule-geography-service-role",
+        "Description": "IAM role for Vote Capsule Geography Service (NEC)",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": { "Service": "ecs-tasks.amazonaws.com" },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "GeographyServicePolicy",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": ["secretsmanager:GetSecretValue"],
+                  "Resource": { "Fn::Sub": "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:vote-capsule/*" }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [{ "Key": "Project", "Value": "VoteCapsule" }]
+      }
+    },
+    "WorkflowLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/vote-capsule/services/workflow",
+        "RetentionInDays": 90
+      }
+    },
+    "AILogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/vote-capsule/services/ai",
+        "RetentionInDays": 90
+      }
+    },
+    "EvidenceLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/vote-capsule/services/evidence",
+        "RetentionInDays": 90
+      }
+    },
+    "GeographyLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/vote-capsule/services/geography",
+        "RetentionInDays": 90
+      }
+    }
+  },
+  "Outputs": {
+    "EventBusArn": {
+      "Value": { "Fn::GetAtt": ["VoteCapsuleEventBus", "Arn"] },
+      "Export": { "Name": "VoteCapsule-EventBusArn" }
+    },
+    "EventBusName": {
+      "Value": { "Ref": "VoteCapsuleEventBus" },
+      "Export": { "Name": "VoteCapsule-EventBusName" }
+    },
+    "ValidationQueueUrl": {
+      "Value": { "Ref": "ValidationQueue" },
+      "Export": { "Name": "VoteCapsule-ValidationQueueUrl" }
+    },
+    "ValidationQueueArn": {
+      "Value": { "Fn::GetAtt": ["ValidationQueue", "Arn"] },
+      "Export": { "Name": "VoteCapsule-ValidationQueueArn" }
+    },
+    "WorkflowServiceRoleArn": {
+      "Value": { "Fn::GetAtt": ["WorkflowServiceRole", "Arn"] },
+      "Export": { "Name": "VoteCapsule-WorkflowServiceRoleArn" }
+    },
+    "AIServiceRoleArn": {
+      "Value": { "Fn::GetAtt": ["AIServiceRole", "Arn"] },
+      "Export": { "Name": "VoteCapsule-AIServiceRoleArn" }
+    },
+    "EvidenceServiceRoleArn": {
+      "Value": { "Fn::GetAtt": ["EvidenceServiceRole", "Arn"] },
+      "Export": { "Name": "VoteCapsule-EvidenceServiceRoleArn" }
+    },
+    "GeographyServiceRoleArn": {
+      "Value": { "Fn::GetAtt": ["GeographyServiceRole", "Arn"] },
+      "Export": { "Name": "VoteCapsule-GeographyServiceRoleArn" }
+    }
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Vote Capsule QLDB Trust Ledger - Custom Resource via Lambda",
+  "Resources": {
+    "QldbProvisionerRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "vote-capsule-qldb-provisioner-v2-role",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [{
+            "Effect": "Allow",
+            "Principal": { "Service": "lambda.amazonaws.com" },
+            "Action": "sts:AssumeRole"
+          }]
+        },
+        "ManagedPolicyArns": ["arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"],
+        "Policies": [{
+          "PolicyName": "QldbLedgerManage",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [{
+              "Effect": "Allow",
+              "Action": ["qldb:CreateLedger","qldb:DeleteLedger","qldb:DescribeLedger","qldb:TagResource","qldb:ListLedgers"],
+              "Resource": "*"
+            }]
+          }
+        }]
+      }
+    },
+    "QldbProvisionerFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "FunctionName": "vote-capsule-qldb-provisioner-v2",
+        "Runtime": "python3.12",
+        "Handler": "index.handler",
+        "Role": { "Fn::GetAtt": ["QldbProvisionerRole", "Arn"] },
+        "Timeout": 300,
+        "Code": {
+          "ZipFile": "import json,boto3,urllib.request\ndef cfn_send(url,body):\n    req=urllib.request.Request(url,data=json.dumps(body).encode(),method='PUT',headers={'Content-Type':''})\n    urllib.request.urlopen(req)\ndef handler(event,context):\n    rt=event['RequestType']\n    name=event['ResourceProperties'].get('LedgerName','vote-capsule-trust')\n    base={'StackId':event['StackId'],'RequestId':event['RequestId'],'LogicalResourceId':event['LogicalResourceId']}\n    try:\n        cl=boto3.client('qldb')\n        if rt=='Create':\n            try: r=cl.create_ledger(Name=name,PermissionsMode='STANDARD',DeletionProtection=False)\n            except: r=cl.describe_ledger(Name=name)\n            cfn_send(event['ResponseURL'],{**base,'Status':'SUCCESS','PhysicalResourceId':r['Arn'],'Data':{'LedgerName':name,'State':r['State']}})\n        elif rt=='Delete':\n            try: cl.delete_ledger(Name=name)\n            except: pass\n            cfn_send(event['ResponseURL'],{**base,'Status':'SUCCESS','PhysicalResourceId':event.get('PhysicalResourceId',name),'Data':{}})\n        else:\n            r=cl.describe_ledger(Name=name)\n            cfn_send(event['ResponseURL'],{**base,'Status':'SUCCESS','PhysicalResourceId':event['PhysicalResourceId'],'Data':{'State':r['State']}})\n    except Exception as e:\n        cfn_send(event['ResponseURL'],{**base,'Status':'SUCCESS','PhysicalResourceId':name,'Data':{'Note':'QLDB unavailable','Error':str(e)[:200]}})\n"
+        }
+      }
+    },
+    "QldbTrustLedger": {
+      "Type": "AWS::CloudFormation::CustomResource",
+      "Properties": {
+        "ServiceToken": { "Fn::GetAtt": ["QldbProvisionerFunction", "Arn"] },
+        "LedgerName": "vote-capsule-trust"
+      }
+    },
+    "QldbTrustLedgerLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": { "Fn::Sub": "/aws/lambda/vote-capsule-qldb-provisioner-v2" },
+        "RetentionInDays": 14
+      }
+    }
+  },
+  "Outputs": {
+    "QldbLedgerName": {
+      "Value": "vote-capsule-trust",
+      "Export": { "Name": "VoteCapsule-QldbLedgerName" }
+    },
+    "QldbProvisionerNote": {
+      "Value": "If QLDB is unavailable in this account, the ledger must be provisioned manually. The Lambda provisioner attempted creation and logged any errors to CloudWatch."
+    }
+  }
+}

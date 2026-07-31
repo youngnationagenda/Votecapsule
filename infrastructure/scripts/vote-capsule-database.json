@@ -1,0 +1,114 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Vote Capsule Database Stack - Aurora PostgreSQL Serverless v2",
+  "Parameters": {
+    "DBPassword": {
+      "Type": "String",
+      "NoEcho": true,
+      "Description": "Master password for Aurora vcadmin user"
+    }
+  },
+  "Resources": {
+    "DBSubnetGroup": {
+      "Type": "AWS::RDS::DBSubnetGroup",
+      "Properties": {
+        "DBSubnetGroupDescription": "Vote Capsule Aurora subnet group",
+        "DBSubnetGroupName": "vote-capsule-db-subnet-group",
+        "SubnetIds": [
+          "subnet-0aa1a58541c87ae2a",
+          "subnet-0171d821c5d5ae868",
+          "subnet-0be09dbd825b75c07",
+          "subnet-09604eb63697ac228",
+          "subnet-0b8bab896586ad4f6",
+          "subnet-08428a0d823c16b20"
+        ],
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" }
+        ]
+      }
+    },
+    "DBSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupName": "vote-capsule-db-sg",
+        "GroupDescription": "Security group for Vote Capsule Aurora PostgreSQL",
+        "VpcId": "vpc-0ae6f8630af9fbfdc",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 5432,
+            "ToPort": 5432,
+            "CidrIp": "0.0.0.0/0",
+            "Description": "PostgreSQL access (restrict to services in production)"
+          }
+        ],
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Name", "Value": "vote-capsule-db-sg" }
+        ]
+      }
+    },
+    "AuroraCluster": {
+      "Type": "AWS::RDS::DBCluster",
+      "Properties": {
+        "DBClusterIdentifier": "vote-capsule-db",
+        "Engine": "aurora-postgresql",
+        "EngineVersion": "16.8",
+        "EngineMode": "provisioned",
+        "ServerlessV2ScalingConfiguration": {
+          "MinCapacity": 0.5,
+          "MaxCapacity": 16
+        },
+        "DatabaseName": "votecapsule",
+        "MasterUsername": "vcadmin",
+        "MasterUserPassword": { "Ref": "DBPassword" },
+        "DBSubnetGroupName": { "Ref": "DBSubnetGroup" },
+        "VpcSecurityGroupIds": [{ "Ref": "DBSecurityGroup" }],
+        "StorageEncrypted": true,
+        "BackupRetentionPeriod": 7,
+        "PreferredBackupWindow": "03:00-04:00",
+        "DeletionProtection": false,
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "ManagedBy", "Value": "CloudFormation" }
+        ]
+      }
+    },
+    "AuroraWriterInstance": {
+      "Type": "AWS::RDS::DBInstance",
+      "Properties": {
+        "DBInstanceIdentifier": "vote-capsule-db-writer",
+        "DBClusterIdentifier": { "Ref": "AuroraCluster" },
+        "DBInstanceClass": "db.serverless",
+        "Engine": "aurora-postgresql",
+        "PubliclyAccessible": true,
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Role", "Value": "Writer" }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "DBClusterEndpoint": {
+      "Description": "Aurora cluster writer endpoint",
+      "Value": { "Fn::GetAtt": ["AuroraCluster", "Endpoint.Address"] },
+      "Export": { "Name": "VoteCapsule-DBClusterEndpoint" }
+    },
+    "DBClusterPort": {
+      "Description": "Aurora cluster port",
+      "Value": { "Fn::GetAtt": ["AuroraCluster", "Endpoint.Port"] },
+      "Export": { "Name": "VoteCapsule-DBClusterPort" }
+    },
+    "DBName": {
+      "Description": "Database name",
+      "Value": "votecapsule",
+      "Export": { "Name": "VoteCapsule-DBName" }
+    },
+    "DBSecurityGroupId": {
+      "Description": "DB Security Group ID",
+      "Value": { "Ref": "DBSecurityGroup" },
+      "Export": { "Name": "VoteCapsule-DBSecurityGroupId" }
+    }
+  }
+}

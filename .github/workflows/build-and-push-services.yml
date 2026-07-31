@@ -1,0 +1,93 @@
+name: Build & Push Service Images to ECR
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'services/**'
+      - 'packages/**'
+
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to build (e.g. identity, geography). Leave empty for all.'
+        required: false
+        default: ''
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: 683541453923.dkr.ecr.us-east-1.amazonaws.com
+
+jobs:
+  build-and-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    strategy:
+      matrix:
+        service:
+          - name: identity
+            dir: services/identity
+            repo: vote-capsule/identity-service
+            port: 3001
+          - name: tenant
+            dir: services/tenant
+            repo: vote-capsule/tenant-service
+            port: 3002
+          - name: geography
+            dir: services/geography
+            repo: vote-capsule/geography-service
+            port: 3004
+          - name: trust
+            dir: services/trust
+            repo: vote-capsule/trust-service
+            port: 3003
+          - name: evidence
+            dir: services/evidence
+            repo: vote-capsule/evidence-service
+            port: 3005
+          - name: ai
+            dir: services/ai
+            repo: vote-capsule/ai-service
+            port: 3006
+          - name: workflow
+            dir: services/workflow
+            repo: vote-capsule/workflow-service
+            port: 3007
+
+    steps:
+      - name: Skip if specific service requested and this is not it
+        if: github.event.inputs.service != '' && github.event.inputs.service != matrix.service.name
+        run: echo "Skipping ${{ matrix.service.name }}" && exit 0
+
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push ${{ matrix.service.name }}
+        run: |
+          IMAGE="$ECR_REGISTRY/${{ matrix.service.repo }}:${{ github.sha }}"
+          LATEST="$ECR_REGISTRY/${{ matrix.service.repo }}:latest"
+
+          docker build \
+            --build-arg SERVICE_PORT=${{ matrix.service.port }} \
+            -t "$IMAGE" \
+            -t "$LATEST" \
+            -f "${{ matrix.service.dir }}/Dockerfile" \
+            .
+
+          docker push "$IMAGE"
+          docker push "$LATEST"
+
+          echo "Pushed: $IMAGE"

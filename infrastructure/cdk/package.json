@@ -1,0 +1,29 @@
+{
+  "name": "@vote-capsule/infrastructure",
+  "version": "1.0.0",
+  "description": "Vote Capsule™ AWS CDK Infrastructure — All platform stacks",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "cdk": "cdk",
+    "deploy": "cdk deploy",
+    "deploy:all": "cdk deploy --all",
+    "deploy:qldb": "cdk deploy VoteCapsuleQldbStack",
+    "diff": "cdk diff",
+    "synth": "cdk synth",
+    "destroy": "cdk destroy",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf cdk.out dist"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.172.0",
+    "constructs": "^10.4.2",
+    "source-map-support": "^0.5.21"
+  },
+  "devDependencies": {
+    "aws-cdk": "^2.172.0",
+    "typescript": "^5.7.2",
+    "@types/node": "^22.10.2",
+    "rimraf": "^6.0.1"
+  }
+}

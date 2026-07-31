@@ -1,0 +1,119 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Vote Capsule Auth Stack - Amazon Cognito User Pool with MFA",
+  "Resources": {
+    "VoteCapsuleUserPool": {
+      "Type": "AWS::Cognito::UserPool",
+      "Properties": {
+        "UserPoolName": "vote-capsule-users",
+        "UsernameAttributes": ["email"],
+        "AutoVerifiedAttributes": ["email"],
+        "SelfSignUpEnabled": false,
+        "MfaConfiguration": "OPTIONAL",
+        "EnabledMfas": ["SOFTWARE_TOKEN_MFA"],
+        "AccountRecoverySetting": {
+          "RecoveryMechanisms": [
+            { "Name": "verified_email", "Priority": 1 }
+          ]
+        },
+        "PasswordPolicy": {
+          "MinimumLength": 12,
+          "RequireLowercase": true,
+          "RequireUppercase": true,
+          "RequireNumbers": true,
+          "RequireSymbols": true,
+          "TemporaryPasswordValidityDays": 7
+        },
+        "Schema": [
+          {
+            "Name": "email",
+            "AttributeDataType": "String",
+            "Required": true,
+            "Mutable": true
+          }
+        ],
+        "UserPoolTags": {
+          "Project": "VoteCapsule",
+          "ManagedBy": "CloudFormation"
+        }
+      },
+      "DeletionPolicy": "Retain"
+    },
+    "AdminPortalClient": {
+      "Type": "AWS::Cognito::UserPoolClient",
+      "Properties": {
+        "ClientName": "vote-capsule-admin-web",
+        "UserPoolId": { "Ref": "VoteCapsuleUserPool" },
+        "GenerateSecret": false,
+        "ExplicitAuthFlows": [
+          "ALLOW_USER_PASSWORD_AUTH",
+          "ALLOW_USER_SRP_AUTH",
+          "ALLOW_REFRESH_TOKEN_AUTH",
+          "ALLOW_CUSTOM_AUTH"
+        ],
+        "SupportedIdentityProviders": ["COGNITO"],
+        "CallbackURLs": [
+          "http://localhost:3000/callback",
+          "https://votecapsule.yna.co.ke/callback",
+          "https://admin.votecapsule.yna.co.ke/callback"
+        ],
+        "LogoutURLs": [
+          "http://localhost:3000/login",
+          "https://votecapsule.yna.co.ke/login"
+        ],
+        "AllowedOAuthFlows": ["code"],
+        "AllowedOAuthScopes": ["openid", "email", "profile"],
+        "AllowedOAuthFlowsUserPoolClient": true,
+        "PreventUserExistenceErrors": "ENABLED",
+        "AccessTokenValidity": 1,
+        "RefreshTokenValidity": 30,
+        "TokenValidityUnits": {
+          "AccessToken": "hours",
+          "RefreshToken": "days"
+        }
+      }
+    },
+    "MobileAppClient": {
+      "Type": "AWS::Cognito::UserPoolClient",
+      "Properties": {
+        "ClientName": "vote-capsule-mobile",
+        "UserPoolId": { "Ref": "VoteCapsuleUserPool" },
+        "GenerateSecret": false,
+        "ExplicitAuthFlows": [
+          "ALLOW_USER_PASSWORD_AUTH",
+          "ALLOW_USER_SRP_AUTH",
+          "ALLOW_REFRESH_TOKEN_AUTH"
+        ],
+        "PreventUserExistenceErrors": "ENABLED",
+        "AccessTokenValidity": 8,
+        "RefreshTokenValidity": 30,
+        "TokenValidityUnits": {
+          "AccessToken": "hours",
+          "RefreshToken": "days"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "UserPoolId": {
+      "Description": "Cognito User Pool ID",
+      "Value": { "Ref": "VoteCapsuleUserPool" },
+      "Export": { "Name": "VoteCapsule-UserPoolId" }
+    },
+    "UserPoolArn": {
+      "Description": "Cognito User Pool ARN",
+      "Value": { "Fn::GetAtt": ["VoteCapsuleUserPool", "Arn"] },
+      "Export": { "Name": "VoteCapsule-UserPoolArn" }
+    },
+    "AdminClientId": {
+      "Description": "Admin Portal App Client ID",
+      "Value": { "Ref": "AdminPortalClient" },
+      "Export": { "Name": "VoteCapsule-AdminClientId" }
+    },
+    "MobileClientId": {
+      "Description": "Mobile App Client ID",
+      "Value": { "Ref": "MobileAppClient" },
+      "Export": { "Name": "VoteCapsule-MobileClientId" }
+    }
+  }
+}

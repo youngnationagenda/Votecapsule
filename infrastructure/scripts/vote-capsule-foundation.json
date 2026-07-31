@@ -1,0 +1,200 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Vote Capsule Foundation Stack - IAM Roles, Log Groups, and Platform Foundations",
+  "Resources": {
+    "QldbOperationsLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/vote-capsule/qldb/trust-ledger",
+        "RetentionInDays": 731
+      }
+    },
+    "IdentityServiceLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/vote-capsule/services/identity",
+        "RetentionInDays": 90
+      }
+    },
+    "TenantServiceLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/vote-capsule/services/tenant",
+        "RetentionInDays": 90
+      }
+    },
+    "AdminPortalLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/vote-capsule/apps/admin-web",
+        "RetentionInDays": 30
+      }
+    },
+    "TrustServiceRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "vote-capsule-trust-service-role",
+        "Description": "IAM role for Vote Capsule Trust Service - future QLDB write access",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": { "Service": "ecs-tasks.amazonaws.com" },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "QldbTrustLedgerAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "QldbTrustLedgerWrite",
+                  "Effect": "Allow",
+                  "Action": [
+                    "qldb:SendCommand",
+                    "qldb:GetDigest",
+                    "qldb:GetRevision",
+                    "qldb:GetBlock",
+                    "qldb:ListJournalS3Exports"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:aws:qldb:${AWS::Region}:${AWS::AccountId}:ledger/vote-capsule-trust"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "ManagedBy", "Value": "CloudFormation" }
+        ]
+      }
+    },
+    "IdentityServiceRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "vote-capsule-identity-service-role",
+        "Description": "IAM role for Vote Capsule Identity Service",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": { "Service": "ecs-tasks.amazonaws.com" },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "CognitoAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Sid": "CognitoUserPoolAccess",
+                  "Effect": "Allow",
+                  "Action": [
+                    "cognito-idp:AdminCreateUser",
+                    "cognito-idp:AdminDeleteUser",
+                    "cognito-idp:AdminDisableUser",
+                    "cognito-idp:AdminEnableUser",
+                    "cognito-idp:AdminGetUser",
+                    "cognito-idp:AdminSetUserPassword",
+                    "cognito-idp:AdminUpdateUserAttributes",
+                    "cognito-idp:ListUsers"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/*"
+                  }
+                },
+                {
+                  "Sid": "SecretsManagerAccess",
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:GetSecretValue",
+                    "secretsmanager:DescribeSecret"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:vote-capsule/*"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Service", "Value": "identity" }
+        ]
+      }
+    },
+    "TenantServiceRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "vote-capsule-tenant-service-role",
+        "Description": "IAM role for Vote Capsule Tenant Service",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": { "Service": "ecs-tasks.amazonaws.com" },
+              "Action": "sts:AssumeRole"
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "SecretsAccess",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "secretsmanager:GetSecretValue",
+                    "secretsmanager:DescribeSecret"
+                  ],
+                  "Resource": {
+                    "Fn::Sub": "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:vote-capsule/*"
+                  }
+                }
+              ]
+            }
+          }
+        ],
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Service", "Value": "tenant" }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "TrustServiceRoleArn": {
+      "Description": "Trust Service IAM Role ARN (for future QLDB access)",
+      "Value": { "Fn::GetAtt": ["TrustServiceRole", "Arn"] },
+      "Export": { "Name": "VoteCapsule-TrustServiceRoleArn" }
+    },
+    "IdentityServiceRoleArn": {
+      "Description": "Identity Service IAM Role ARN",
+      "Value": { "Fn::GetAtt": ["IdentityServiceRole", "Arn"] },
+      "Export": { "Name": "VoteCapsule-IdentityServiceRoleArn" }
+    },
+    "TenantServiceRoleArn": {
+      "Description": "Tenant Service IAM Role ARN",
+      "Value": { "Fn::GetAtt": ["TenantServiceRole", "Arn"] },
+      "Export": { "Name": "VoteCapsule-TenantServiceRoleArn" }
+    },
+    "QldbLogGroupName": {
+      "Description": "CloudWatch Log Group for QLDB operations",
+      "Value": { "Ref": "QldbOperationsLogGroup" }
+    }
+  }
+}

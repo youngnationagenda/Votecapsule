@@ -1,0 +1,211 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Vote Capsule Compute Stack - ECS Fargate Cluster + ECR Repositories + ALB",
+  "Resources": {
+    "ECSCluster": {
+      "Type": "AWS::ECS::Cluster",
+      "Properties": {
+        "ClusterName": "vote-capsule-services",
+        "ClusterSettings": [
+          { "Name": "containerInsights", "Value": "enabled" }
+        ],
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" }
+        ]
+      }
+    },
+    "IdentityServiceRepo": {
+      "Type": "AWS::ECR::Repository",
+      "Properties": {
+        "RepositoryName": "vote-capsule/identity-service",
+        "ImageScanningConfiguration": { "ScanOnPush": true },
+        "LifecyclePolicy": {
+          "LifecyclePolicyText": "{\"rules\":[{\"rulePriority\":1,\"description\":\"Keep last 10 images\",\"selection\":{\"tagStatus\":\"any\",\"countType\":\"imageCountMoreThan\",\"countNumber\":10},\"action\":{\"type\":\"expire\"}}]}"
+        },
+        "Tags": [{ "Key": "Project", "Value": "VoteCapsule" }]
+      }
+    },
+    "TenantServiceRepo": {
+      "Type": "AWS::ECR::Repository",
+      "Properties": {
+        "RepositoryName": "vote-capsule/tenant-service",
+        "ImageScanningConfiguration": { "ScanOnPush": true },
+        "Tags": [{ "Key": "Project", "Value": "VoteCapsule" }]
+      }
+    },
+    "GeographyServiceRepo": {
+      "Type": "AWS::ECR::Repository",
+      "Properties": {
+        "RepositoryName": "vote-capsule/geography-service",
+        "ImageScanningConfiguration": { "ScanOnPush": true },
+        "Tags": [{ "Key": "Project", "Value": "VoteCapsule" }]
+      }
+    },
+    "TrustServiceRepo": {
+      "Type": "AWS::ECR::Repository",
+      "Properties": {
+        "RepositoryName": "vote-capsule/trust-service",
+        "ImageScanningConfiguration": { "ScanOnPush": true },
+        "Tags": [{ "Key": "Project", "Value": "VoteCapsule" }]
+      }
+    },
+    "EvidenceServiceRepo": {
+      "Type": "AWS::ECR::Repository",
+      "Properties": {
+        "RepositoryName": "vote-capsule/evidence-service",
+        "ImageScanningConfiguration": { "ScanOnPush": true },
+        "Tags": [{ "Key": "Project", "Value": "VoteCapsule" }]
+      }
+    },
+    "AIServiceRepo": {
+      "Type": "AWS::ECR::Repository",
+      "Properties": {
+        "RepositoryName": "vote-capsule/ai-service",
+        "ImageScanningConfiguration": { "ScanOnPush": true },
+        "Tags": [{ "Key": "Project", "Value": "VoteCapsule" }]
+      }
+    },
+    "WorkflowServiceRepo": {
+      "Type": "AWS::ECR::Repository",
+      "Properties": {
+        "RepositoryName": "vote-capsule/workflow-service",
+        "ImageScanningConfiguration": { "ScanOnPush": true },
+        "Tags": [{ "Key": "Project", "Value": "VoteCapsule" }]
+      }
+    },
+    "AdminWebRepo": {
+      "Type": "AWS::ECR::Repository",
+      "Properties": {
+        "RepositoryName": "vote-capsule/admin-web",
+        "Tags": [{ "Key": "Project", "Value": "VoteCapsule" }]
+      }
+    },
+    "ECSTaskExecutionRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "vote-capsule-ecs-task-execution-role",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [{
+            "Effect": "Allow",
+            "Principal": { "Service": "ecs-tasks.amazonaws.com" },
+            "Action": "sts:AssumeRole"
+          }]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+        ],
+        "Policies": [{
+          "PolicyName": "SecretsAndLogs",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Effect": "Allow",
+                "Action": ["secretsmanager:GetSecretValue"],
+                "Resource": { "Fn::Sub": "arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:vote-capsule/*" }
+              },
+              {
+                "Effect": "Allow",
+                "Action": ["logs:CreateLogStream","logs:PutLogEvents"],
+                "Resource": { "Fn::Sub": "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/vote-capsule/*:*" }
+              }
+            ]
+          }
+        }],
+        "Tags": [{ "Key": "Project", "Value": "VoteCapsule" }]
+      }
+    },
+    "ALBSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupName": "vote-capsule-alb-sg",
+        "GroupDescription": "Security group for Vote Capsule ALB",
+        "VpcId": "vpc-0ae6f8630af9fbfdc",
+        "SecurityGroupIngress": [
+          { "IpProtocol": "tcp", "FromPort": 80,  "ToPort": 80,  "CidrIp": "0.0.0.0/0" },
+          { "IpProtocol": "tcp", "FromPort": 443, "ToPort": 443, "CidrIp": "0.0.0.0/0" }
+        ],
+        "Tags": [{ "Key": "Name", "Value": "vote-capsule-alb-sg" }]
+      }
+    },
+    "ServicesALB": {
+      "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+      "Properties": {
+        "Name": "vote-capsule-services-alb",
+        "Type": "application",
+        "Scheme": "internet-facing",
+        "Subnets": [
+          "subnet-0aa1a58541c87ae2a",
+          "subnet-0171d821c5d5ae868",
+          "subnet-0be09dbd825b75c07"
+        ],
+        "SecurityGroups": [{ "Ref": "ALBSecurityGroup" }],
+        "Tags": [{ "Key": "Project", "Value": "VoteCapsule" }]
+      }
+    },
+    "DefaultTargetGroup": {
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+      "Properties": {
+        "Name": "vote-capsule-default-tg",
+        "Protocol": "HTTP",
+        "Port": 80,
+        "TargetType": "ip",
+        "VpcId": "vpc-0ae6f8630af9fbfdc",
+        "HealthCheckPath": "/api/v1/health",
+        "HealthCheckIntervalSeconds": 30,
+        "Tags": [{ "Key": "Project", "Value": "VoteCapsule" }]
+      }
+    },
+    "ALBListener": {
+      "Type": "AWS::ElasticLoadBalancingV2::Listener",
+      "Properties": {
+        "LoadBalancerArn": { "Ref": "ServicesALB" },
+        "Protocol": "HTTP",
+        "Port": 80,
+        "DefaultActions": [{
+          "Type": "fixed-response",
+          "FixedResponseConfig": {
+            "StatusCode": "200",
+            "MessageBody": "{\"service\":\"vote-capsule\",\"status\":\"healthy\"}",
+            "ContentType": "application/json"
+          }
+        }]
+      }
+    }
+  },
+  "Outputs": {
+    "ECSClusterArn": {
+      "Value": { "Fn::GetAtt": ["ECSCluster", "Arn"] },
+      "Export": { "Name": "VoteCapsule-ECSClusterArn" }
+    },
+    "ECSClusterName": {
+      "Value": { "Ref": "ECSCluster" },
+      "Export": { "Name": "VoteCapsule-ECSClusterName" }
+    },
+    "ALBArn": {
+      "Value": { "Ref": "ServicesALB" },
+      "Export": { "Name": "VoteCapsule-ALBArn" }
+    },
+    "ALBDnsName": {
+      "Value": { "Fn::GetAtt": ["ServicesALB", "DNSName"] },
+      "Export": { "Name": "VoteCapsule-ALBDnsName" }
+    },
+    "ALBListenerArn": {
+      "Value": { "Ref": "ALBListener" },
+      "Export": { "Name": "VoteCapsule-ALBListenerArn" }
+    },
+    "TaskExecutionRoleArn": {
+      "Value": { "Fn::GetAtt": ["ECSTaskExecutionRole", "Arn"] },
+      "Export": { "Name": "VoteCapsule-TaskExecutionRoleArn" }
+    },
+    "ECRIdentityRepo": {
+      "Value": { "Fn::GetAtt": ["IdentityServiceRepo", "RepositoryUri"] },
+      "Export": { "Name": "VoteCapsule-ECRIdentityRepo" }
+    },
+    "ECRGeographyRepo": {
+      "Value": { "Fn::GetAtt": ["GeographyServiceRepo", "RepositoryUri"] },
+      "Export": { "Name": "VoteCapsule-ECRGeographyRepo" }
+    }
+  }
+}

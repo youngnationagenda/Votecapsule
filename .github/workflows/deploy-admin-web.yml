@@ -1,0 +1,89 @@
+name: Deploy Admin Portal → votecapsule.yna.co.ke
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'apps/admin-web/**'
+      - 'packages/design-tokens/**'
+      - 'packages/types/**'
+
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - staging
+
+jobs:
+  deploy:
+    name: Build & Deploy Admin Portal
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # For AWS OIDC authentication
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm --filter @vote-capsule/admin-web typecheck
+
+      - name: Build Admin Portal
+        run: pnpm --filter @vote-capsule/admin-web build
+        env:
+          VITE_IDENTITY_API_URL: ${{ secrets.VITE_IDENTITY_API_URL }}
+          VITE_TENANT_API_URL: ${{ secrets.VITE_TENANT_API_URL }}
+          VITE_GEOGRAPHY_API_URL: ${{ secrets.VITE_GEOGRAPHY_API_URL }}
+          VITE_TRUST_API_URL: ${{ secrets.VITE_TRUST_API_URL }}
+          VITE_EVIDENCE_API_URL: ${{ secrets.VITE_EVIDENCE_API_URL }}
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Deploy to S3
+        run: |
+          aws s3 sync apps/admin-web/dist/ \
+            s3://${{ secrets.S3_PUBLIC_WEB_BUCKET }}/ \
+            --delete \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "index.html"
+          # index.html must never be cached
+          aws s3 cp apps/admin-web/dist/index.html \
+            s3://${{ secrets.S3_PUBLIC_WEB_BUCKET }}/index.html \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --content-type "text/html"
+
+      - name: Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+
+      - name: Deployment complete
+        run: |
+          echo "✅ Admin Portal deployed to https://votecapsule.yna.co.ke"
+          echo "   Distribution: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}"
+          echo "   Bucket: ${{ secrets.S3_PUBLIC_WEB_BUCKET }}"

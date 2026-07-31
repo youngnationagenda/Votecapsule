@@ -1,0 +1,79 @@
+/**
+ * Vote Capsule™ Super Admin Portal — App Root
+ *
+ * Handles routing for the complete platform admin interface.
+ * Route protection: all admin routes require PLATFORM_SUPER_ADMIN role.
+ */
+
+import React from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { AdminLayout } from './layouts/AdminLayout';
+import { LoginPage } from './pages/LoginPage';
+import { DashboardPage } from './pages/DashboardPage';
+import { TenantsPage } from './pages/TenantsPage';
+import { TenantDetailPage } from './pages/TenantDetailPage';
+import { TenantCreatePage } from './pages/TenantCreatePage';
+import { TenantMembersPage } from './pages/TenantMembersPage';
+import { TenantSubscriptionPage } from './pages/TenantSubscriptionPage';
+import { UsersPage } from './pages/UsersPage';
+import { UserDetailPage } from './pages/UserDetailPage';
+import { RolesPage } from './pages/RolesPage';
+import { TrustLedgerPage } from './pages/TrustLedgerPage';
+import { SecurityPage } from './pages/SecurityPage';
+import { AuditLogPage } from './pages/AuditLogPage';
+import { ConfigurationPage } from './pages/ConfigurationPage';
+import { SettingsPage } from './pages/SettingsPage';
+import { EvidencePage } from './pages/EvidencePage';
+import { ComingSoonPage } from './pages/ComingSoonPage';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { useAppSelector } from './store/hooks';
+
+export default function App(): React.JSX.Element {
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+
+  return (
+    <Routes>
+      {/* Public routes */}
+      <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
+
+      {/* Protected admin routes */}
+      <Route element={<ProtectedRoute />}>
+        <Route element={<AdminLayout />}>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<DashboardPage />} />
+
+          {/* Tenants */}
+          <Route path="/tenants" element={<TenantsPage />} />
+          <Route path="/tenants/new" element={<TenantCreatePage />} />
+          <Route path="/tenants/:id" element={<TenantDetailPage />} />
+          <Route path="/tenants/:id/members" element={<TenantMembersPage />} />
+          <Route path="/tenants/:id/subscription" element={<TenantSubscriptionPage />} />
+
+          {/* Users */}
+          <Route path="/users" element={<UsersPage />} />
+          <Route path="/users/:id" element={<UserDetailPage />} />
+
+          {/* Platform management */}
+          <Route path="/roles" element={<RolesPage />} />
+          <Route path="/trust-ledger" element={<TrustLedgerPage />} />
+          <Route path="/security" element={<SecurityPage />} />
+          <Route path="/audit" element={<AuditLogPage />} />
+          <Route path="/configuration" element={<ConfigurationPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+
+          {/* Evidence Capsules — now with real data from Evidence Service */}
+          <Route path="/evidence" element={<EvidencePage />} />
+
+          {/* Stub pages — Coming Soon */}
+          <Route path="/elections" element={<ComingSoonPage title="Elections" description="Election management will be available once the Election Service is deployed. This integrates with the NEC Agent workstream." />} />
+          <Route path="/ai-operations" element={<ComingSoonPage title="AI Operations" description="AI model status and monitoring. Available in Phase 4." />} />
+          <Route path="/billing" element={<ComingSoonPage title="Billing" description="Billing and subscription management. Available in Phase 7." />} />
+          <Route path="/support" element={<ComingSoonPage title="Support" description="Support ticket overview. Coming soon." />} />
+        </Route>
+      </Route>
+
+      {/* Catch-all */}
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
+  );
+}

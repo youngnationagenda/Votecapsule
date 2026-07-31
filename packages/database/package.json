@@ -1,0 +1,35 @@
+{
+  "name": "@vote-capsule/database",
+  "version": "1.0.0",
+  "description": "Vote Capsule™ Shared Database Utilities — Base entities, migrations runner, connection setup",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": ["dist", "migrations"],
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "dev": "tsc --project tsconfig.json --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist",
+    "db:migrate": "ts-node src/migrate.ts",
+    "db:seed": "ts-node src/seed.ts"
+  },
+  "dependencies": {
+    "pg": "^8.13.1",
+    "postgres": "^3.4.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "rimraf": "^6.0.1",
+    "@types/pg": "^8.11.10",
+    "ts-node": "^10.9.2"
+  },
+  "peerDependencies": {
+    "typescript": "^5.7.2"
+  }
+}

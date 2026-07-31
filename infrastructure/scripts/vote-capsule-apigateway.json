@@ -1,0 +1,130 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Vote Capsule API Gateway Stack - HTTP API v2 with Cognito JWT authorizer",
+  "Resources": {
+    "VoteCapsuleAPI": {
+      "Type": "AWS::ApiGatewayV2::Api",
+      "Properties": {
+        "Name": "vote-capsule-api",
+        "ProtocolType": "HTTP",
+        "Description": "Vote Capsule™ Platform API — all microservices under one gateway",
+        "CorsConfiguration": {
+          "AllowOrigins": [
+            "http://localhost:3000",
+            "https://votecapsule.yna.co.ke",
+            "https://admin.votecapsule.yna.co.ke"
+          ],
+          "AllowMethods": ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
+          "AllowHeaders": ["Content-Type","Authorization","X-Agent-User-Id","X-Device-Id","X-Validator-User-Id","X-Resolver-User-Id"],
+          "MaxAge": 86400
+        },
+        "Tags": {
+          "Project": "VoteCapsule",
+          "ManagedBy": "CloudFormation"
+        }
+      }
+    },
+    "CognitoAuthorizer": {
+      "Type": "AWS::ApiGatewayV2::Authorizer",
+      "Properties": {
+        "ApiId": { "Ref": "VoteCapsuleAPI" },
+        "AuthorizerType": "JWT",
+        "Name": "cognito-jwt-authorizer",
+        "IdentitySource": ["$request.header.Authorization"],
+        "JwtConfiguration": {
+          "Issuer": { "Fn::Sub": "https://cognito-idp.${AWS::Region}.amazonaws.com/us-east-1_i3N2tg34A" },
+          "Audience": ["3hi86ci06546ki038k6msmik0s"]
+        }
+      }
+    },
+    "ALBIntegration": {
+      "Type": "AWS::ApiGatewayV2::Integration",
+      "Properties": {
+        "ApiId": { "Ref": "VoteCapsuleAPI" },
+        "IntegrationType": "HTTP_PROXY",
+        "IntegrationUri": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com",
+        "IntegrationMethod": "ANY",
+        "PayloadFormatVersion": "1.0",
+        "ConnectionType": "INTERNET",
+        "RequestParameters": {
+          "overwrite:path": "$request.path"
+        }
+      }
+    },
+    "PublicRouteGeographyStats": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": { "Ref": "VoteCapsuleAPI" },
+        "RouteKey": "GET /api/v1/geography/stats",
+        "AuthorizationType": "NONE",
+        "Target": { "Fn::Sub": "integrations/${ALBIntegration}" }
+      }
+    },
+    "PublicRouteTrustVerify": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": { "Ref": "VoteCapsuleAPI" },
+        "RouteKey": "GET /api/v1/trust/verify/{capsuleId}",
+        "AuthorizationType": "NONE",
+        "Target": { "Fn::Sub": "integrations/${ALBIntegration}" }
+      }
+    },
+    "PublicRouteTrustVerifyHash": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": { "Ref": "VoteCapsuleAPI" },
+        "RouteKey": "GET /api/v1/trust/verify-hash/{sha256Hash}",
+        "AuthorizationType": "NONE",
+        "Target": { "Fn::Sub": "integrations/${ALBIntegration}" }
+      }
+    },
+    "AuthRoute": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": { "Ref": "VoteCapsuleAPI" },
+        "RouteKey": "ANY /api/v1/identity/auth/{proxy+}",
+        "AuthorizationType": "NONE",
+        "Target": { "Fn::Sub": "integrations/${ALBIntegration}" }
+      }
+    },
+    "ProtectedRoutes": {
+      "Type": "AWS::ApiGatewayV2::Route",
+      "Properties": {
+        "ApiId": { "Ref": "VoteCapsuleAPI" },
+        "RouteKey": "ANY /api/v1/{proxy+}",
+        "AuthorizationType": "JWT",
+        "AuthorizerId": { "Ref": "CognitoAuthorizer" },
+        "Target": { "Fn::Sub": "integrations/${ALBIntegration}" }
+      }
+    },
+    "APIStage": {
+      "Type": "AWS::ApiGatewayV2::Stage",
+      "Properties": {
+        "ApiId": { "Ref": "VoteCapsuleAPI" },
+        "StageName": "$default",
+        "AutoDeploy": true,
+        "DefaultRouteSettings": {
+          "ThrottlingBurstLimit": 500,
+          "ThrottlingRateLimit": 100
+        },
+        "Tags": {
+          "Project": "VoteCapsule"
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "APIGatewayId": {
+      "Value": { "Ref": "VoteCapsuleAPI" },
+      "Export": { "Name": "VoteCapsule-APIGatewayId" }
+    },
+    "APIGatewayEndpoint": {
+      "Value": { "Fn::Sub": "https://${VoteCapsuleAPI}.execute-api.${AWS::Region}.amazonaws.com" },
+      "Export": { "Name": "VoteCapsule-APIGatewayEndpoint" }
+    },
+    "CognitoAuthorizerId": {
+      "Value": { "Ref": "CognitoAuthorizer" },
+      "Export": { "Name": "VoteCapsule-CognitoAuthorizerId" }
+    }
+  }
+}
