@@ -16,7 +16,7 @@ export enum CustodyEventType {
   VALIDATION_APPROVED  = 'VALIDATION_APPROVED',
   VALIDATION_REJECTED  = 'VALIDATION_REJECTED',
   VALIDATION_ESCALATED = 'VALIDATION_ESCALATED',
-  QLDB_ANCHORED        = 'QLDB_ANCHORED',
+  TRUST_ANCHORED       = 'TRUST_ANCHORED',
   S3_LOCKED            = 'S3_LOCKED',
   PUBLISHED            = 'PUBLISHED',
   ARCHIVED             = 'ARCHIVED',
@@ -66,7 +66,7 @@ export class EvidenceChainOfCustody {
    * Event-specific context data.
    * Examples:
    *   HASH_VERIFIED:  { "hash": "abc123...", "match": true }
-   *   QLDB_ANCHORED:  { "qldb_id": "...", "sequence_no": "..." }
+   *   TRUST_ANCHORED: { "batchId": "...", "anchorStatus": "DUAL_ANCHORED" }
    *   AI_COMPLETED:   { "confidence": 0.94, "flagged": false }
    */
   @Column({ name: 'event_data', type: 'jsonb', nullable: true })

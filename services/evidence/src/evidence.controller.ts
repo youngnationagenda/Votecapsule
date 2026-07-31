@@ -16,7 +16,7 @@ import { EvidenceService }       from './evidence.service';
 import { SubmitCapsuleDto }      from './dto/submit-capsule.dto';
 import { SyncStatusDto }         from './dto/sync-status.dto';
 import { ValidateDecisionDto }   from './dto/validate-decision.dto';
-import { QldbAnchorDto }         from './dto/qldb-anchor.dto';
+import { AnchorCallbackDto }     from './dto/anchor-callback.dto';
 import { AiResultDto }           from './dto/ai-result.dto';
 import { CapsuleStatus }         from './entities/evidence-capsule.entity';
 
@@ -156,22 +156,21 @@ export class EvidenceController {
   // ── Trust anchoring (called by Trust Service) ────────────────
 
   /**
-   * PATCH /evidence/capsules/:id/qldb-anchor
-   * Called by the Trust Service after QLDB anchoring is complete.
+   * PATCH /evidence/capsules/:id/anchored
+   * Called by the Trust Service after dual-anchor confirmation
+   * (Hedera Consensus Service + RFC 3161 TSA).
    * Not exposed to web clients — internal service-to-service only.
-   *
-   * Trust ledger: Amazon QLDB ledger named "vote-capsule-trust"
    */
-  @Patch('capsules/:id/qldb-anchor')
+  @Patch('capsules/:id/anchored')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async recordQldbAnchor(
+  async recordAnchorCallback(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: QldbAnchorDto,
+    @Body() dto: AnchorCallbackDto,
   ) {
-    await this.evidenceService.recordQldbAnchor(
+    await this.evidenceService.recordAnchorCallback(
       id,
-      dto.qldbDocumentId,
-      dto.qldbSequenceNo,
+      dto.batchId,
+      dto.anchorStatus,
     );
   }
 

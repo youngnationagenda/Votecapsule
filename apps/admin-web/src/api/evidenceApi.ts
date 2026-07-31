@@ -42,8 +42,9 @@ export interface EvidenceCapsule {
   submittedAt: string | null;
   status: string;
   sha256Hash: string | null;
-  qldbDocumentId: string | null;
-  qldbAnchoredAt: string | null;
+  trustAnchorBatchId: string | null;
+  anchorStatus: string | null;
+  anchoredAt: string | null;
   aiConfidenceScore: number | null;
   aiFlagged: boolean;
   validatedBy: string | null;

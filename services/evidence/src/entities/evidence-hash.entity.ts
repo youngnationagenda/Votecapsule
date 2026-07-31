@@ -5,8 +5,8 @@ import {
 import { EvidenceCapsule } from './evidence-capsule.entity';
 
 /**
- * Stores the composite hash anchored to QLDB.
- * Formula: SHA-256(image_bytes + metadata_json + capture_timestamp)
+ * Stores the composite hash anchored via the Hybrid Anchor (Hedera + RFC 3161).
+ * Formula: SHA-256(imageSHA256 + sortedMetadataJSON + captureTimestamp)
  * Computed on device at capture time — works offline.
  * Server re-derives and compares before anchoring.
  */
@@ -54,15 +54,15 @@ export class EvidenceHash {
   @Column({ name: 'verification_match', nullable: true })
   verificationMatch: boolean | null;
 
-  /** Filled by Trust Service after QLDB anchoring */
-  @Column({ name: 'qldb_document_id', length: 255, nullable: true })
-  qldbDocumentId: string | null;
+  /** Filled by Trust Service after Merkle batch is dual-anchored */
+  @Column({ name: 'trust_anchor_batch_id', type: 'uuid', nullable: true })
+  trustAnchorBatchId: string | null;
 
-  @Column({ name: 'qldb_anchored_at', type: 'timestamptz', nullable: true })
-  qldbAnchoredAt: Date | null;
+  @Column({ name: 'anchored_at', type: 'timestamptz', nullable: true })
+  anchoredAt: Date | null;
 
-  @Column({ name: 'qldb_sequence_no', length: 100, nullable: true })
-  qldbSequenceNo: string | null;
+  @Column({ name: 'anchor_status', length: 30, nullable: true })
+  anchorStatus: string | null;   // PENDING | HEDERA_ONLY | TSA_ONLY | DUAL_ANCHORED | FAILED
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

@@ -148,11 +148,15 @@ export class EvidenceCapsule {
   @Column({ name: 'sha256_hash', type: 'char', length: 64, nullable: true })
   sha256Hash: string | null;
 
-  @Column({ name: 'qldb_document_id', length: 255, nullable: true })
-  qldbDocumentId: string | null;
+  @Column({ name: 'trust_anchor_batch_id', type: 'uuid', nullable: true })
+  trustAnchorBatchId: string | null;
 
-  @Column({ name: 'qldb_anchored_at', type: 'timestamptz', nullable: true })
-  qldbAnchoredAt: Date | null;
+  /** PENDING | HEDERA_ONLY | TSA_ONLY | DUAL_ANCHORED | FAILED */
+  @Column({ name: 'anchor_status', length: 30, nullable: true })
+  anchorStatus: string | null;
+
+  @Column({ name: 'anchored_at', type: 'timestamptz', nullable: true })
+  anchoredAt: Date | null;
 
   @Column({ name: 's3_object_key', length: 500, nullable: true })
   s3ObjectKey: string | null;

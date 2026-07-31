@@ -263,7 +263,8 @@ export function getEvidenceCapsuleStateMachineDefinition(): Record<string, unkno
           ApiEndpoint: '${EvidenceServiceUrl}/evidence/capsules/${$.capsuleId}/publish',
           Method: 'POST',
           RequestBody: {
-            'qldbDocumentId.$': '$.anchorResult.qldbDocumentId',
+            'trustAnchorBatchId.$': '$.anchorResult.batchId',
+            'anchorStatus.$':       '$.anchorResult.anchorStatus',
           },
         },
         ResultPath: '$.publishResult',

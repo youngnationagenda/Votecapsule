@@ -368,60 +368,72 @@ export class EvidenceService {
     });
 
     // TODO: Trust Service integration
-    // If APPROVED: await this.trustService.anchorToQldb(capsule.id)
+    // Trust Service queues capsule for Hybrid Anchor (Hedera + RFC 3161) after APPROVED
     this.logger.log(`Capsule ${capsuleId} ${decision} by validator ${validatorUserId}`);
 
     return this.getCapsule(capsuleId);
   }
 
-  // ── QLDB anchor (called by Trust Service) ────────────────
+  // ── Trust anchor callback (called by Trust Service) ─────
 
   /**
-   * Trust Service calls this after successfully anchoring to QLDB.
-   * This completes the trust anchoring step.
+   * Trust Service calls this after a Merkle batch has been dual-anchored
+   * to both Hedera Consensus Service (testnet) and RFC 3161 TSA.
    *
-   * TODO: Wire to Trust Service when services/trust/ is built.
    * Trust Service integration contract:
-   *   POST /trust/anchor  { capsuleId, sha256Hash, metadata }
-   *   → returns { qldbDocumentId, qldbSequenceNo, anchoredAt }
+   *   PATCH /evidence/capsules/:id/anchored
+   *   Body: { batchId: string, anchorStatus: AnchorCallbackStatus }
+   *
+   * Status transitions:
+   *   APPROVED → ANCHORED   (when anchorStatus is DUAL_ANCHORED)
+   *   APPROVED → ANCHORED   (when anchorStatus is HEDERA_ONLY or TSA_ONLY — partial; still advance)
+   *   Any other status is logged and ignored gracefully.
    */
-  async recordQldbAnchor(
-    capsuleId: string,
-    qldbDocumentId: string,
-    qldbSequenceNo: string,
+  async recordAnchorCallback(
+    capsuleId:    string,
+    batchId:      string,
+    anchorStatus: string,
   ): Promise<void> {
     const c = await this.getCapsule(capsuleId);
     if (c.status !== CapsuleStatus.APPROVED) {
-      throw new BadRequestException(
-        `Cannot anchor capsule in status ${c.status}. Must be APPROVED.`
+      this.logger.warn(
+        `Trust anchor callback for capsule ${capsuleId} in unexpected status ${c.status} — ignoring.`
       );
+      return;
     }
 
+    const now = new Date();
+
     await this.dataSource.transaction(async (manager) => {
+      // Advance capsule to ANCHORED and store batch reference
       await manager.update(EvidenceCapsule, c.id, {
-        status:        CapsuleStatus.ANCHORED,
-        qldbDocumentId,
-        qldbAnchoredAt: new Date(),
+        status:            CapsuleStatus.ANCHORED,
+        trustAnchorBatchId: batchId,
+        anchorStatus,
+        anchoredAt:        now,
       });
 
-      // Update the hash record too
-      await manager.update(EvidenceHash,
+      // Update the composite hash record with batch linkage
+      await manager.update(
+        EvidenceHash,
         { capsuleId: c.id, hashType: 'CAPSULE_COMPOSITE' },
-        { qldbDocumentId, qldbAnchoredAt: new Date(), qldbSequenceNo }
+        { trustAnchorBatchId: batchId, anchorStatus, anchoredAt: now },
       );
 
       await this.addCustodyEvent(manager, c.id, {
-        eventType:     CustodyEventType.QLDB_ANCHORED,
+        eventType:      CustodyEventType.TRUST_ANCHORED,
         previousStatus: CapsuleStatus.APPROVED,
-        newStatus:     CapsuleStatus.ANCHORED,
-        actorService:  'trust-service',
-        eventData:     { qldbDocumentId, qldbSequenceNo },
+        newStatus:      CapsuleStatus.ANCHORED,
+        actorService:   'trust-service',
+        eventData:      { batchId, anchorStatus },
       });
     });
 
-    // Apply S3 Object Lock now that evidence is anchored
+    // Apply S3 Object Lock now that evidence is immutably anchored
     await this.applyS3ObjectLock(c.s3ObjectKey!);
-    this.logger.log(`Capsule ${capsuleId} anchored to QLDB: ${qldbDocumentId}`);
+    this.logger.log(
+      `Capsule ${capsuleId} trust-anchored: batch=${batchId} status=${anchorStatus}`,
+    );
   }
 
   // ── AI result callback ────────────────────────────────────
@@ -571,7 +583,7 @@ export class EvidenceService {
   }
 
   private async applyS3ObjectLock(s3Key: string): Promise<void> {
-    // TODO: Apply WORM Object Lock after QLDB anchoring
+    // TODO: Apply WORM Object Lock after trust anchoring (called from recordAnchorCallback)
     // This requires the bucket to have Object Lock enabled (set in CDK)
     // await this.s3.send(new PutObjectRetentionCommand({ ... }));
     this.logger.log(`TODO: Apply S3 Object Lock to ${s3Key}`);

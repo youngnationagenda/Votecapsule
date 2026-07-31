@@ -28,29 +28,49 @@ export interface VerificationResult {
   sha256Hash: string;
   found: boolean;
   hashMatch: boolean;
+  verified: boolean;
   anchoredAt: string | null;
-  qldbDocumentId: string | null;
-  qldbConfirmed: boolean;
+  hedera: {
+    transactionId: string | null;
+    consensusTimestamp: string | null;
+    topicId: string | null;
+    explorerUrl: string | null;
+    network: string;
+  } | null;
+  rfc3161: {
+    signingTime: string | null;
+    tsaUrl: string | null;
+    tokenPresent: boolean;
+  } | null;
+  merkleProof: string[] | null;
   verifiedAt: string;
 }
 
-export interface LedgerDigest {
-  ledger: string;
-  digest: string | null;
-  at: string;
+export interface TrustAnchorBatch {
+  id: string;
+  merkleRoot: string;
+  leafCount: number;
+  treeDepth: number;
+  hederaTransactionId: string | null;
+  hederaConsensusTimestamp: string | null;
+  hederaTopicId: string | null;
+  hederaExplorerUrl: string | null;
+  hederaNetwork: string;
+  rfc3161SigningTime: string | null;
+  rfc3161TsaUrl: string | null;
+  status: string;
+  batchedAt: string;
+  anchoredAt: string | null;
 }
 
-export interface TrustAnchor {
+export interface TrustAnchorLeaf {
   id: string;
   capsuleId: string;
   sha256Hash: string;
-  qldbDocumentId: string;
-  qldbAnchoredAt: string;
-  qldbDigest: string | null;
-  status: string;
-  verificationCount: number;
-  lastVerifiedAt: string | null;
-  createdAt: string;
+  batchId: string;
+  leafIndex: number;
+  merkleProof: string[];
+  anchoredAt: string;
 }
 
 export const trustApi = {
