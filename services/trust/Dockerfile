@@ -1,8 +1,8 @@
-# Vote Capsule™ — Trust Service
+# Vote Capsule™ — Trust Service (ECR Public mirror)
 ARG SERVICE_PORT=3003
 ARG GIT_SHA=local
 
-FROM node:20-alpine AS builder
+FROM public.ecr.aws/docker/library/node:20-alpine AS builder
 WORKDIR /app
 RUN npm install -g pnpm@9 --silent
 COPY package.json pnpm-workspace.yaml tsconfig.base.json turbo.json ./
@@ -13,7 +13,7 @@ RUN pnpm --filter @vote-capsule/types build 2>/dev/null || true
 RUN pnpm --filter @vote-capsule/database build 2>/dev/null || true
 RUN pnpm --filter @vote-capsule/trust-service build
 
-FROM node:20-alpine AS runner
+FROM public.ecr.aws/docker/library/node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ARG SERVICE_PORT
