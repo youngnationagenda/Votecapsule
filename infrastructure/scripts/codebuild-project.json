@@ -1,0 +1,50 @@
+{
+  "name": "vote-capsule-docker-build",
+  "description": "Build and push all VoteCapsule Docker images to ECR",
+  "source": {
+    "type": "GITHUB",
+    "location": "https://github.com/youngnationagenda/Votecapsule.git",
+    "buildspec": "buildspec.yml",
+    "gitCloneDepth": 1,
+    "reportBuildStatus": true
+  },
+  "artifacts": {
+    "type": "NO_ARTIFACTS"
+  },
+  "environment": {
+    "type": "LINUX_CONTAINER",
+    "image": "aws/codebuild/standard:7.0",
+    "computeType": "BUILD_GENERAL1_LARGE",
+    "privilegedMode": true,
+    "environmentVariables": [
+      {
+        "name": "AWS_REGION",
+        "value": "us-east-1",
+        "type": "PLAINTEXT"
+      },
+      {
+        "name": "ECR_REGISTRY",
+        "value": "683541453923.dkr.ecr.us-east-1.amazonaws.com",
+        "type": "PLAINTEXT"
+      },
+      {
+        "name": "AWS_ACCOUNT_ID",
+        "value": "683541453923",
+        "type": "PLAINTEXT"
+      }
+    ]
+  },
+  "serviceRole": "arn:aws:iam::683541453923:role/vote-capsule-codebuild-role",
+  "timeoutInMinutes": 60,
+  "queuedTimeoutInMinutes": 60,
+  "logsConfig": {
+    "cloudWatchLogs": {
+      "status": "ENABLED",
+      "groupName": "/aws/codebuild/vote-capsule-docker-build"
+    }
+  },
+  "tags": [
+    { "key": "Project", "value": "VoteCapsule" },
+    { "key": "ManagedBy", "value": "Sonie" }
+  ]
+}

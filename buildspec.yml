@@ -1,0 +1,153 @@
+version: 0.2
+
+# VoteCapsule — AWS CodeBuild Buildspec
+# Builds all 7 service Docker images and pushes to ECR
+# Triggered manually or via GitHub Actions webhook
+
+env:
+  variables:
+    AWS_REGION: "us-east-1"
+    ECR_REGISTRY: "683541453923.dkr.ecr.us-east-1.amazonaws.com"
+    AWS_ACCOUNT_ID: "683541453923"
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 20
+    commands:
+      - echo "=== VoteCapsule Docker Build Pipeline ==="
+      - echo "Build ID: $CODEBUILD_BUILD_ID"
+      - echo "Source commit: $CODEBUILD_RESOLVED_SOURCE_VERSION"
+      - docker --version
+      - aws --version
+
+  pre_build:
+    commands:
+      - echo "=== Authenticating with ECR ==="
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+      - export SHORT_SHA=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-8)
+      - echo "Short SHA = $SHORT_SHA"
+      - echo "=== ECR login successful ==="
+
+  build:
+    commands:
+      # ── Identity Service ──────────────────────────────────────────────
+      - echo "--- Building identity-service ---"
+      - docker build
+          --build-arg SERVICE_PORT=3001
+          --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION
+          -t $ECR_REGISTRY/vote-capsule/identity-service:$SHORT_SHA
+          -t $ECR_REGISTRY/vote-capsule/identity-service:latest
+          -f services/identity/Dockerfile .
+      - docker push $ECR_REGISTRY/vote-capsule/identity-service:$SHORT_SHA
+      - docker push $ECR_REGISTRY/vote-capsule/identity-service:latest
+      - echo "✅ identity-service pushed"
+
+      # ── Tenant Service ────────────────────────────────────────────────
+      - echo "--- Building tenant-service ---"
+      - docker build
+          --build-arg SERVICE_PORT=3002
+          --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION
+          -t $ECR_REGISTRY/vote-capsule/tenant-service:$SHORT_SHA
+          -t $ECR_REGISTRY/vote-capsule/tenant-service:latest
+          -f services/tenant/Dockerfile .
+      - docker push $ECR_REGISTRY/vote-capsule/tenant-service:$SHORT_SHA
+      - docker push $ECR_REGISTRY/vote-capsule/tenant-service:latest
+      - echo "✅ tenant-service pushed"
+
+      # ── Trust Service ─────────────────────────────────────────────────
+      - echo "--- Building trust-service ---"
+      - docker build
+          --build-arg SERVICE_PORT=3003
+          --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION
+          -t $ECR_REGISTRY/vote-capsule/trust-service:$SHORT_SHA
+          -t $ECR_REGISTRY/vote-capsule/trust-service:latest
+          -f services/trust/Dockerfile .
+      - docker push $ECR_REGISTRY/vote-capsule/trust-service:$SHORT_SHA
+      - docker push $ECR_REGISTRY/vote-capsule/trust-service:latest
+      - echo "✅ trust-service pushed"
+
+      # ── Geography Service ─────────────────────────────────────────────
+      - echo "--- Building geography-service ---"
+      - docker build
+          --build-arg SERVICE_PORT=3004
+          --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION
+          -t $ECR_REGISTRY/vote-capsule/geography-service:$SHORT_SHA
+          -t $ECR_REGISTRY/vote-capsule/geography-service:latest
+          -f services/geography/Dockerfile .
+      - docker push $ECR_REGISTRY/vote-capsule/geography-service:$SHORT_SHA
+      - docker push $ECR_REGISTRY/vote-capsule/geography-service:latest
+      - echo "✅ geography-service pushed"
+
+      # ── Evidence Service ──────────────────────────────────────────────
+      - echo "--- Building evidence-service ---"
+      - docker build
+          --build-arg SERVICE_PORT=3005
+          --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION
+          -t $ECR_REGISTRY/vote-capsule/evidence-service:$SHORT_SHA
+          -t $ECR_REGISTRY/vote-capsule/evidence-service:latest
+          -f services/evidence/Dockerfile .
+      - docker push $ECR_REGISTRY/vote-capsule/evidence-service:$SHORT_SHA
+      - docker push $ECR_REGISTRY/vote-capsule/evidence-service:latest
+      - echo "✅ evidence-service pushed"
+
+      # ── AI Service ────────────────────────────────────────────────────
+      - echo "--- Building ai-service ---"
+      - docker build
+          --build-arg SERVICE_PORT=3006
+          --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION
+          -t $ECR_REGISTRY/vote-capsule/ai-service:$SHORT_SHA
+          -t $ECR_REGISTRY/vote-capsule/ai-service:latest
+          -f services/ai/Dockerfile .
+      - docker push $ECR_REGISTRY/vote-capsule/ai-service:$SHORT_SHA
+      - docker push $ECR_REGISTRY/vote-capsule/ai-service:latest
+      - echo "✅ ai-service pushed"
+
+      # ── Workflow Service ──────────────────────────────────────────────
+      - echo "--- Building workflow-service ---"
+      - docker build
+          --build-arg SERVICE_PORT=3007
+          --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION
+          -t $ECR_REGISTRY/vote-capsule/workflow-service:$SHORT_SHA
+          -t $ECR_REGISTRY/vote-capsule/workflow-service:latest
+          -f services/workflow/Dockerfile .
+      - docker push $ECR_REGISTRY/vote-capsule/workflow-service:$SHORT_SHA
+      - docker push $ECR_REGISTRY/vote-capsule/workflow-service:latest
+      - echo "✅ workflow-service pushed"
+
+      # ── Admin Web ─────────────────────────────────────────────────────
+      - echo "--- Building admin-web ---"
+      - docker build
+          --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION
+          -t $ECR_REGISTRY/vote-capsule/admin-web:$SHORT_SHA
+          -t $ECR_REGISTRY/vote-capsule/admin-web:latest
+          -f apps/admin-web/Dockerfile .
+      - docker push $ECR_REGISTRY/vote-capsule/admin-web:$SHORT_SHA
+      - docker push $ECR_REGISTRY/vote-capsule/admin-web:latest
+      - echo "✅ admin-web pushed"
+
+  post_build:
+    commands:
+      - echo "=== All images pushed successfully ==="
+      - echo "SHORT_SHA=$SHORT_SHA"
+      - |
+        for REPO in identity-service tenant-service trust-service geography-service evidence-service ai-service workflow-service admin-web; do
+          echo "--- $REPO ---"
+          aws ecr describe-images \
+            --repository-name vote-capsule/$REPO \
+            --image-ids imageTag=latest \
+            --region $AWS_REGION \
+            --query 'imageDetails[0].{Digest:imageDigest,PushedAt:imagePushedAt}' \
+            --output table 2>/dev/null || echo "No image yet for $REPO"
+        done
+      - echo "=== VoteCapsule build complete ==="
+
+artifacts:
+  files:
+    - buildspec.yml
+  discard-paths: yes
+
+cache:
+  paths:
+    - '/root/.npm/**/*'
+    - '/root/.pnpm-store/**/*'
