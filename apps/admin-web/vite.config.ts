@@ -49,9 +49,15 @@ export default defineConfig({
       },
     },
   },
+  optimizeDeps: {
+    include: ['@vote-capsule/types'],
+  },
   build: {
     outDir: 'dist',
     sourcemap: true,
+    commonjsOptions: {
+      include: [/vote-capsule\/types/, /node_modules/],
+    },
     rollupOptions: {
       output: {
         manualChunks: {
