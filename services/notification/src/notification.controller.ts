@@ -139,12 +139,12 @@ export class NotificationController {
     switch (detailType) {
       case 'ESCALATION_CREATED':
         await this.notificationService.handleEscalationCreated(
-          envelope.detail as EscalationCreatedDetail,
+          envelope.detail as unknown as EscalationCreatedDetail,
         );
         break;
       case 'WORKFLOW_COMPLETED':
         await this.notificationService.handleWorkflowCompleted(
-          envelope.detail as WorkflowCompletedDetail,
+          envelope.detail as unknown as WorkflowCompletedDetail,
         );
         break;
       default:
