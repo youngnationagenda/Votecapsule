@@ -15,7 +15,7 @@ COPY packages/ ./packages/
 COPY apps/admin-web/ ./apps/admin-web/
 
 # Install dependencies
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # Build shared packages first (types must be built before Vite resolves them)
 RUN pnpm --filter @vote-capsule/types build 2>/dev/null || true

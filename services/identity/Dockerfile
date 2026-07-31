@@ -9,7 +9,7 @@ RUN npm install -g pnpm@9 --silent
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json turbo.json ./
 COPY packages/ ./packages/
 COPY services/identity/ ./services/identity/
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @vote-capsule/types build 2>/dev/null || true
 RUN pnpm --filter @vote-capsule/database build 2>/dev/null || true
 RUN pnpm --filter @vote-capsule/identity-service build
