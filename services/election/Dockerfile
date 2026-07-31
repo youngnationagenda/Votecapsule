@@ -11,6 +11,7 @@ COPY services/election/ ./services/election/
 RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @vote-capsule/types build 2>/dev/null || true
 RUN pnpm --filter @vote-capsule/election-service build
+RUN pnpm --filter @vote-capsule/election-service deploy --prod /app/deploy/election
 
 FROM public.ecr.aws/docker/library/node:20-alpine AS runner
 WORKDIR /app
@@ -19,10 +20,7 @@ ARG SERVICE_PORT
 ARG GIT_SHA
 ENV PORT=$SERVICE_PORT
 ENV GIT_SHA=$GIT_SHA
-# Copy root hoisted node_modules (pnpm workspace deps)
-COPY --from=builder /app/node_modules ./node_modules
-# Copy service-level node_modules (service-specific deps not hoisted)
-COPY --from=builder /app/services/election/node_modules ./node_modules
+COPY --from=builder /app/deploy/election/node_modules ./node_modules
 COPY --from=builder /app/services/election/dist ./dist
 COPY --from=builder /app/services/election/package.json ./package.json
 COPY --from=builder /app/packages ./packages
