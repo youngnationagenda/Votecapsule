@@ -35,6 +35,7 @@
     "crypto": "^1.0.1",
     "uuid": "^11.0.3",
     "aws-sdk": "^2.1692.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.750.0",
     "helmet": "^8.0.0",
     "compression": "^1.7.4",
     "@vote-capsule/types": "workspace:*",
@@ -51,6 +52,7 @@
     "@types/node": "^22.10.2",
     "typescript": "^5.7.2",
     "rimraf": "^6.0.1",
+    "@types/pg": "^8.11.10",
     "vitest": "^2.1.8",
     "@vitest/coverage-v8": "^2.1.8"
   }
