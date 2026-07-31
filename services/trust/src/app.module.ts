@@ -27,7 +27,7 @@ import { TrustVerification } from './entities/trust-verification.entity';
         entities:    [TrustAnchor, TrustVerification],
         synchronize: false,
         ssl:         config.get('DB_SSL') === 'true'
-                       ? { rejectUnauthorized: true }
+                       ? { rejectUnauthorized: false }
                        : false,
         extra: {
           max: parseInt(config.get('DB_POOL_MAX', '10'), 10),

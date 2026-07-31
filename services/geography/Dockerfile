@@ -25,6 +25,8 @@ COPY --from=builder /app/deploy/geography/node_modules ./node_modules
 COPY --from=builder /app/services/geography/dist ./dist
 COPY --from=builder /app/services/geography/package.json ./package.json
 COPY --from=builder /app/packages ./packages
+COPY --from=builder /app/packages/types/dist ./node_modules/@vote-capsule/types/dist
+COPY --from=builder /app/packages/database/dist ./node_modules/@vote-capsule/database/dist
 EXPOSE $SERVICE_PORT
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
   CMD wget -qO- http://localhost:$SERVICE_PORT/health || exit 1

@@ -16,7 +16,7 @@ export const DATABASE_POOL = 'DATABASE_POOL';
           database: config.getOrThrow<string>('DB_NAME'),
           user: config.getOrThrow<string>('DB_USER'),
           password: config.getOrThrow<string>('DB_PASSWORD'),
-          ssl: config.get<string>('DB_SSL') === 'true' ? { rejectUnauthorized: true } : undefined,
+          ssl: config.get<string>('DB_SSL') === 'true' ? { rejectUnauthorized: false } : undefined,
           min: 2,
           max: 10,
           connectionTimeoutMillis: 30000,

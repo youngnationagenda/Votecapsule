@@ -39,7 +39,7 @@ import { ElectionVersion }     from './entities/election-version.entity';
         // Migrations are managed via packages/database/migrations/nec/
         synchronize: false,
         ssl: config.get<string>('DB_SSL') === 'true'
-          ? { rejectUnauthorized: true }
+          ? { rejectUnauthorized: false }
           : false,
         extra: {
           max: parseInt(config.get<string>('DB_POOL_MAX', '10'), 10),

@@ -30,7 +30,7 @@ import { EvidenceChainOfCustody }    from './entities/evidence-chain-of-custody.
         // Migrations managed separately via migration SQL files
         synchronize: false,
         ssl:         config.get('DB_SSL') === 'true'
-                       ? { rejectUnauthorized: true }
+                       ? { rejectUnauthorized: false }
                        : false,
         // Connection pool — sized for Lambda / ECS
         extra: {

@@ -23,7 +23,7 @@ export const DATABASE_POOL = 'DATABASE_POOL';
           user: configService.getOrThrow<string>('DB_USER'),
           password: configService.getOrThrow<string>('DB_PASSWORD'),
           ssl: configService.get<string>('DB_SSL') === 'true'
-            ? { rejectUnauthorized: true }
+            ? { rejectUnauthorized: false }
             : undefined,
           min: configService.get<number>('DB_POOL_MIN', 2),
           max: configService.get<number>('DB_POOL_MAX', 10),
