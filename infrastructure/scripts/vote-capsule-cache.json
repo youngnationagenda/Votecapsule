@@ -1,0 +1,79 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "VoteCapsule ElastiCache Redis 7 for session caching and evidence sync queue state",
+
+  "Resources": {
+
+    "VoteCapsuleRedisSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupName": "vote-capsule-redis-sg",
+        "GroupDescription": "Allow Redis 6379 from within VPC",
+        "VpcId": "vpc-0ae6f8630af9fbfdc",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 6379,
+            "ToPort": 6379,
+            "CidrIp": "172.31.0.0/16",
+            "Description": "Redis from VPC"
+          }
+        ],
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "ManagedBy", "Value": "Sonie" }
+        ]
+      }
+    },
+
+    "VoteCapsuleRedisSubnetGroup": {
+      "Type": "AWS::ElastiCache::SubnetGroup",
+      "Properties": {
+        "CacheSubnetGroupName": "vote-capsule-redis-subnet-group",
+        "Description": "VoteCapsule Redis subnet group default VPC subnets",
+        "SubnetIds": [
+          "subnet-0aa1a58541c87ae2a",
+          "subnet-0171d821c5d5ae868",
+          "subnet-0be09dbd825b75c07",
+          "subnet-09604eb63697ac228"
+        ]
+      }
+    },
+
+    "VoteCapsuleRedisCluster": {
+      "Type": "AWS::ElastiCache::ReplicationGroup",
+      "Properties": {
+        "ReplicationGroupId": "vote-capsule-redis",
+        "ReplicationGroupDescription": "VoteCapsule Redis 7 for sessions and sync state",
+        "Engine": "redis",
+        "EngineVersion": "7.1",
+        "CacheNodeType": "cache.t3.micro",
+        "NumCacheClusters": 1,
+        "AutomaticFailoverEnabled": false,
+        "AtRestEncryptionEnabled": true,
+        "TransitEncryptionEnabled": false,
+        "CacheSubnetGroupName": { "Ref": "VoteCapsuleRedisSubnetGroup" },
+        "SecurityGroupIds": [
+          { "Fn::GetAtt": ["VoteCapsuleRedisSecurityGroup", "GroupId"] }
+        ],
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "ManagedBy", "Value": "Sonie" }
+        ]
+      }
+    }
+  },
+
+  "Outputs": {
+    "RedisPrimaryEndpoint": {
+      "Description": "Redis primary endpoint (use for REDIS_HOST)",
+      "Value": { "Fn::GetAtt": ["VoteCapsuleRedisCluster", "PrimaryEndPoint.Address"] },
+      "Export": { "Name": "VoteCapsule-RedisPrimaryEndpoint" }
+    },
+    "RedisPort": {
+      "Description": "Redis port (always 6379)",
+      "Value": { "Fn::GetAtt": ["VoteCapsuleRedisCluster", "PrimaryEndPoint.Port"] },
+      "Export": { "Name": "VoteCapsule-RedisPort" }
+    }
+  }
+}

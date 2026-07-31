@@ -60,6 +60,22 @@ jobs:
             dir: services/workflow
             repo: vote-capsule/workflow-service
             port: 3007
+          - name: notification
+            dir: services/notification
+            repo: vote-capsule/notification-service
+            port: 3008
+          - name: candidate
+            dir: services/candidate
+            repo: vote-capsule/candidate-service
+            port: 3009
+          - name: reporting
+            dir: services/reporting
+            repo: vote-capsule/reporting-service
+            port: 3010
+          - name: election
+            dir: services/election
+            repo: vote-capsule/election-service
+            port: 3011
 
     steps:
       - name: Skip if specific service requested and this is not it

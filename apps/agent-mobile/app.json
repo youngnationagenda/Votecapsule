@@ -1,0 +1,63 @@
+{
+  "expo": {
+    "name": "VoteCapsule Agent",
+    "slug": "votecapsule-agent",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a1628"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "ke.co.votecapsule.agent",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "VoteCapsule requires camera access to photograph election result forms.",
+        "NSLocationWhenInUseUsageDescription": "VoteCapsule attaches GPS coordinates to evidence submissions for geolocation verification.",
+        "NSPhotoLibraryAddUsageDescription": "VoteCapsule may save captured evidence to your photo library."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0a1628"
+      },
+      "package": "ke.co.votecapsule.agent",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        { "cameraPermission": "VoteCapsule requires camera access to photograph election result forms." }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "VoteCapsule attaches GPS coordinates to evidence submissions.",
+          "locationWhenInUsePermission": "VoteCapsule attaches GPS coordinates to evidence submissions."
+        }
+      ]
+    ],
+    "extra": {
+      "apiGatewayUrl":    "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
+      "cognitoDomain":    "https://vote-capsule.auth.us-east-1.amazoncognito.com",
+      "cognitoClientId":  "5qv2glumv6kd2652hqdrs6ufp",
+      "electionServiceUrl": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com"
+    }
+  }
+}

@@ -1,7 +1,7 @@
 version: 0.2
 
 # VoteCapsule — AWS CodeBuild Buildspec
-# Builds all 8 Docker images (7 services + admin-web) and pushes to ECR
+# Builds all 12 Docker images (11 services + admin-web) and pushes to ECR
 
 env:
   variables:
@@ -71,6 +71,30 @@ phases:
       - docker push $ECR_REGISTRY/vote-capsule/workflow-service:latest
       - echo "DONE workflow-service"
 
+      - echo "--- Building notification-service (port 3008) ---"
+      - docker build --build-arg SERVICE_PORT=3008 --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION -t $ECR_REGISTRY/vote-capsule/notification-service:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/notification-service:latest -f services/notification/Dockerfile .
+      - docker push $ECR_REGISTRY/vote-capsule/notification-service:$SHORT_SHA
+      - docker push $ECR_REGISTRY/vote-capsule/notification-service:latest
+      - echo "DONE notification-service"
+
+      - echo "--- Building candidate-service (port 3009) ---"
+      - docker build --build-arg SERVICE_PORT=3009 --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION -t $ECR_REGISTRY/vote-capsule/candidate-service:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/candidate-service:latest -f services/candidate/Dockerfile .
+      - docker push $ECR_REGISTRY/vote-capsule/candidate-service:$SHORT_SHA
+      - docker push $ECR_REGISTRY/vote-capsule/candidate-service:latest
+      - echo "DONE candidate-service"
+
+      - echo "--- Building reporting-service (port 3010) ---"
+      - docker build --build-arg SERVICE_PORT=3010 --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION -t $ECR_REGISTRY/vote-capsule/reporting-service:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/reporting-service:latest -f services/reporting/Dockerfile .
+      - docker push $ECR_REGISTRY/vote-capsule/reporting-service:$SHORT_SHA
+      - docker push $ECR_REGISTRY/vote-capsule/reporting-service:latest
+      - echo "DONE reporting-service"
+
+      - echo "--- Building election-service (port 3011) ---"
+      - docker build --build-arg SERVICE_PORT=3011 --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION -t $ECR_REGISTRY/vote-capsule/election-service:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/election-service:latest -f services/election/Dockerfile .
+      - docker push $ECR_REGISTRY/vote-capsule/election-service:$SHORT_SHA
+      - docker push $ECR_REGISTRY/vote-capsule/election-service:latest
+      - echo "DONE election-service"
+
       - echo "--- Building admin-web ---"
       - docker build --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION -t $ECR_REGISTRY/vote-capsule/admin-web:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/admin-web:latest -f apps/admin-web/Dockerfile .
       - docker push $ECR_REGISTRY/vote-capsule/admin-web:$SHORT_SHA
@@ -79,9 +103,10 @@ phases:
 
   post_build:
     commands:
-      - echo "=== All 8 images pushed to ECR ==="
+      - echo "=== All 12 images pushed to ECR ==="
       - echo "SHORT_SHA=$SHORT_SHA"
       - echo "--- ECR image summary ---"
       - aws ecr describe-images --repository-name vote-capsule/identity-service --image-ids imageTag=latest --region $AWS_REGION --query "imageDetails[0].{Digest:imageDigest,PushedAt:imagePushedAt}" --output table 2>/dev/null || echo "identity-service not yet available"
       - aws ecr describe-images --repository-name vote-capsule/geography-service --image-ids imageTag=latest --region $AWS_REGION --query "imageDetails[0].{Digest:imageDigest,PushedAt:imagePushedAt}" --output table 2>/dev/null || echo "geography-service not yet available"
+      - aws ecr describe-images --repository-name vote-capsule/election-service --image-ids imageTag=latest --region $AWS_REGION --query "imageDetails[0].{Digest:imageDigest,PushedAt:imagePushedAt}" --output table 2>/dev/null || echo "election-service not yet available"
       - echo "=== VoteCapsule build pipeline complete ==="
