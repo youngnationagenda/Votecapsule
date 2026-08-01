@@ -1,7 +1,7 @@
 version: 0.2
 
 # VoteCapsule — AWS CodeBuild Buildspec
-# Builds all 12 Docker images (11 services + admin-web) and pushes to ECR
+# Builds all 14 Docker images (13 services + admin-web) and pushes to ECR
 
 env:
   variables:
@@ -95,6 +95,18 @@ phases:
       - docker push $ECR_REGISTRY/vote-capsule/election-service:latest
       - echo "DONE election-service"
 
+      - echo "--- Building audit-service (port 3012) ---"
+      - docker build --build-arg SERVICE_PORT=3012 --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION -t $ECR_REGISTRY/vote-capsule/audit-service:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/audit-service:latest -f services/audit/Dockerfile .
+      - docker push $ECR_REGISTRY/vote-capsule/audit-service:$SHORT_SHA
+      - docker push $ECR_REGISTRY/vote-capsule/audit-service:latest
+      - echo "DONE audit-service"
+
+      - echo "--- Building billing-service (port 3013) ---"
+      - docker build --build-arg SERVICE_PORT=3013 --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION -t $ECR_REGISTRY/vote-capsule/billing-service:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/billing-service:latest -f services/billing/Dockerfile .
+      - docker push $ECR_REGISTRY/vote-capsule/billing-service:$SHORT_SHA
+      - docker push $ECR_REGISTRY/vote-capsule/billing-service:latest
+      - echo "DONE billing-service"
+
       - echo "--- Building admin-web ---"
       - docker build --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION -t $ECR_REGISTRY/vote-capsule/admin-web:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/admin-web:latest -f apps/admin-web/Dockerfile .
       - docker push $ECR_REGISTRY/vote-capsule/admin-web:$SHORT_SHA
@@ -103,10 +115,10 @@ phases:
 
   post_build:
     commands:
-      - echo "=== All 12 images pushed to ECR ==="
+      - echo "=== All 14 images pushed to ECR ==="
       - echo "SHORT_SHA=$SHORT_SHA"
       - echo "--- ECR image summary ---"
       - aws ecr describe-images --repository-name vote-capsule/identity-service --image-ids imageTag=latest --region $AWS_REGION --query "imageDetails[0].{Digest:imageDigest,PushedAt:imagePushedAt}" --output table 2>/dev/null || echo "identity-service not yet available"
-      - aws ecr describe-images --repository-name vote-capsule/geography-service --image-ids imageTag=latest --region $AWS_REGION --query "imageDetails[0].{Digest:imageDigest,PushedAt:imagePushedAt}" --output table 2>/dev/null || echo "geography-service not yet available"
-      - aws ecr describe-images --repository-name vote-capsule/election-service --image-ids imageTag=latest --region $AWS_REGION --query "imageDetails[0].{Digest:imageDigest,PushedAt:imagePushedAt}" --output table 2>/dev/null || echo "election-service not yet available"
+      - aws ecr describe-images --repository-name vote-capsule/audit-service --image-ids imageTag=latest --region $AWS_REGION --query "imageDetails[0].{Digest:imageDigest,PushedAt:imagePushedAt}" --output table 2>/dev/null || echo "audit-service not yet available"
+      - aws ecr describe-images --repository-name vote-capsule/billing-service --image-ids imageTag=latest --region $AWS_REGION --query "imageDetails[0].{Digest:imageDigest,PushedAt:imagePushedAt}" --output table 2>/dev/null || echo "billing-service not yet available"
       - echo "=== VoteCapsule build pipeline complete ==="
