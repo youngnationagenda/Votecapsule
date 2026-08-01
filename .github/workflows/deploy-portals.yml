@@ -49,22 +49,22 @@ jobs:
           - name: authority
             dir: apps/authority-web
             bucket: vote-capsule-authority-portal-683541453923
-            cf_dist: ""
+            cf_dist: E1Z32G6YW54GHT
             filter: authority-web
           - name: party
             dir: apps/party-web
             bucket: vote-capsule-party-portal-683541453923
-            cf_dist: ""
+            cf_dist: E2K6MDXEZZ7UYS
             filter: party-web
           - name: candidate
             dir: apps/candidate-web
             bucket: vote-capsule-candidate-portal-683541453923
-            cf_dist: ""
+            cf_dist: E1O4XZRM79VCJ1
             filter: candidate-web
           - name: observer
             dir: apps/observer-web
             bucket: vote-capsule-observer-portal-683541453923
-            cf_dist: ""
+            cf_dist: EZEXQ23EU9E55
             filter: observer-web
 
     steps:
@@ -98,6 +98,7 @@ jobs:
         run: pnpm --filter "@vote-capsule/${{ matrix.portal.filter }}" build
         env:
           VITE_API_GATEWAY_URL: https://483uyy43nc.execute-api.us-east-1.amazonaws.com
+          VITE_API_BASE_URL: https://483uyy43nc.execute-api.us-east-1.amazonaws.com/api/v1
           VITE_COGNITO_USER_POOL_ID: us-east-1_i3N2tg34A
           VITE_COGNITO_CLIENT_ID: 3hi86ci06546ki038k6msmik0s
           VITE_COGNITO_REGION: us-east-1
@@ -131,10 +132,39 @@ jobs:
             --cache-control "no-cache, no-store, must-revalidate" \
             --content-type "text/html"
 
-      - name: Invalidate CloudFront cache
+      - name: Configure CloudFront SPA error routing + invalidate cache
         if: matrix.portal.cf_dist != ''
         run: |
+          # Add SPA error page config so React Router deep links return 200 not 404/403
+          DIST_ID="${{ matrix.portal.cf_dist }}"
+          # Get current distribution config (need ETag for updates)
+          ETAG=$(aws cloudfront get-distribution-config --id "$DIST_ID" --query 'ETag' --output text)
+          # Update error responses for SPA routing (403 + 404 → /index.html with 200)
+          aws cloudfront get-distribution-config --id "$DIST_ID" --query 'DistributionConfig' \
+            > /tmp/dist-config.json
+          # Inject error responses using Python
+          python3 << 'PYEOF'
+          import json, sys
+          with open('/tmp/dist-config.json') as f:
+              cfg = json.load(f)
+          cfg['CustomErrorResponses'] = {
+              'Quantity': 2,
+              'Items': [
+                  {'ErrorCode': 403, 'ResponseCode': 200, 'ResponsePagePath': '/index.html', 'ErrorCachingMinTTL': 0},
+                  {'ErrorCode': 404, 'ResponseCode': 200, 'ResponsePagePath': '/index.html', 'ErrorCachingMinTTL': 0},
+              ]
+          }
+          cfg['DefaultRootObject'] = 'index.html'
+          with open('/tmp/dist-config-updated.json', 'w') as f:
+              json.dump(cfg, f)
+          PYEOF
+          aws cloudfront update-distribution \
+            --id "$DIST_ID" \
+            --distribution-config "file:///tmp/dist-config-updated.json" \
+            --if-match "$ETAG" \
+            --query 'Distribution.Status' --output text || echo "⚠️  CF config update failed (may already be set)"
+          # Invalidate cache
           aws cloudfront create-invalidation \
-            --distribution-id ${{ matrix.portal.cf_dist }} \
+            --distribution-id "$DIST_ID" \
             --paths "/*"
-          echo "✅ CloudFront cache invalidated for ${{ matrix.portal.name }} (${{ matrix.portal.cf_dist }})"
+          echo "✅ CloudFront updated + cache invalidated for ${{ matrix.portal.name }} ($DIST_ID)"

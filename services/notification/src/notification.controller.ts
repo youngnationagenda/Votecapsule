@@ -29,7 +29,7 @@ import type {
   WorkflowCompletedDetail,
 } from './dto/eventbridge-event.dto';
 
-@Controller('notifications')
+@Controller()
 export class NotificationController {
   private readonly logger = new Logger(NotificationController.name);
 

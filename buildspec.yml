@@ -34,7 +34,7 @@ phases:
         build_service() {
           local NAME=$1 PORT=$2 DOCKERFILE=$3
           echo "--- Building $NAME (port $PORT) ---"
-          if docker build --build-arg SERVICE_PORT=$PORT --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION \
+          if docker build --no-cache --build-arg SERVICE_PORT=$PORT --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION \
             -t $ECR_REGISTRY/vote-capsule/$NAME:$SHORT_SHA \
             -t $ECR_REGISTRY/vote-capsule/$NAME:latest \
             -f $DOCKERFILE . ; then
@@ -61,7 +61,7 @@ phases:
         build_service billing-service   3013 services/billing/Dockerfile
 
         echo "--- Building admin-web ---"
-        if docker build --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION \
+        if docker build --no-cache --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION \
           -t $ECR_REGISTRY/vote-capsule/admin-web:$SHORT_SHA \
           -t $ECR_REGISTRY/vote-capsule/admin-web:latest \
           -f apps/admin-web/Dockerfile . ; then

@@ -6,7 +6,7 @@ import { apiClient } from '../api/apiClient';
 export function CandidateApprovalPage(): React.JSX.Element {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('PENDING');
+  const [statusFilter, setStatusFilter] = useState('PENDING_NOMINATION');
 
   const { data: candidates, isLoading } = useQuery({
     queryKey: ['candidates', 'approval', statusFilter],
@@ -14,11 +14,11 @@ export function CandidateApprovalPage(): React.JSX.Element {
   });
 
   const approveMutation = useMutation({
-    mutationFn: (id: string) => apiClient.patch(`/candidate/candidates/${id}/approve`),
+    mutationFn: (id: string) => apiClient.post(`/candidate/candidates/${id}/approve`, {}, { headers: { 'x-user-id': 'authority' } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['candidates', 'approval'] }),
   });
   const rejectMutation = useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason: string }) => apiClient.patch(`/candidate/candidates/${id}/reject`, { reason }),
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => apiClient.post(`/candidate/candidates/${id}/disqualify`, { reason }, { headers: { 'x-user-id': 'authority' } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['candidates', 'approval'] }),
   });
 
@@ -27,7 +27,15 @@ export function CandidateApprovalPage(): React.JSX.Element {
   );
 
   const statusBadge = (s: string) => {
-    const m: Record<string, string> = { PENDING: 'bg-amber-100 text-amber-700', APPROVED: 'bg-emerald-100 text-emerald-700', REJECTED: 'bg-red-100 text-red-700' };
+    const m: Record<string, string> = {
+      PENDING_NOMINATION: 'bg-amber-100 text-amber-700',
+      NOMINATED:          'bg-blue-100 text-blue-700',
+      APPROVED:           'bg-emerald-100 text-emerald-700',
+      DISQUALIFIED:       'bg-red-100 text-red-700',
+      WITHDRAWN:          'bg-gray-100 text-gray-500',
+      ELECTED:            'bg-purple-100 text-purple-700',
+      NOT_ELECTED:        'bg-gray-100 text-gray-600',
+    };
     return m[s] ?? 'bg-gray-100 text-gray-600';
   };
 
@@ -44,7 +52,7 @@ export function CandidateApprovalPage(): React.JSX.Element {
           <input className="vc-input pl-9" placeholder="Search candidates…" value={search} onChange={(e) => setSearch(e.target.value)} />
         </div>
         <div className="flex gap-2">
-          {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map((s) => (
+          {['ALL', 'PENDING_NOMINATION', 'NOMINATED', 'APPROVED', 'DISQUALIFIED', 'WITHDRAWN'].map((s) => (
             <button key={s} onClick={() => setStatusFilter(s)}
               className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${statusFilter === s ? 'bg-emerald-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
               {s}
@@ -77,7 +85,7 @@ export function CandidateApprovalPage(): React.JSX.Element {
                   <td>{c.county ?? '—'}</td>
                   <td><span className={`vc-badge ${statusBadge(c.status)}`}>{c.status}</span></td>
                   <td>
-                    {c.status === 'PENDING' && (
+                    {(c.status === 'PENDING_NOMINATION' || c.status === 'NOMINATED') && (
                       <div className="flex gap-2">
                         <button onClick={() => approveMutation.mutate(c.id)}
                           className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100" title="Approve">
