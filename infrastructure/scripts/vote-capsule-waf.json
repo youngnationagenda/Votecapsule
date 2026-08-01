@@ -1,0 +1,230 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "VoteCapsule WAF v2 WebACL protecting API Gateway and ALB",
+
+  "Parameters": {
+    "ApiGatewayArn": {
+      "Type": "String",
+      "Default": "arn:aws:apigateway:us-east-1::/restapis/483uyy43nc/stages/$default"
+    },
+    "RateLimitPerIP": {
+      "Type": "Number",
+      "Default": 1000
+    },
+    "SNSAlertEmail": {
+      "Type": "String",
+      "Default": "admin@votecapsule.co.ke"
+    }
+  },
+
+  "Resources": {
+    "VoteCapsuleWAFWebACL": {
+      "Type": "AWS::WAFv2::WebACL",
+      "Properties": {
+        "Name": "vote-capsule-waf",
+        "Scope": "REGIONAL",
+        "Description": "VoteCapsule API Gateway WAF protection rate limiting SQLi XSS geo-filter",
+        "DefaultAction": {
+          "Allow": {}
+        },
+        "Rules": [
+          {
+            "Name": "AWSManagedRulesCommonRuleSet",
+            "Priority": 1,
+            "OverrideAction": { "None": {} },
+            "Statement": {
+              "ManagedRuleGroupStatement": {
+                "VendorName": "AWS",
+                "Name": "AWSManagedRulesCommonRuleSet",
+                "ExcludedRules": []
+              }
+            },
+            "VisibilityConfig": {
+              "SampledRequestsEnabled": true,
+              "CloudWatchMetricsEnabled": true,
+              "MetricName": "CommonRuleSet"
+            }
+          },
+          {
+            "Name": "AWSManagedRulesSQLiRuleSet",
+            "Priority": 2,
+            "OverrideAction": { "None": {} },
+            "Statement": {
+              "ManagedRuleGroupStatement": {
+                "VendorName": "AWS",
+                "Name": "AWSManagedRulesSQLiRuleSet",
+                "ExcludedRules": []
+              }
+            },
+            "VisibilityConfig": {
+              "SampledRequestsEnabled": true,
+              "CloudWatchMetricsEnabled": true,
+              "MetricName": "SQLiRuleSet"
+            }
+          },
+          {
+            "Name": "AWSManagedRulesKnownBadInputsRuleSet",
+            "Priority": 3,
+            "OverrideAction": { "None": {} },
+            "Statement": {
+              "ManagedRuleGroupStatement": {
+                "VendorName": "AWS",
+                "Name": "AWSManagedRulesKnownBadInputsRuleSet",
+                "ExcludedRules": []
+              }
+            },
+            "VisibilityConfig": {
+              "SampledRequestsEnabled": true,
+              "CloudWatchMetricsEnabled": true,
+              "MetricName": "KnownBadInputs"
+            }
+          },
+          {
+            "Name": "VoteCapsuleRateLimit",
+            "Priority": 10,
+            "Action": { "Block": {} },
+            "Statement": {
+              "RateBasedStatement": {
+                "Limit": { "Ref": "RateLimitPerIP" },
+                "AggregateKeyType": "IP"
+              }
+            },
+            "VisibilityConfig": {
+              "SampledRequestsEnabled": true,
+              "CloudWatchMetricsEnabled": true,
+              "MetricName": "RateLimit"
+            }
+          },
+          {
+            "Name": "VoteCapsuleGeoFilter",
+            "Priority": 20,
+            "Action": { "Block": {} },
+            "Statement": {
+              "NotStatement": {
+                "Statement": {
+                  "GeoMatchStatement": {
+                    "CountryCodes": ["KE", "US", "GB", "DE", "FR", "AU", "CA", "ZA", "NG", "ET", "TZ", "UG"]
+                  }
+                }
+              }
+            },
+            "VisibilityConfig": {
+              "SampledRequestsEnabled": true,
+              "CloudWatchMetricsEnabled": true,
+              "MetricName": "GeoFilter"
+            }
+          },
+          {
+            "Name": "VoteCapsuleSizeConstraint",
+            "Priority": 30,
+            "Action": { "Block": {} },
+            "Statement": {
+              "SizeConstraintStatement": {
+                "FieldToMatch": { "Body": { "OversizeHandling": "CONTINUE" } },
+                "ComparisonOperator": "GT",
+                "Size": 10485760,
+                "TextTransformations": [{ "Priority": 0, "Type": "NONE" }]
+              }
+            },
+            "VisibilityConfig": {
+              "SampledRequestsEnabled": true,
+              "CloudWatchMetricsEnabled": true,
+              "MetricName": "SizeConstraint"
+            }
+          }
+        ],
+        "VisibilityConfig": {
+          "SampledRequestsEnabled": true,
+          "CloudWatchMetricsEnabled": true,
+          "MetricName": "VoteCapsuleWAF"
+        },
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Component", "Value": "WAF" }
+        ]
+      }
+    },
+
+    "WAFAlertSNSTopic": {
+      "Type": "AWS::SNS::Topic",
+      "Properties": {
+        "TopicName": "vote-capsule-waf-alerts",
+        "DisplayName": "VoteCapsule WAF Alerts",
+        "Subscription": [
+          {
+            "Protocol": "email",
+            "Endpoint": { "Ref": "SNSAlertEmail" }
+          }
+        ],
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" }
+        ]
+      }
+    },
+
+    "WAFBlockedRequestsAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "DependsOn": ["VoteCapsuleWAFWebACL", "WAFAlertSNSTopic"],
+      "Properties": {
+        "AlarmName": "VoteCapsule-WAF-HighBlockRate",
+        "AlarmDescription": "WAF is blocking high volume of requests possible attack",
+        "Namespace": "AWS/WAFV2",
+        "MetricName": "BlockedRequests",
+        "Dimensions": [
+          { "Name": "WebACL", "Value": "vote-capsule-waf" },
+          { "Name": "Region", "Value": "us-east-1" },
+          { "Name": "Rule", "Value": "ALL" }
+        ],
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 100,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [{ "Ref": "WAFAlertSNSTopic" }],
+        "OKActions": [{ "Ref": "WAFAlertSNSTopic" }]
+      }
+    },
+
+    "WAFRateLimitAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "DependsOn": ["VoteCapsuleWAFWebACL", "WAFAlertSNSTopic"],
+      "Properties": {
+        "AlarmName": "VoteCapsule-WAF-RateLimitTriggered",
+        "AlarmDescription": "IP rate limit triggered potential DDoS or scraping",
+        "Namespace": "AWS/WAFV2",
+        "MetricName": "BlockedRequests",
+        "Dimensions": [
+          { "Name": "WebACL", "Value": "vote-capsule-waf" },
+          { "Name": "Region", "Value": "us-east-1" },
+          { "Name": "Rule", "Value": "VoteCapsuleRateLimit" }
+        ],
+        "Statistic": "Sum",
+        "Period": 300,
+        "EvaluationPeriods": 1,
+        "Threshold": 10,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [{ "Ref": "WAFAlertSNSTopic" }]
+      }
+    }
+  },
+
+  "Outputs": {
+    "WAFWebACLId": {
+      "Description": "WAF WebACL ID",
+      "Value": { "Ref": "VoteCapsuleWAFWebACL" },
+      "Export": { "Name": "VoteCapsule-WAF-WebACL-Id" }
+    },
+    "WAFWebACLArn": {
+      "Description": "WAF WebACL ARN",
+      "Value": { "Fn::GetAtt": ["VoteCapsuleWAFWebACL", "Arn"] },
+      "Export": { "Name": "VoteCapsule-WAF-WebACL-Arn" }
+    },
+    "WAFAlertTopicArn": {
+      "Description": "SNS topic for WAF alerts",
+      "Value": { "Ref": "WAFAlertSNSTopic" },
+      "Export": { "Name": "VoteCapsule-WAF-Alert-Topic" }
+    }
+  }
+}

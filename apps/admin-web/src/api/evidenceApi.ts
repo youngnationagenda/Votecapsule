@@ -1,25 +1,7 @@
 /**
  * Vote Capsule™ Admin Portal — Evidence Capsule API Client
- *
- * Wraps Evidence Service endpoints for the Admin Portal.
- * Chain of custody and AI confidence scores shown here.
  */
-
-import axios from 'axios';
-
-const evidenceClient = axios.create({
-  baseURL: import.meta.env['VITE_EVIDENCE_API_URL'] ?? '/api/evidence',
-  headers: { 'Content-Type': 'application/json' },
-  timeout: 15000,
-});
-
-evidenceClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('vc_access_token');
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+import { evidenceClient } from './apiClient';
 
 export interface EvidenceCapsule {
   id: string;
@@ -86,23 +68,8 @@ export const evidenceApi = {
     return data;
   },
 
-  getCapsulesByStation: async (
-    stationCode: string,
-    positionCode?: string,
-  ): Promise<EvidenceCapsule[]> => {
-    const { data } = await evidenceClient.get<EvidenceCapsule[]>('/capsules', {
-      params: { stationCode, ...(positionCode ? { positionCode } : {}) },
-    });
-    return data;
-  },
-
-  getCapsulesByCounty: async (
-    countyCode: string,
-    status?: string,
-  ): Promise<EvidenceCapsule[]> => {
-    const { data } = await evidenceClient.get<EvidenceCapsule[]>('/capsules', {
-      params: { countyCode, ...(status ? { status } : {}) },
-    });
+  getCapsules: async (params?: Record<string, unknown>): Promise<EvidenceCapsule[]> => {
+    const { data } = await evidenceClient.get<EvidenceCapsule[]>('/capsules', { params });
     return data;
   },
 

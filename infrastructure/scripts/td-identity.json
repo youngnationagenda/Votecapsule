@@ -1,0 +1,50 @@
+{
+  "family": "vc-identity",
+  "cpu": "512",
+  "memory": "1024",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "executionRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+  "taskRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+  "containerDefinitions": [
+    {
+      "name": "identity-service",
+      "image": "683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/identity-service:latest",
+      "portMappings": [{"containerPort": 3001, "protocol": "tcp"}],
+      "essential": true,
+      "environment": [
+        {"name": "PORT", "value": "3001"},
+        {"name": "NODE_ENV", "value": "production"},
+        {"name": "DB_HOST", "value": "vote-capsule-db.cluster-c43i6c8ow71c.us-east-1.rds.amazonaws.com"},
+        {"name": "DB_PORT", "value": "5432"},
+        {"name": "DB_NAME", "value": "votecapsule"},
+        {"name": "DB_USER", "value": "vcadmin"},
+        {"name": "DB_SSL", "value": "true"},
+        {"name": "DB_LOGGING", "value": "false"},
+        {"name": "JWT_EXPIRES_IN", "value": "1h"},
+        {"name": "AWS_REGION", "value": "us-east-1"},
+        {"name": "COGNITO_CLIENT_ID", "value": "3hi86ci06546ki038k6msmik0s"},
+        {"name": "REDIS_HOST", "value": "vote-capsule-redis.1n5h3m.ng.0001.use1.cache.amazonaws.com"},
+        {"name": "REDIS_PORT", "value": "6379"},
+        {"name": "ALLOWED_ORIGINS", "value": "https://votecapsule.yna.co.ke,https://authority.votecapsule.yna.co.ke"}
+      ],
+      "secrets": [
+        {"name": "DB_PASSWORD", "valueFrom": "arn:aws:secretsmanager:us-east-1:683541453923:secret:vote-capsule/database/credentials-zTDMLX:password::"},
+        {"name": "JWT_SECRET", "valueFrom": "arn:aws:secretsmanager:us-east-1:683541453923:secret:vote-capsule/jwt/secret-bB2dDP:jwt_secret::"}
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/vote-capsule/identity-service",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "identity",
+          "awslogs-create-group": "true"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:3001/api/v1/identity/health || exit 1"],
+        "interval": 30, "timeout": 5, "retries": 3, "startPeriod": 90
+      }
+    }
+  ]
+}

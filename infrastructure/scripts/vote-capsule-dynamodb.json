@@ -1,0 +1,191 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "VoteCapsule DynamoDB Tables for sessions sync state and device registry",
+
+  "Resources": {
+    "SessionsTable": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "votecapsule-sessions",
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          { "AttributeName": "sessionId", "AttributeType": "S" },
+          { "AttributeName": "userId", "AttributeType": "S" }
+        ],
+        "KeySchema": [
+          { "AttributeName": "sessionId", "KeyType": "HASH" }
+        ],
+        "GlobalSecondaryIndexes": [
+          {
+            "IndexName": "userId-index",
+            "KeySchema": [
+              { "AttributeName": "userId", "KeyType": "HASH" }
+            ],
+            "Projection": { "ProjectionType": "ALL" }
+          }
+        ],
+        "TimeToLiveSpecification": {
+          "AttributeName": "expiresAt",
+          "Enabled": true
+        },
+        "SSESpecification": {
+          "SSEEnabled": true
+        },
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true
+        },
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Purpose", "Value": "Session backup store" }
+        ]
+      }
+    },
+
+    "SyncStateTable": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "votecapsule-sync-state",
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          { "AttributeName": "deviceId", "AttributeType": "S" },
+          { "AttributeName": "capsuleId", "AttributeType": "S" }
+        ],
+        "KeySchema": [
+          { "AttributeName": "deviceId", "KeyType": "HASH" },
+          { "AttributeName": "capsuleId", "KeyType": "RANGE" }
+        ],
+        "SSESpecification": {
+          "SSEEnabled": true
+        },
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true
+        },
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Purpose", "Value": "Mobile sync checkpoints" }
+        ]
+      }
+    },
+
+    "DeviceRegistryTable": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": "votecapsule-device-registry",
+        "BillingMode": "PAY_PER_REQUEST",
+        "AttributeDefinitions": [
+          { "AttributeName": "deviceId", "AttributeType": "S" },
+          { "AttributeName": "userId", "AttributeType": "S" }
+        ],
+        "KeySchema": [
+          { "AttributeName": "deviceId", "KeyType": "HASH" }
+        ],
+        "GlobalSecondaryIndexes": [
+          {
+            "IndexName": "userId-index",
+            "KeySchema": [
+              { "AttributeName": "userId", "KeyType": "HASH" }
+            ],
+            "Projection": { "ProjectionType": "ALL" }
+          }
+        ],
+        "SSESpecification": {
+          "SSEEnabled": true
+        },
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": true
+        },
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Purpose", "Value": "Agent device registry" }
+        ]
+      }
+    },
+
+    "DynamoDBAccessPolicy": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "ManagedPolicyName": "vote-capsule-dynamodb-access",
+        "Description": "Allows ECS services to access VoteCapsule DynamoDB tables",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "SessionsTableAccess",
+              "Effect": "Allow",
+              "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:Query",
+                "dynamodb:Scan"
+              ],
+              "Resource": [
+                { "Fn::GetAtt": ["SessionsTable", "Arn"] },
+                { "Fn::Sub": "${SessionsTable.Arn}/index/*" }
+              ]
+            },
+            {
+              "Sid": "SyncStateTableAccess",
+              "Effect": "Allow",
+              "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:Query"
+              ],
+              "Resource": [
+                { "Fn::GetAtt": ["SyncStateTable", "Arn"] },
+                { "Fn::Sub": "${SyncStateTable.Arn}/index/*" }
+              ]
+            },
+            {
+              "Sid": "DeviceRegistryTableAccess",
+              "Effect": "Allow",
+              "Action": [
+                "dynamodb:GetItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:Query"
+              ],
+              "Resource": [
+                { "Fn::GetAtt": ["DeviceRegistryTable", "Arn"] },
+                { "Fn::Sub": "${DeviceRegistryTable.Arn}/index/*" }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  },
+
+  "Outputs": {
+    "SessionsTableName": {
+      "Description": "DynamoDB sessions table name",
+      "Value": { "Ref": "SessionsTable" },
+      "Export": { "Name": "VoteCapsule-DynamoDB-Sessions" }
+    },
+    "SessionsTableArn": {
+      "Description": "DynamoDB sessions table ARN",
+      "Value": { "Fn::GetAtt": ["SessionsTable", "Arn"] },
+      "Export": { "Name": "VoteCapsule-DynamoDB-Sessions-Arn" }
+    },
+    "SyncStateTableName": {
+      "Description": "DynamoDB sync state table name",
+      "Value": { "Ref": "SyncStateTable" },
+      "Export": { "Name": "VoteCapsule-DynamoDB-SyncState" }
+    },
+    "DeviceRegistryTableName": {
+      "Description": "DynamoDB device registry table name",
+      "Value": { "Ref": "DeviceRegistryTable" },
+      "Export": { "Name": "VoteCapsule-DynamoDB-DeviceRegistry" }
+    },
+    "DynamoDBPolicyArn": {
+      "Description": "IAM policy ARN for DynamoDB access",
+      "Value": { "Ref": "DynamoDBAccessPolicy" },
+      "Export": { "Name": "VoteCapsule-DynamoDB-AccessPolicy" }
+    }
+  }
+}

@@ -20,6 +20,7 @@ async function bootstrap() {
     allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-Id', 'X-User-Id'],
   });
 
+  app.setGlobalPrefix('api/v1/election');
   await app.listen(port);
   logger.log(`Election Service listening on port ${port}`);
 }

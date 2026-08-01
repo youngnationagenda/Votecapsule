@@ -6,6 +6,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
+import { HealthController } from './health.controller';
 import { UsersModule } from './users/users.module';
 import { RolesModule } from './roles/roles.module';
 import { InvitationsModule } from './invitations/invitations.module';
@@ -13,6 +14,7 @@ import { DevicesModule } from './devices/devices.module';
 import { DatabaseModule } from './database/database.module';
 
 @Module({
+  controllers: [HealthController],
   imports: [
     // Configuration — environment variables
     ConfigModule.forRoot({

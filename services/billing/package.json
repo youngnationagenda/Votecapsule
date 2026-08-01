@@ -1,0 +1,42 @@
+{
+  "name": "@vote-capsule/billing-service",
+  "version": "1.0.0",
+  "description": "Vote Capsule™ Billing Service — Subscriptions, licensing, invoices, and payments for multi-tenant SaaS billing (Kenya/KES/M-Pesa)",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "nest build",
+    "dev": "nest start --watch",
+    "start": "node dist/main",
+    "start:debug": "nest start --debug --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.4.15",
+    "@nestjs/core": "^10.4.15",
+    "@nestjs/config": "^3.3.0",
+    "@nestjs/platform-express": "^10.4.15",
+    "@nestjs/typeorm": "^10.0.0",
+    "typeorm": "^0.3.20",
+    "pg": "^8.13.1",
+    "class-validator": "^0.14.1",
+    "class-transformer": "^0.5.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.4.9",
+    "@nestjs/testing": "^10.4.15",
+    "@types/node": "^22.10.2",
+    "@types/uuid": "^9.0.7",
+    "typescript": "^5.7.2",
+    "rimraf": "^6.0.1",
+    "vitest": "^2.1.8",
+    "@vitest/coverage-v8": "^2.1.8"
+  }
+}

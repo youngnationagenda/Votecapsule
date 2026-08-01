@@ -1,0 +1,338 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "VoteCapsule Phase 8 — Audit Service (:3012) + Billing Service (:3013) ECS Fargate + ALB rules",
+
+  "Parameters": {
+    "DBPassword": {
+      "Type": "String",
+      "NoEcho": true,
+      "Default": "B,7BZvfuwXOxDoCjN7g8=03JfxKv3zH0"
+    }
+  },
+
+  "Resources": {
+
+    "AuditLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/vote-capsule/audit-service",
+        "RetentionInDays": 30
+      }
+    },
+
+    "BillingLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/vote-capsule/billing-service",
+        "RetentionInDays": 30
+      }
+    },
+
+    "AuditTG": {
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+      "Properties": {
+        "Name": "vc-audit-tg",
+        "Protocol": "HTTP",
+        "Port": 3012,
+        "VpcId": "vpc-0ae6f8630af9fbfdc",
+        "TargetType": "ip",
+        "HealthCheckPath": "/api/v1/audit/health",
+        "HealthCheckIntervalSeconds": 30,
+        "HealthCheckTimeoutSeconds": 5,
+        "HealthyThresholdCount": 2,
+        "UnhealthyThresholdCount": 3,
+        "Matcher": {"HttpCode": "200,404"}
+      }
+    },
+
+    "BillingTG": {
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+      "Properties": {
+        "Name": "vc-billing-tg",
+        "Protocol": "HTTP",
+        "Port": 3013,
+        "VpcId": "vpc-0ae6f8630af9fbfdc",
+        "TargetType": "ip",
+        "HealthCheckPath": "/api/v1/billing/health",
+        "HealthCheckIntervalSeconds": 30,
+        "HealthCheckTimeoutSeconds": 5,
+        "HealthyThresholdCount": 2,
+        "UnhealthyThresholdCount": 3,
+        "Matcher": {"HttpCode": "200,404"}
+      }
+    },
+
+    "AuditRule": {
+      "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
+      "Properties": {
+        "ListenerArn": "arn:aws:elasticloadbalancing:us-east-1:683541453923:listener/app/vote-capsule-services-alb/aef21c0dc2379121/8cfcb22850289df4",
+        "Priority": 115,
+        "Conditions": [{"Field": "path-pattern", "Values": ["/api/v1/audit/*"]}],
+        "Actions": [{"Type": "forward", "TargetGroupArn": {"Ref": "AuditTG"}}]
+      }
+    },
+
+    "BillingRule": {
+      "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
+      "Properties": {
+        "ListenerArn": "arn:aws:elasticloadbalancing:us-east-1:683541453923:listener/app/vote-capsule-services-alb/aef21c0dc2379121/8cfcb22850289df4",
+        "Priority": 120,
+        "Conditions": [{"Field": "path-pattern", "Values": ["/api/v1/billing/*"]}],
+        "Actions": [{"Type": "forward", "TargetGroupArn": {"Ref": "BillingTG"}}]
+      }
+    },
+
+    "AuditSG": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "VoteCapsule Audit Service",
+        "VpcId": "vpc-0ae6f8630af9fbfdc",
+        "SecurityGroupIngress": [
+          {"IpProtocol": "tcp", "FromPort": 3012, "ToPort": 3012, "CidrIp": "0.0.0.0/0"}
+        ],
+        "SecurityGroupEgress": [
+          {"IpProtocol": "-1", "CidrIp": "0.0.0.0/0"}
+        ],
+        "Tags": [{"Key": "Name", "Value": "vc-audit-sg"}]
+      }
+    },
+
+    "BillingSG": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "VoteCapsule Billing Service",
+        "VpcId": "vpc-0ae6f8630af9fbfdc",
+        "SecurityGroupIngress": [
+          {"IpProtocol": "tcp", "FromPort": 3013, "ToPort": 3013, "CidrIp": "0.0.0.0/0"}
+        ],
+        "SecurityGroupEgress": [
+          {"IpProtocol": "-1", "CidrIp": "0.0.0.0/0"}
+        ],
+        "Tags": [{"Key": "Name", "Value": "vc-billing-sg"}]
+      }
+    },
+
+    "AuditTD": {
+      "Type": "AWS::ECS::TaskDefinition",
+      "Properties": {
+        "Family": "vc-audit",
+        "Cpu": "512",
+        "Memory": "1024",
+        "NetworkMode": "awsvpc",
+        "RequiresCompatibilities": ["FARGATE"],
+        "ExecutionRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+        "TaskRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+        "ContainerDefinitions": [
+          {
+            "Name": "audit-service",
+            "Image": "683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/audit-service:latest",
+            "PortMappings": [{"ContainerPort": 3012, "Protocol": "tcp"}],
+            "Essential": true,
+            "Environment": [
+              {"Name": "PORT", "Value": "3012"},
+              {"Name": "NODE_ENV", "Value": "production"},
+              {"Name": "DB_HOST", "Value": "vote-capsule-db.cluster-c43i6c8ow71c.us-east-1.rds.amazonaws.com"},
+              {"Name": "DB_PORT", "Value": "5432"},
+              {"Name": "DB_NAME", "Value": "votecapsule"},
+              {"Name": "DB_USER", "Value": "vcadmin"},
+              {"Name": "DB_SSL", "Value": "true"},
+              {"Name": "DB_LOGGING", "Value": "false"},
+              {"Name": "AWS_REGION", "Value": "us-east-1"},
+              {"Name": "COGNITO_USER_POOL_ID", "Value": "us-east-1_i3N2tg34A"},
+              {"Name": "COGNITO_REGION", "Value": "us-east-1"},
+              {"Name": "ALLOWED_ORIGINS", "Value": "https://votecapsule.yna.co.ke"},
+              {"Name": "AUDIT_LOG_RETENTION_DAYS", "Value": "2555"},
+              {"Name": "ACCESS_LOG_RETENTION_DAYS", "Value": "365"}
+            ],
+            "Secrets": [
+              {
+                "Name": "DB_PASSWORD",
+                "ValueFrom": "arn:aws:secretsmanager:us-east-1:683541453923:secret:vote-capsule/database/credentials-zTDMLX:password::"
+              },
+              {
+                "Name": "JWT_SECRET",
+                "ValueFrom": "arn:aws:secretsmanager:us-east-1:683541453923:secret:vote-capsule/jwt/secret-bB2dDP:jwt_secret::"
+              }
+            ],
+            "LogConfiguration": {
+              "LogDriver": "awslogs",
+              "Options": {
+                "awslogs-group": "/vote-capsule/audit-service",
+                "awslogs-region": "us-east-1",
+                "awslogs-stream-prefix": "audit"
+              }
+            },
+            "HealthCheck": {
+              "Command": ["CMD-SHELL", "curl -f http://localhost:3012/api/v1/audit/health || exit 1"],
+              "Interval": 30,
+              "Timeout": 5,
+              "Retries": 3,
+              "StartPeriod": 60
+            }
+          }
+        ]
+      }
+    },
+
+    "BillingTD": {
+      "Type": "AWS::ECS::TaskDefinition",
+      "Properties": {
+        "Family": "vc-billing",
+        "Cpu": "512",
+        "Memory": "1024",
+        "NetworkMode": "awsvpc",
+        "RequiresCompatibilities": ["FARGATE"],
+        "ExecutionRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+        "TaskRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+        "ContainerDefinitions": [
+          {
+            "Name": "billing-service",
+            "Image": "683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/billing-service:latest",
+            "PortMappings": [{"ContainerPort": 3013, "Protocol": "tcp"}],
+            "Essential": true,
+            "Environment": [
+              {"Name": "PORT", "Value": "3013"},
+              {"Name": "NODE_ENV", "Value": "production"},
+              {"Name": "DB_HOST", "Value": "vote-capsule-db.cluster-c43i6c8ow71c.us-east-1.rds.amazonaws.com"},
+              {"Name": "DB_PORT", "Value": "5432"},
+              {"Name": "DB_NAME", "Value": "votecapsule"},
+              {"Name": "DB_USER", "Value": "vcadmin"},
+              {"Name": "DB_SSL", "Value": "true"},
+              {"Name": "DB_LOGGING", "Value": "false"},
+              {"Name": "AWS_REGION", "Value": "us-east-1"},
+              {"Name": "DEFAULT_CURRENCY", "Value": "KES"},
+              {"Name": "VAT_RATE", "Value": "0.16"},
+              {"Name": "INVOICE_PREFIX", "Value": "VC"},
+              {"Name": "INVOICE_DUE_DAYS", "Value": "30"},
+              {"Name": "MPESA_ENVIRONMENT", "Value": "sandbox"},
+              {"Name": "COGNITO_USER_POOL_ID", "Value": "us-east-1_i3N2tg34A"},
+              {"Name": "COGNITO_REGION", "Value": "us-east-1"},
+              {"Name": "ALLOWED_ORIGINS", "Value": "https://votecapsule.yna.co.ke,https://party.votecapsule.yna.co.ke,https://candidate.votecapsule.yna.co.ke"}
+            ],
+            "Secrets": [
+              {
+                "Name": "DB_PASSWORD",
+                "ValueFrom": "arn:aws:secretsmanager:us-east-1:683541453923:secret:vote-capsule/database/credentials-zTDMLX:password::"
+              },
+              {
+                "Name": "JWT_SECRET",
+                "ValueFrom": "arn:aws:secretsmanager:us-east-1:683541453923:secret:vote-capsule/jwt/secret-bB2dDP:jwt_secret::"
+              }
+            ],
+            "LogConfiguration": {
+              "LogDriver": "awslogs",
+              "Options": {
+                "awslogs-group": "/vote-capsule/billing-service",
+                "awslogs-region": "us-east-1",
+                "awslogs-stream-prefix": "billing"
+              }
+            },
+            "HealthCheck": {
+              "Command": ["CMD-SHELL", "curl -f http://localhost:3013/api/v1/billing/health || exit 1"],
+              "Interval": 30,
+              "Timeout": 5,
+              "Retries": 3,
+              "StartPeriod": 60
+            }
+          }
+        ]
+      }
+    },
+
+    "AuditService": {
+      "Type": "AWS::ECS::Service",
+      "DependsOn": ["AuditRule"],
+      "Properties": {
+        "ServiceName": "vc-audit",
+        "Cluster": "arn:aws:ecs:us-east-1:683541453923:cluster/vote-capsule-services",
+        "TaskDefinition": {"Ref": "AuditTD"},
+        "DesiredCount": 1,
+        "LaunchType": "FARGATE",
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "Subnets": [
+              "subnet-0aa1a58541c87ae2a",
+              "subnet-0171d821c5d5ae868",
+              "subnet-09604eb63697ac228",
+              "subnet-0be09dbd825b75c07"
+            ],
+            "SecurityGroups": [{"Ref": "AuditSG"}],
+            "AssignPublicIp": "ENABLED"
+          }
+        },
+        "LoadBalancers": [
+          {
+            "ContainerName": "audit-service",
+            "ContainerPort": 3012,
+            "TargetGroupArn": {"Ref": "AuditTG"}
+          }
+        ],
+        "DeploymentConfiguration": {
+          "MinimumHealthyPercent": 50,
+          "MaximumPercent": 200
+        },
+        "HealthCheckGracePeriodSeconds": 120
+      }
+    },
+
+    "BillingService": {
+      "Type": "AWS::ECS::Service",
+      "DependsOn": ["BillingRule"],
+      "Properties": {
+        "ServiceName": "vc-billing",
+        "Cluster": "arn:aws:ecs:us-east-1:683541453923:cluster/vote-capsule-services",
+        "TaskDefinition": {"Ref": "BillingTD"},
+        "DesiredCount": 1,
+        "LaunchType": "FARGATE",
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "Subnets": [
+              "subnet-0aa1a58541c87ae2a",
+              "subnet-0171d821c5d5ae868",
+              "subnet-09604eb63697ac228",
+              "subnet-0be09dbd825b75c07"
+            ],
+            "SecurityGroups": [{"Ref": "BillingSG"}],
+            "AssignPublicIp": "ENABLED"
+          }
+        },
+        "LoadBalancers": [
+          {
+            "ContainerName": "billing-service",
+            "ContainerPort": 3013,
+            "TargetGroupArn": {"Ref": "BillingTG"}
+          }
+        ],
+        "DeploymentConfiguration": {
+          "MinimumHealthyPercent": 50,
+          "MaximumPercent": 200
+        },
+        "HealthCheckGracePeriodSeconds": 120
+      }
+    }
+
+  },
+
+  "Outputs": {
+    "AuditServiceArn": {
+      "Value": {"Ref": "AuditService"},
+      "Description": "Audit ECS Service ARN",
+      "Export": {"Name": "VoteCapsule-Audit-Service"}
+    },
+    "BillingServiceArn": {
+      "Value": {"Ref": "BillingService"},
+      "Description": "Billing ECS Service ARN",
+      "Export": {"Name": "VoteCapsule-Billing-Service"}
+    },
+    "AuditTGArn": {
+      "Value": {"Ref": "AuditTG"},
+      "Description": "Audit Target Group ARN",
+      "Export": {"Name": "VoteCapsule-Audit-TG"}
+    },
+    "BillingTGArn": {
+      "Value": {"Ref": "BillingTG"},
+      "Description": "Billing Target Group ARN",
+      "Export": {"Name": "VoteCapsule-Billing-TG"}
+    }
+  }
+}

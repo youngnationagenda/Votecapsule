@@ -2,6 +2,7 @@
 // VoteCapsule™ — Candidate Service App Module
 // candidate-service/src/app.module.ts
 // ============================================================
+import { HealthController } from './health.controller';
 import { Module }              from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule }       from '@nestjs/typeorm';
@@ -14,6 +15,7 @@ import { CandidateStatusLog }  from './entities/candidate-status-log.entity';
 import { CandidateBallotRef }  from './entities/candidate-ballot-ref.entity';
 
 @Module({
+  controllers: [HealthController],
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
 

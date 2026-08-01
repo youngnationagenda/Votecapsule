@@ -1,6 +1,7 @@
 // ============================================================
 // VoteCapsule — Notification Service App Module
 // ============================================================
+import { HealthController } from './health.controller';
 import { Module }          from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule }   from '@nestjs/typeorm';
@@ -12,6 +13,7 @@ import { NotificationDevice }   from './entities/notification-device.entity';
 import { NotificationModule }   from './notification.module';
 
 @Module({
+  controllers: [HealthController],
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
 

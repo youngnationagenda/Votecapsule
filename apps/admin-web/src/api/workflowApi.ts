@@ -1,25 +1,7 @@
 /**
  * Vote Capsule™ Admin Portal — Workflow Engine API Client
- *
- * Wraps Workflow Service endpoints for the Admin Portal.
- * Workflow stats shown on Dashboard, escalations in Security page.
  */
-
-import axios from 'axios';
-
-const workflowClient = axios.create({
-  baseURL: import.meta.env['VITE_WORKFLOW_API_URL'] ?? '/api/workflow',
-  headers: { 'Content-Type': 'application/json' },
-  timeout: 15000,
-});
-
-workflowClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('vc_access_token');
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+import { workflowClient } from './apiClient';
 
 export interface WorkflowStats {
   breakdown: Array<{
@@ -41,16 +23,6 @@ export interface WorkflowExecution {
   deadlineAt: string | null;
   completedAt: string | null;
   durationMs: number | null;
-}
-
-export interface WorkflowEscalation {
-  id: string;
-  executionId: string;
-  escalationType: string;
-  severity: string;
-  message: string;
-  detectedAt: string;
-  resolvedAt: string | null;
 }
 
 export const workflowApi = {

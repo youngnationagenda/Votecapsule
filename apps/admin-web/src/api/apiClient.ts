@@ -1,14 +1,18 @@
 /**
  * Vote Capsule™ Admin Portal — Axios API Client
  *
- * Shared HTTP client with auth token injection and error handling.
+ * All services route through the single API Gateway endpoint.
+ * Path prefix per service: /api/v1/{service}/...
  */
 
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 
-function createApiClient(baseURL: string): AxiosInstance {
+const API_BASE = (import.meta.env['VITE_API_GATEWAY_URL'] as string | undefined)
+  ?? 'https://483uyy43nc.execute-api.us-east-1.amazonaws.com';
+
+function createApiClient(servicePrefix: string): AxiosInstance {
   const client = axios.create({
-    baseURL,
+    baseURL: `${API_BASE}/api/v1/${servicePrefix}`,
     headers: { 'Content-Type': 'application/json' },
     timeout: 30000,
   });
@@ -37,10 +41,15 @@ function createApiClient(baseURL: string): AxiosInstance {
   return client;
 }
 
-export const identityClient = createApiClient(
-  import.meta.env['VITE_IDENTITY_API_URL'] ?? '/api/identity',
-);
-
-export const tenantClient = createApiClient(
-  import.meta.env['VITE_TENANT_API_URL'] ?? '/api/tenant',
-);
+// Each service client uses its own path prefix
+export const identityClient  = createApiClient('identity');
+export const tenantClient    = createApiClient('tenant');
+export const trustClient     = createApiClient('trust');
+export const geographyClient = createApiClient('geography');
+export const evidenceClient  = createApiClient('evidence');
+export const aiClient        = createApiClient('ai');
+export const workflowClient  = createApiClient('workflow');
+export const electionClient  = createApiClient('election');
+export const reportingClient = createApiClient('reporting');
+export const auditClient     = createApiClient('audit');
+export const billingClient   = createApiClient('billing');

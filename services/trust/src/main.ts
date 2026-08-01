@@ -17,7 +17,7 @@ async function bootstrap() {
     transformOptions:     { enableImplicitConversion: true },
   }));
 
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix('api/v1/trust');
 
   // Trust Service is internal — CORS restricted to other services
   app.enableCors({

@@ -19,7 +19,7 @@ async function bootstrap() {
   }));
 
   // All routes prefixed with /api/v1
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix('api/v1/evidence');
 
   // CORS — restricted to known origins in production
   app.enableCors({

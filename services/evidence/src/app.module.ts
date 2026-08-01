@@ -2,6 +2,7 @@
 // VoteCapsule — Evidence Service Root Module
 // services/evidence/src/app.module.ts
 // ============================================================
+import { HealthController } from './health.controller';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -12,6 +13,7 @@ import { EvidenceHash }              from './entities/evidence-hash.entity';
 import { EvidenceChainOfCustody }    from './entities/evidence-chain-of-custody.entity';
 
 @Module({
+  controllers: [HealthController],
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
 

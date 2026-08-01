@@ -21,7 +21,7 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix('api/v1/geography');
 
   app.enableCors({
     origin: process.env['ALLOWED_ORIGINS']?.split(',') ?? ['http://localhost:3000'],

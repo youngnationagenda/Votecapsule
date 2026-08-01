@@ -2,6 +2,7 @@
 // VoteCapsule — AI Service App Module
 // services/ai/src/app.module.ts
 // ============================================================
+import { HealthController } from './health.controller';
 import { Module }           from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule }    from '@nestjs/typeorm';
@@ -11,6 +12,7 @@ import { AiAnomalyEvent }      from './entities/ai-anomaly-event.entity';
 import { AiModule }            from './ai.module';
 
 @Module({
+  controllers: [HealthController],
   imports: [
     ConfigModule.forRoot({
       isGlobal:  true,

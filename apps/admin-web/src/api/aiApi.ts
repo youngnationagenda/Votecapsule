@@ -1,25 +1,8 @@
 /**
  * Vote Capsule™ Admin Portal — AI Service API Client
- *
- * AI ASSISTS, HUMANS DECIDE.
- * Never display AI decisions as final — always as advisory.
+ * AI ASSISTS, HUMANS DECIDE. Never display AI decisions as final.
  */
-
-import axios from 'axios';
-
-const aiClient = axios.create({
-  baseURL: import.meta.env['VITE_AI_API_URL'] ?? '/api/ai',
-  headers: { 'Content-Type': 'application/json' },
-  timeout: 15000,
-});
-
-aiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('vc_access_token');
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+import { aiClient } from './apiClient';
 
 export interface AiStats {
   total: number;

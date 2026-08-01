@@ -1,0 +1,140 @@
+name: Deploy Web Portals to S3 + CloudFront
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'apps/admin-web/**'
+      - 'apps/authority-web/**'
+      - 'apps/party-web/**'
+      - 'apps/candidate-web/**'
+      - 'apps/observer-web/**'
+      - 'apps/public-web/**'
+      - 'packages/design-tokens/**'
+
+  workflow_dispatch:
+    inputs:
+      portal:
+        description: 'Portal to deploy (admin, authority, party, candidate, observer, public). Leave empty for all.'
+        required: false
+        default: ''
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy:
+    name: Deploy Portals
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        portal:
+          - name: admin
+            dir: apps/admin-web
+            bucket: vote-capsule-public-web-683541453923
+            cf_dist: E2J8YA2BP1UC1H
+            filter: admin-web
+          - name: public
+            dir: apps/public-web
+            bucket: vote-capsule-transparency-portal-683541453923
+            cf_dist: E18OX8YUDVZA5V
+            filter: public-web
+          - name: authority
+            dir: apps/authority-web
+            bucket: vote-capsule-authority-portal-683541453923
+            cf_dist: ""
+            filter: authority-web
+          - name: party
+            dir: apps/party-web
+            bucket: vote-capsule-party-portal-683541453923
+            cf_dist: ""
+            filter: party-web
+          - name: candidate
+            dir: apps/candidate-web
+            bucket: vote-capsule-candidate-portal-683541453923
+            cf_dist: ""
+            filter: candidate-web
+          - name: observer
+            dir: apps/observer-web
+            bucket: vote-capsule-observer-portal-683541453923
+            cf_dist: ""
+            filter: observer-web
+
+    steps:
+      - name: Skip if specific portal requested and this is not it
+        if: github.event.inputs.portal != '' && github.event.inputs.portal != matrix.portal.name
+        run: echo "Skipping ${{ matrix.portal.name }}" && exit 0
+
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::683541453923:role/vote-capsule-github-actions-role
+          aws-region: us-east-1
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build portal — ${{ matrix.portal.name }}
+        run: pnpm --filter "@vote-capsule/${{ matrix.portal.filter }}" build
+        env:
+          VITE_API_GATEWAY_URL: https://483uyy43nc.execute-api.us-east-1.amazonaws.com
+          VITE_COGNITO_USER_POOL_ID: us-east-1_i3N2tg34A
+          VITE_COGNITO_CLIENT_ID: 3hi86ci06546ki038k6msmik0s
+          VITE_COGNITO_REGION: us-east-1
+          NODE_ENV: production
+
+      - name: Create S3 bucket if not exists
+        run: |
+          aws s3 mb s3://${{ matrix.portal.bucket }} --region us-east-1 || true
+          aws s3api put-public-access-block \
+            --bucket ${{ matrix.portal.bucket }} \
+            --public-access-block-configuration "BlockPublicAcls=false,IgnorePublicAcls=false,BlockPublicPolicy=false,RestrictPublicBuckets=false" || true
+          aws s3api put-bucket-policy \
+            --bucket ${{ matrix.portal.bucket }} \
+            --policy "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":\"s3:GetObject\",\"Resource\":\"arn:aws:s3:::${{ matrix.portal.bucket }}/*\"}]}" || true
+          aws s3api put-bucket-website \
+            --bucket ${{ matrix.portal.bucket }} \
+            --website-configuration '{"IndexDocument":{"Suffix":"index.html"},"ErrorDocument":{"Key":"index.html"}}' || true
+
+      - name: Upload assets (long-lived cache)
+        run: |
+          aws s3 sync ${{ matrix.portal.dir }}/dist/ \
+            s3://${{ matrix.portal.bucket }}/ \
+            --cache-control "public, max-age=31536000, immutable" \
+            --exclude "index.html" \
+            --delete
+
+      - name: Upload index.html (no-cache)
+        run: |
+          aws s3 cp ${{ matrix.portal.dir }}/dist/index.html \
+            s3://${{ matrix.portal.bucket }}/index.html \
+            --cache-control "no-cache, no-store, must-revalidate" \
+            --content-type "text/html"
+
+      - name: Invalidate CloudFront cache
+        if: matrix.portal.cf_dist != ''
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ matrix.portal.cf_dist }} \
+            --paths "/*"
+          echo "✅ CloudFront cache invalidated for ${{ matrix.portal.name }} (${{ matrix.portal.cf_dist }})"

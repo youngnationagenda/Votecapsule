@@ -2,6 +2,7 @@
 // VoteCapsule — Trust Service Root Module
 // services/trust/src/app.module.ts
 // ============================================================
+import { HealthController } from './health.controller';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -10,6 +11,7 @@ import { TrustAnchor }       from './entities/trust-anchor.entity';
 import { TrustVerification } from './entities/trust-verification.entity';
 
 @Module({
+  controllers: [HealthController],
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
 

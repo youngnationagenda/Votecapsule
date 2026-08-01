@@ -2,6 +2,7 @@
 // VoteCapsule — Workflow Service App Module
 // services/workflow/src/app.module.ts
 // ============================================================
+import { HealthController } from './health.controller';
 import { Module }           from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule }    from '@nestjs/typeorm';
@@ -12,6 +13,7 @@ import { WorkflowEscalation } from './entities/workflow-escalation.entity';
 import { WorkflowModule }     from './workflow.module';
 
 @Module({
+  controllers: [HealthController],
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env.local', '.env'] }),
 

@@ -1,0 +1,633 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "VoteCapsule Phase 7 ECS Task Definitions + Services: Notification (3008), Candidate (3009), Reporting (3010), Election (3011) + ALB routing rules (Tasks 17/18 Phase 7)",
+
+  "Resources": {
+
+    "NotificationSG": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupName": "vc-notification-sg",
+        "GroupDescription": "VoteCapsule notification ECS tasks",
+        "VpcId": "vpc-0ae6f8630af9fbfdc",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 3008,
+            "ToPort": 3008,
+            "SourceSecurityGroupId": "sg-0141328242fe8f272",
+            "Description": "From ALB"
+          }
+        ],
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Service", "Value": "notification" }
+        ]
+      }
+    },
+
+    "NotificationTD": {
+      "Type": "AWS::ECS::TaskDefinition",
+      "Properties": {
+        "Family": "vc-notification",
+        "Cpu": "512",
+        "Memory": "1024",
+        "NetworkMode": "awsvpc",
+        "RequiresCompatibilities": ["FARGATE"],
+        "ExecutionRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+        "TaskRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+        "ContainerDefinitions": [
+          {
+            "Name": "vc-notification",
+            "Image": "683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/notification-service:latest",
+            "Essential": true,
+            "PortMappings": [
+              { "ContainerPort": 3008, "Protocol": "tcp" }
+            ],
+            "LogConfiguration": {
+              "LogDriver": "awslogs",
+              "Options": {
+                "awslogs-group": "/vote-capsule/services/notification",
+                "awslogs-region": "us-east-1",
+                "awslogs-stream-prefix": "notification",
+                "awslogs-create-group": "true"
+              }
+            },
+            "Environment": [
+              { "Name": "NODE_ENV",            "Value": "production" },
+              { "Name": "PORT",                "Value": "3008" },
+              { "Name": "AWS_REGION",          "Value": "us-east-1" },
+              { "Name": "DB_HOST",             "Value": "vote-capsule-db.cluster-c43i6c8ow71c.us-east-1.rds.amazonaws.com" },
+              { "Name": "DB_PORT",             "Value": "5432" },
+              { "Name": "DB_NAME",             "Value": "votecapsule" },
+              { "Name": "DB_USER",             "Value": "vcadmin" },
+              { "Name": "DB_SSL",              "Value": "true" },
+              { "Name": "DB_POOL_MAX",         "Value": "10" },
+              { "Name": "SES_FROM_ADDRESS",    "Value": "noreply@votecapsule.yna.co.ke" },
+              { "Name": "EVENT_BUS_NAME",      "Value": "votecapsule-events" },
+              { "Name": "IDENTITY_SERVICE_URL","Value": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/identity" },
+              { "Name": "WORKFLOW_SERVICE_URL","Value": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/workflow" },
+              { "Name": "ALLOWED_ORIGINS",     "Value": "http://localhost:3000,https://votecapsule.yna.co.ke" }
+            ],
+            "Secrets": [
+              {
+                "Name": "DB_PASS",
+                "ValueFrom": "arn:aws:secretsmanager:us-east-1:683541453923:secret:vote-capsule/database/credentials-zTDMLX:password::"
+              },
+              {
+                "Name": "FIREBASE_SERVICE_ACCOUNT",
+                "ValueFrom": "arn:aws:secretsmanager:us-east-1:683541453923:secret:vote-capsule/firebase/service-account-RioPSx"
+              }
+            ]
+          }
+        ],
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Service", "Value": "notification" }
+        ]
+      }
+    },
+
+    "NotificationTG": {
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+      "Properties": {
+        "Name": "vc-notification-tg",
+        "Port": 3008,
+        "Protocol": "HTTP",
+        "VpcId": "vpc-0ae6f8630af9fbfdc",
+        "TargetType": "ip",
+        "HealthCheckPath": "/health",
+        "HealthCheckIntervalSeconds": 30,
+        "HealthCheckTimeoutSeconds": 5,
+        "HealthyThresholdCount": 2,
+        "UnhealthyThresholdCount": 3,
+        "Matcher": { "HttpCode": "200,404" },
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Service", "Value": "notification" }
+        ]
+      }
+    },
+
+    "NotificationRule": {
+      "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
+      "Properties": {
+        "ListenerArn": "arn:aws:elasticloadbalancing:us-east-1:683541453923:listener/app/vote-capsule-services-alb/aef21c0dc2379121/8cfcb22850289df4",
+        "Priority": 80,
+        "Conditions": [
+          { "Field": "path-pattern", "Values": ["/api/v1/notification/*"] }
+        ],
+        "Actions": [
+          { "Type": "forward", "TargetGroupArn": { "Ref": "NotificationTG" } }
+        ]
+      }
+    },
+
+    "NotificationService": {
+      "Type": "AWS::ECS::Service",
+      "DependsOn": ["NotificationRule"],
+      "Properties": {
+        "ServiceName": "vc-notification",
+        "Cluster": "arn:aws:ecs:us-east-1:683541453923:cluster/vote-capsule-services",
+        "TaskDefinition": { "Ref": "NotificationTD" },
+        "DesiredCount": 1,
+        "LaunchType": "FARGATE",
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "Subnets": [
+              "subnet-0aa1a58541c87ae2a",
+              "subnet-0171d821c5d5ae868",
+              "subnet-0be09dbd825b75c07",
+              "subnet-09604eb63697ac228"
+            ],
+            "SecurityGroups": [{ "Fn::GetAtt": ["NotificationSG", "GroupId"] }],
+            "AssignPublicIp": "ENABLED"
+          }
+        },
+        "LoadBalancers": [
+          {
+            "ContainerName": "vc-notification",
+            "ContainerPort": 3008,
+            "TargetGroupArn": { "Ref": "NotificationTG" }
+          }
+        ],
+        "HealthCheckGracePeriodSeconds": 90,
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Service", "Value": "notification" }
+        ]
+      }
+    },
+
+    "CandidateSG": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupName": "vc-candidate-sg",
+        "GroupDescription": "VoteCapsule candidate ECS tasks",
+        "VpcId": "vpc-0ae6f8630af9fbfdc",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 3009,
+            "ToPort": 3009,
+            "SourceSecurityGroupId": "sg-0141328242fe8f272",
+            "Description": "From ALB"
+          }
+        ],
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Service", "Value": "candidate" }
+        ]
+      }
+    },
+
+    "CandidateTD": {
+      "Type": "AWS::ECS::TaskDefinition",
+      "Properties": {
+        "Family": "vc-candidate",
+        "Cpu": "512",
+        "Memory": "1024",
+        "NetworkMode": "awsvpc",
+        "RequiresCompatibilities": ["FARGATE"],
+        "ExecutionRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+        "TaskRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+        "ContainerDefinitions": [
+          {
+            "Name": "vc-candidate",
+            "Image": "683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/candidate-service:latest",
+            "Essential": true,
+            "PortMappings": [
+              { "ContainerPort": 3009, "Protocol": "tcp" }
+            ],
+            "LogConfiguration": {
+              "LogDriver": "awslogs",
+              "Options": {
+                "awslogs-group": "/vote-capsule/services/candidate",
+                "awslogs-region": "us-east-1",
+                "awslogs-stream-prefix": "candidate",
+                "awslogs-create-group": "true"
+              }
+            },
+            "Environment": [
+              { "Name": "NODE_ENV",              "Value": "production" },
+              { "Name": "PORT",                  "Value": "3009" },
+              { "Name": "AWS_REGION",            "Value": "us-east-1" },
+              { "Name": "DB_HOST",               "Value": "vote-capsule-db.cluster-c43i6c8ow71c.us-east-1.rds.amazonaws.com" },
+              { "Name": "DB_PORT",               "Value": "5432" },
+              { "Name": "DB_NAME",               "Value": "votecapsule" },
+              { "Name": "DB_USER",               "Value": "vcadmin" },
+              { "Name": "DB_SSL",                "Value": "true" },
+              { "Name": "DB_LOGGING",            "Value": "false" },
+              { "Name": "GEOGRAPHY_SERVICE_URL", "Value": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/geography" },
+              { "Name": "IDENTITY_SERVICE_URL",  "Value": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/identity" },
+              { "Name": "S3_ASSETS_BUCKET",      "Value": "vote-capsule-evidence-vault-683541453923" },
+              { "Name": "ALLOWED_ORIGINS",       "Value": "http://localhost:3000,https://votecapsule.yna.co.ke" }
+            ],
+            "Secrets": [
+              {
+                "Name": "DB_PASSWORD",
+                "ValueFrom": "arn:aws:secretsmanager:us-east-1:683541453923:secret:vote-capsule/database/credentials-zTDMLX:password::"
+              }
+            ]
+          }
+        ],
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Service", "Value": "candidate" }
+        ]
+      }
+    },
+
+    "CandidateTG": {
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+      "Properties": {
+        "Name": "vc-candidate-tg",
+        "Port": 3009,
+        "Protocol": "HTTP",
+        "VpcId": "vpc-0ae6f8630af9fbfdc",
+        "TargetType": "ip",
+        "HealthCheckPath": "/health",
+        "HealthCheckIntervalSeconds": 30,
+        "HealthCheckTimeoutSeconds": 5,
+        "HealthyThresholdCount": 2,
+        "UnhealthyThresholdCount": 3,
+        "Matcher": { "HttpCode": "200,404" },
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Service", "Value": "candidate" }
+        ]
+      }
+    },
+
+    "CandidateRule": {
+      "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
+      "Properties": {
+        "ListenerArn": "arn:aws:elasticloadbalancing:us-east-1:683541453923:listener/app/vote-capsule-services-alb/aef21c0dc2379121/8cfcb22850289df4",
+        "Priority": 90,
+        "Conditions": [
+          { "Field": "path-pattern", "Values": ["/api/v1/candidate/*"] }
+        ],
+        "Actions": [
+          { "Type": "forward", "TargetGroupArn": { "Ref": "CandidateTG" } }
+        ]
+      }
+    },
+
+    "CandidateService": {
+      "Type": "AWS::ECS::Service",
+      "DependsOn": ["CandidateRule"],
+      "Properties": {
+        "ServiceName": "vc-candidate",
+        "Cluster": "arn:aws:ecs:us-east-1:683541453923:cluster/vote-capsule-services",
+        "TaskDefinition": { "Ref": "CandidateTD" },
+        "DesiredCount": 1,
+        "LaunchType": "FARGATE",
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "Subnets": [
+              "subnet-0aa1a58541c87ae2a",
+              "subnet-0171d821c5d5ae868",
+              "subnet-0be09dbd825b75c07",
+              "subnet-09604eb63697ac228"
+            ],
+            "SecurityGroups": [{ "Fn::GetAtt": ["CandidateSG", "GroupId"] }],
+            "AssignPublicIp": "ENABLED"
+          }
+        },
+        "LoadBalancers": [
+          {
+            "ContainerName": "vc-candidate",
+            "ContainerPort": 3009,
+            "TargetGroupArn": { "Ref": "CandidateTG" }
+          }
+        ],
+        "HealthCheckGracePeriodSeconds": 90,
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Service", "Value": "candidate" }
+        ]
+      }
+    },
+
+    "ReportingSG": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupName": "vc-reporting-sg",
+        "GroupDescription": "VoteCapsule reporting ECS tasks",
+        "VpcId": "vpc-0ae6f8630af9fbfdc",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 3010,
+            "ToPort": 3010,
+            "SourceSecurityGroupId": "sg-0141328242fe8f272",
+            "Description": "From ALB"
+          }
+        ],
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Service", "Value": "reporting" }
+        ]
+      }
+    },
+
+    "ReportingTD": {
+      "Type": "AWS::ECS::TaskDefinition",
+      "Properties": {
+        "Family": "vc-reporting",
+        "Cpu": "512",
+        "Memory": "1024",
+        "NetworkMode": "awsvpc",
+        "RequiresCompatibilities": ["FARGATE"],
+        "ExecutionRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+        "TaskRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+        "ContainerDefinitions": [
+          {
+            "Name": "vc-reporting",
+            "Image": "683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/reporting-service:latest",
+            "Essential": true,
+            "PortMappings": [
+              { "ContainerPort": 3010, "Protocol": "tcp" }
+            ],
+            "LogConfiguration": {
+              "LogDriver": "awslogs",
+              "Options": {
+                "awslogs-group": "/vote-capsule/services/reporting",
+                "awslogs-region": "us-east-1",
+                "awslogs-stream-prefix": "reporting",
+                "awslogs-create-group": "true"
+              }
+            },
+            "Environment": [
+              { "Name": "NODE_ENV",         "Value": "production" },
+              { "Name": "PORT",             "Value": "3010" },
+              { "Name": "AWS_REGION",       "Value": "us-east-1" },
+              { "Name": "DB_HOST",          "Value": "vote-capsule-db.cluster-c43i6c8ow71c.us-east-1.rds.amazonaws.com" },
+              { "Name": "DB_PORT",          "Value": "5432" },
+              { "Name": "DB_NAME",          "Value": "votecapsule" },
+              { "Name": "DB_USER",          "Value": "vcadmin" },
+              { "Name": "DB_SSL",           "Value": "true" },
+              { "Name": "DB_LOGGING",       "Value": "false" },
+              { "Name": "S3_ASSETS_BUCKET", "Value": "vote-capsule-evidence-vault-683541453923" },
+              { "Name": "ALLOWED_ORIGINS",  "Value": "http://localhost:3000,https://votecapsule.yna.co.ke" }
+            ],
+            "Secrets": [
+              {
+                "Name": "DB_PASSWORD",
+                "ValueFrom": "arn:aws:secretsmanager:us-east-1:683541453923:secret:vote-capsule/database/credentials-zTDMLX:password::"
+              }
+            ]
+          }
+        ],
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Service", "Value": "reporting" }
+        ]
+      }
+    },
+
+    "ReportingTG": {
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+      "Properties": {
+        "Name": "vc-reporting-tg",
+        "Port": 3010,
+        "Protocol": "HTTP",
+        "VpcId": "vpc-0ae6f8630af9fbfdc",
+        "TargetType": "ip",
+        "HealthCheckPath": "/health",
+        "HealthCheckIntervalSeconds": 30,
+        "HealthCheckTimeoutSeconds": 5,
+        "HealthyThresholdCount": 2,
+        "UnhealthyThresholdCount": 3,
+        "Matcher": { "HttpCode": "200,404" },
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Service", "Value": "reporting" }
+        ]
+      }
+    },
+
+    "ReportingRule": {
+      "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
+      "Properties": {
+        "ListenerArn": "arn:aws:elasticloadbalancing:us-east-1:683541453923:listener/app/vote-capsule-services-alb/aef21c0dc2379121/8cfcb22850289df4",
+        "Priority": 100,
+        "Conditions": [
+          { "Field": "path-pattern", "Values": ["/api/v1/reporting/*"] }
+        ],
+        "Actions": [
+          { "Type": "forward", "TargetGroupArn": { "Ref": "ReportingTG" } }
+        ]
+      }
+    },
+
+    "ReportingService": {
+      "Type": "AWS::ECS::Service",
+      "DependsOn": ["ReportingRule"],
+      "Properties": {
+        "ServiceName": "vc-reporting",
+        "Cluster": "arn:aws:ecs:us-east-1:683541453923:cluster/vote-capsule-services",
+        "TaskDefinition": { "Ref": "ReportingTD" },
+        "DesiredCount": 1,
+        "LaunchType": "FARGATE",
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "Subnets": [
+              "subnet-0aa1a58541c87ae2a",
+              "subnet-0171d821c5d5ae868",
+              "subnet-0be09dbd825b75c07",
+              "subnet-09604eb63697ac228"
+            ],
+            "SecurityGroups": [{ "Fn::GetAtt": ["ReportingSG", "GroupId"] }],
+            "AssignPublicIp": "ENABLED"
+          }
+        },
+        "LoadBalancers": [
+          {
+            "ContainerName": "vc-reporting",
+            "ContainerPort": 3010,
+            "TargetGroupArn": { "Ref": "ReportingTG" }
+          }
+        ],
+        "HealthCheckGracePeriodSeconds": 90,
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Service", "Value": "reporting" }
+        ]
+      }
+    },
+
+    "ElectionSG": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupName": "vc-election-sg",
+        "GroupDescription": "VoteCapsule election ECS tasks",
+        "VpcId": "vpc-0ae6f8630af9fbfdc",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 3011,
+            "ToPort": 3011,
+            "SourceSecurityGroupId": "sg-0141328242fe8f272",
+            "Description": "From ALB"
+          }
+        ],
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Service", "Value": "election" }
+        ]
+      }
+    },
+
+    "ElectionTD": {
+      "Type": "AWS::ECS::TaskDefinition",
+      "Properties": {
+        "Family": "vc-election",
+        "Cpu": "512",
+        "Memory": "1024",
+        "NetworkMode": "awsvpc",
+        "RequiresCompatibilities": ["FARGATE"],
+        "ExecutionRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+        "TaskRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+        "ContainerDefinitions": [
+          {
+            "Name": "vc-election",
+            "Image": "683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/election-service:latest",
+            "Essential": true,
+            "PortMappings": [
+              { "ContainerPort": 3011, "Protocol": "tcp" }
+            ],
+            "LogConfiguration": {
+              "LogDriver": "awslogs",
+              "Options": {
+                "awslogs-group": "/vote-capsule/services/election",
+                "awslogs-region": "us-east-1",
+                "awslogs-stream-prefix": "election",
+                "awslogs-create-group": "true"
+              }
+            },
+            "Environment": [
+              { "Name": "NODE_ENV",               "Value": "production" },
+              { "Name": "PORT",                   "Value": "3011" },
+              { "Name": "AWS_REGION",             "Value": "us-east-1" },
+              { "Name": "CANDIDATE_SERVICE_URL",  "Value": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/candidate" },
+              { "Name": "GEOGRAPHY_SERVICE_URL",  "Value": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/geography" },
+              { "Name": "ALLOWED_ORIGINS",        "Value": "http://localhost:3000,https://votecapsule.yna.co.ke" }
+            ]
+          }
+        ],
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Service", "Value": "election" }
+        ]
+      }
+    },
+
+    "ElectionTG": {
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+      "Properties": {
+        "Name": "vc-election-tg",
+        "Port": 3011,
+        "Protocol": "HTTP",
+        "VpcId": "vpc-0ae6f8630af9fbfdc",
+        "TargetType": "ip",
+        "HealthCheckPath": "/health",
+        "HealthCheckIntervalSeconds": 30,
+        "HealthCheckTimeoutSeconds": 5,
+        "HealthyThresholdCount": 2,
+        "UnhealthyThresholdCount": 3,
+        "Matcher": { "HttpCode": "200,404" },
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Service", "Value": "election" }
+        ]
+      }
+    },
+
+    "ElectionRule": {
+      "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
+      "Properties": {
+        "ListenerArn": "arn:aws:elasticloadbalancing:us-east-1:683541453923:listener/app/vote-capsule-services-alb/aef21c0dc2379121/8cfcb22850289df4",
+        "Priority": 110,
+        "Conditions": [
+          { "Field": "path-pattern", "Values": ["/api/v1/election/*"] }
+        ],
+        "Actions": [
+          { "Type": "forward", "TargetGroupArn": { "Ref": "ElectionTG" } }
+        ]
+      }
+    },
+
+    "ElectionService": {
+      "Type": "AWS::ECS::Service",
+      "DependsOn": ["ElectionRule"],
+      "Properties": {
+        "ServiceName": "vc-election",
+        "Cluster": "arn:aws:ecs:us-east-1:683541453923:cluster/vote-capsule-services",
+        "TaskDefinition": { "Ref": "ElectionTD" },
+        "DesiredCount": 1,
+        "LaunchType": "FARGATE",
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "Subnets": [
+              "subnet-0aa1a58541c87ae2a",
+              "subnet-0171d821c5d5ae868",
+              "subnet-0be09dbd825b75c07",
+              "subnet-09604eb63697ac228"
+            ],
+            "SecurityGroups": [{ "Fn::GetAtt": ["ElectionSG", "GroupId"] }],
+            "AssignPublicIp": "ENABLED"
+          }
+        },
+        "LoadBalancers": [
+          {
+            "ContainerName": "vc-election",
+            "ContainerPort": 3011,
+            "TargetGroupArn": { "Ref": "ElectionTG" }
+          }
+        ],
+        "HealthCheckGracePeriodSeconds": 90,
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Service", "Value": "election" }
+        ]
+      }
+    }
+
+  },
+
+  "Outputs": {
+    "NotificationServiceArn": {
+      "Description": "notification ECS service ARN",
+      "Value": { "Ref": "NotificationService" }
+    },
+    "NotificationTGArn": {
+      "Description": "notification target group ARN",
+      "Value": { "Ref": "NotificationTG" }
+    },
+    "CandidateServiceArn": {
+      "Description": "candidate ECS service ARN",
+      "Value": { "Ref": "CandidateService" }
+    },
+    "CandidateTGArn": {
+      "Description": "candidate target group ARN",
+      "Value": { "Ref": "CandidateTG" }
+    },
+    "ReportingServiceArn": {
+      "Description": "reporting ECS service ARN",
+      "Value": { "Ref": "ReportingService" }
+    },
+    "ReportingTGArn": {
+      "Description": "reporting target group ARN",
+      "Value": { "Ref": "ReportingTG" }
+    },
+    "ElectionServiceArn": {
+      "Description": "election ECS service ARN",
+      "Value": { "Ref": "ElectionService" }
+    },
+    "ElectionTGArn": {
+      "Description": "election target group ARN",
+      "Value": { "Ref": "ElectionTG" }
+    }
+  }
+}

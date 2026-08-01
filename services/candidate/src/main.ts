@@ -15,7 +15,7 @@ async function bootstrap() {
   const config = app.get(ConfigService);
   const port   = config.get<number>('PORT', 3009);
 
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix('api/v1/candidate');
 
   app.useGlobalPipes(
     new ValidationPipe({

@@ -1,0 +1,140 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "VoteCapsule Admin Portal — CloudFront Distribution with OAC over existing S3 bucket. Task 19.",
+
+  "Resources": {
+
+    "VoteCapsuleOAC": {
+      "Type": "AWS::CloudFront::OriginAccessControl",
+      "Properties": {
+        "OriginAccessControlConfig": {
+          "Name": "vote-capsule-public-web-oac",
+          "Description": "OAC for VoteCapsule public web S3 bucket",
+          "OriginAccessControlOriginType": "s3",
+          "SigningBehavior": "always",
+          "SigningProtocol": "sigv4"
+        }
+      }
+    },
+
+    "VoteCapsuleDistribution": {
+      "Type": "AWS::CloudFront::Distribution",
+      "Properties": {
+        "DistributionConfig": {
+          "Comment": "VoteCapsule Admin Portal — votecapsule.yna.co.ke",
+          "Enabled": true,
+          "DefaultRootObject": "index.html",
+          "HttpVersion": "http2and3",
+          "PriceClass": "PriceClass_100",
+          "DefaultCacheBehavior": {
+            "TargetOriginId": "S3-vote-capsule-public-web",
+            "ViewerProtocolPolicy": "redirect-to-https",
+            "AllowedMethods": ["GET", "HEAD"],
+            "CachedMethods": ["GET", "HEAD"],
+            "Compress": true,
+            "ForwardedValues": {
+              "QueryString": false,
+              "Cookies": { "Forward": "none" }
+            },
+            "MinTTL": 0,
+            "DefaultTTL": 86400,
+            "MaxTTL": 31536000
+          },
+          "CacheBehaviors": [
+            {
+              "PathPattern": "/index.html",
+              "TargetOriginId": "S3-vote-capsule-public-web",
+              "ViewerProtocolPolicy": "redirect-to-https",
+              "AllowedMethods": ["GET", "HEAD"],
+              "CachedMethods": ["GET", "HEAD"],
+              "Compress": true,
+              "ForwardedValues": {
+                "QueryString": false,
+                "Cookies": { "Forward": "none" }
+              },
+              "MinTTL": 0,
+              "DefaultTTL": 0,
+              "MaxTTL": 0
+            }
+          ],
+          "Origins": [
+            {
+              "Id": "S3-vote-capsule-public-web",
+              "DomainName": "vote-capsule-public-web-683541453923.s3.us-east-1.amazonaws.com",
+              "S3OriginConfig": {
+                "OriginAccessIdentity": ""
+              },
+              "OriginAccessControlId": { "Ref": "VoteCapsuleOAC" }
+            }
+          ],
+          "CustomErrorResponses": [
+            {
+              "ErrorCode": 403,
+              "ResponseCode": 200,
+              "ResponsePagePath": "/index.html",
+              "ErrorCachingMinTTL": 0
+            },
+            {
+              "ErrorCode": 404,
+              "ResponseCode": 200,
+              "ResponsePagePath": "/index.html",
+              "ErrorCachingMinTTL": 0
+            }
+          ]
+        },
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "ManagedBy", "Value": "Sonie" }
+        ]
+      }
+    },
+
+    "VoteCapsuleS3BucketPolicy": {
+      "Type": "AWS::S3::BucketPolicy",
+      "Properties": {
+        "Bucket": "vote-capsule-public-web-683541453923",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "AllowCloudFrontOACRead",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "cloudfront.amazonaws.com"
+              },
+              "Action": "s3:GetObject",
+              "Resource": "arn:aws:s3:::vote-capsule-public-web-683541453923/*",
+              "Condition": {
+                "StringEquals": {
+                  "AWS:SourceArn": {
+                    "Fn::Sub": "arn:aws:cloudfront::${AWS::AccountId}:distribution/${VoteCapsuleDistribution}"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+
+  },
+
+  "Outputs": {
+    "CloudFrontDistributionId": {
+      "Description": "CloudFront Distribution ID",
+      "Value": { "Ref": "VoteCapsuleDistribution" },
+      "Export": { "Name": "VoteCapsule-CloudFrontDistributionId" }
+    },
+    "CloudFrontDomainName": {
+      "Description": "CloudFront *.cloudfront.net domain — point votecapsule.yna.co.ke CNAME here",
+      "Value": { "Fn::GetAtt": ["VoteCapsuleDistribution", "DomainName"] },
+      "Export": { "Name": "VoteCapsule-CloudFrontDomain" }
+    },
+    "AdminPortalUrl": {
+      "Description": "Admin Portal CloudFront URL (until DNS CNAME is set)",
+      "Value": {
+        "Fn::Sub": "https://${VoteCapsuleDistribution.DomainName}"
+      }
+    }
+  }
+}

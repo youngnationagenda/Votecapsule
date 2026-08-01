@@ -1,0 +1,163 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "VoteCapsule CloudWatch Dashboards and Alarms for all 12 ECS services",
+
+  "Parameters": {
+    "SNSAlertEmail": {
+      "Type": "String",
+      "Default": "admin@votecapsule.co.ke"
+    },
+    "ECSClusterName": {
+      "Type": "String",
+      "Default": "vote-capsule-services"
+    },
+    "ALBFullName": {
+      "Type": "String",
+      "Default": "app/vote-capsule-services-alb/placeholder",
+      "Description": "ALB full name for metrics (app/name/id format)"
+    }
+  },
+
+  "Resources": {
+    "VoteCapsuleAlertTopic": {
+      "Type": "AWS::SNS::Topic",
+      "Properties": {
+        "TopicName": "vote-capsule-ops-alerts",
+        "DisplayName": "VoteCapsule Operations Alerts",
+        "Subscription": [
+          { "Protocol": "email", "Endpoint": { "Ref": "SNSAlertEmail" } }
+        ],
+        "Tags": [{ "Key": "Project", "Value": "VoteCapsule" }]
+      }
+    },
+
+    "IdentityCPUAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "VoteCapsule-Identity-HighCPU",
+        "AlarmDescription": "Identity service CPU above 80 percent",
+        "Namespace": "AWS/ECS",
+        "MetricName": "CPUUtilization",
+        "Dimensions": [
+          { "Name": "ClusterName", "Value": { "Ref": "ECSClusterName" } },
+          { "Name": "ServiceName", "Value": "vc-identity" }
+        ],
+        "Statistic": "Average",
+        "Period": 300,
+        "EvaluationPeriods": 2,
+        "Threshold": 80,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [{ "Ref": "VoteCapsuleAlertTopic" }]
+      }
+    },
+
+    "EvidenceCPUAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "VoteCapsule-Evidence-HighCPU",
+        "AlarmDescription": "Evidence service CPU above 80 percent",
+        "Namespace": "AWS/ECS",
+        "MetricName": "CPUUtilization",
+        "Dimensions": [
+          { "Name": "ClusterName", "Value": { "Ref": "ECSClusterName" } },
+          { "Name": "ServiceName", "Value": "vc-evidence" }
+        ],
+        "Statistic": "Average",
+        "Period": 300,
+        "EvaluationPeriods": 2,
+        "Threshold": 80,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [{ "Ref": "VoteCapsuleAlertTopic" }]
+      }
+    },
+
+    "AICPUAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "VoteCapsule-AI-HighCPU",
+        "AlarmDescription": "AI service CPU above 85 percent",
+        "Namespace": "AWS/ECS",
+        "MetricName": "CPUUtilization",
+        "Dimensions": [
+          { "Name": "ClusterName", "Value": { "Ref": "ECSClusterName" } },
+          { "Name": "ServiceName", "Value": "vc-ai" }
+        ],
+        "Statistic": "Average",
+        "Period": 300,
+        "EvaluationPeriods": 2,
+        "Threshold": 85,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [{ "Ref": "VoteCapsuleAlertTopic" }]
+      }
+    },
+
+    "IdentityMemoryAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "VoteCapsule-Identity-HighMemory",
+        "AlarmDescription": "Identity service memory above 85 percent",
+        "Namespace": "AWS/ECS",
+        "MetricName": "MemoryUtilization",
+        "Dimensions": [
+          { "Name": "ClusterName", "Value": { "Ref": "ECSClusterName" } },
+          { "Name": "ServiceName", "Value": "vc-identity" }
+        ],
+        "Statistic": "Average",
+        "Period": 300,
+        "EvaluationPeriods": 2,
+        "Threshold": 85,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [{ "Ref": "VoteCapsuleAlertTopic" }]
+      }
+    },
+
+    "EvidenceMemoryAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmName": "VoteCapsule-Evidence-HighMemory",
+        "AlarmDescription": "Evidence service memory above 85 percent",
+        "Namespace": "AWS/ECS",
+        "MetricName": "MemoryUtilization",
+        "Dimensions": [
+          { "Name": "ClusterName", "Value": { "Ref": "ECSClusterName" } },
+          { "Name": "ServiceName", "Value": "vc-evidence" }
+        ],
+        "Statistic": "Average",
+        "Period": 300,
+        "EvaluationPeriods": 2,
+        "Threshold": 85,
+        "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+        "TreatMissingData": "notBreaching",
+        "AlarmActions": [{ "Ref": "VoteCapsuleAlertTopic" }]
+      }
+    },
+
+    "VoteCapsuleMainDashboard": {
+      "Type": "AWS::CloudWatch::Dashboard",
+      "Properties": {
+        "DashboardName": "VoteCapsule-Services",
+        "DashboardBody": {
+          "Fn::Sub": "{\"widgets\":[{\"type\":\"text\",\"x\":0,\"y\":0,\"width\":24,\"height\":1,\"properties\":{\"markdown\":\"# Vote Capsule Platform - Operations Dashboard\\nAll 12 ECS services monitoring - Region: ${AWS::Region}\"}},{\"type\":\"metric\",\"x\":0,\"y\":1,\"width\":12,\"height\":6,\"properties\":{\"title\":\"ECS CPU Utilization - Core Services\",\"view\":\"timeSeries\",\"stacked\":false,\"metrics\":[[\"AWS/ECS\",\"CPUUtilization\",\"ClusterName\",\"vote-capsule-services\",\"ServiceName\",\"vc-identity\"],[\"AWS/ECS\",\"CPUUtilization\",\"ClusterName\",\"vote-capsule-services\",\"ServiceName\",\"vc-evidence\"],[\"AWS/ECS\",\"CPUUtilization\",\"ClusterName\",\"vote-capsule-services\",\"ServiceName\",\"vc-ai\"],[\"AWS/ECS\",\"CPUUtilization\",\"ClusterName\",\"vote-capsule-services\",\"ServiceName\",\"vc-trust\"],[\"AWS/ECS\",\"CPUUtilization\",\"ClusterName\",\"vote-capsule-services\",\"ServiceName\",\"vc-workflow\"]],\"period\":300,\"stat\":\"Average\",\"region\":\"${AWS::Region}\"}},{\"type\":\"metric\",\"x\":12,\"y\":1,\"width\":12,\"height\":6,\"properties\":{\"title\":\"ECS CPU Utilization - Support Services\",\"view\":\"timeSeries\",\"stacked\":false,\"metrics\":[[\"AWS/ECS\",\"CPUUtilization\",\"ClusterName\",\"vote-capsule-services\",\"ServiceName\",\"vc-tenant\"],[\"AWS/ECS\",\"CPUUtilization\",\"ClusterName\",\"vote-capsule-services\",\"ServiceName\",\"vc-geography\"],[\"AWS/ECS\",\"CPUUtilization\",\"ClusterName\",\"vote-capsule-services\",\"ServiceName\",\"vc-notification\"],[\"AWS/ECS\",\"CPUUtilization\",\"ClusterName\",\"vote-capsule-services\",\"ServiceName\",\"vc-candidate\"],[\"AWS/ECS\",\"CPUUtilization\",\"ClusterName\",\"vote-capsule-services\",\"ServiceName\",\"vc-reporting\"],[\"AWS/ECS\",\"CPUUtilization\",\"ClusterName\",\"vote-capsule-services\",\"ServiceName\",\"vc-election\"]],\"period\":300,\"stat\":\"Average\",\"region\":\"${AWS::Region}\"}},{\"type\":\"metric\",\"x\":0,\"y\":7,\"width\":12,\"height\":6,\"properties\":{\"title\":\"ECS Memory Utilization - Core Services\",\"view\":\"timeSeries\",\"stacked\":false,\"metrics\":[[\"AWS/ECS\",\"MemoryUtilization\",\"ClusterName\",\"vote-capsule-services\",\"ServiceName\",\"vc-identity\"],[\"AWS/ECS\",\"MemoryUtilization\",\"ClusterName\",\"vote-capsule-services\",\"ServiceName\",\"vc-evidence\"],[\"AWS/ECS\",\"MemoryUtilization\",\"ClusterName\",\"vote-capsule-services\",\"ServiceName\",\"vc-ai\"],[\"AWS/ECS\",\"MemoryUtilization\",\"ClusterName\",\"vote-capsule-services\",\"ServiceName\",\"vc-trust\"],[\"AWS/ECS\",\"MemoryUtilization\",\"ClusterName\",\"vote-capsule-services\",\"ServiceName\",\"vc-workflow\"]],\"period\":300,\"stat\":\"Average\",\"region\":\"${AWS::Region}\"}},{\"type\":\"metric\",\"x\":12,\"y\":7,\"width\":12,\"height\":6,\"properties\":{\"title\":\"ECS Memory Utilization - Support Services\",\"view\":\"timeSeries\",\"stacked\":false,\"metrics\":[[\"AWS/ECS\",\"MemoryUtilization\",\"ClusterName\",\"vote-capsule-services\",\"ServiceName\",\"vc-tenant\"],[\"AWS/ECS\",\"MemoryUtilization\",\"ClusterName\",\"vote-capsule-services\",\"ServiceName\",\"vc-geography\"],[\"AWS/ECS\",\"MemoryUtilization\",\"ClusterName\",\"vote-capsule-services\",\"ServiceName\",\"vc-notification\"],[\"AWS/ECS\",\"MemoryUtilization\",\"ClusterName\",\"vote-capsule-services\",\"ServiceName\",\"vc-candidate\"],[\"AWS/ECS\",\"MemoryUtilization\",\"ClusterName\",\"vote-capsule-services\",\"ServiceName\",\"vc-reporting\"],[\"AWS/ECS\",\"MemoryUtilization\",\"ClusterName\",\"vote-capsule-services\",\"ServiceName\",\"vc-election\"]],\"period\":300,\"stat\":\"Average\",\"region\":\"${AWS::Region}\"}}]}"
+        }
+      }
+    }
+  },
+
+  "Outputs": {
+    "AlertTopicArn": {
+      "Description": "SNS topic for VoteCapsule ops alerts",
+      "Value": { "Ref": "VoteCapsuleAlertTopic" },
+      "Export": { "Name": "VoteCapsule-Ops-Alert-Topic" }
+    },
+    "DashboardURL": {
+      "Description": "CloudWatch Dashboard URL",
+      "Value": {
+        "Fn::Sub": "https://console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=VoteCapsule-Services"
+      }
+    }
+  }
+}

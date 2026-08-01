@@ -1,0 +1,50 @@
+{
+  "Comment": "VoteCapsule Portal subdomain CNAMEs",
+  "Changes": [
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "transparency.votecapsule.yna.co.ke",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [{"Value": "d1143zm5vnrfa.cloudfront.net"}]
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "authority.votecapsule.yna.co.ke",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [{"Value": "d2d78htllut667.cloudfront.net"}]
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "party.votecapsule.yna.co.ke",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [{"Value": "d1kljfbe5qk9sb.cloudfront.net"}]
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "candidate.votecapsule.yna.co.ke",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [{"Value": "dfsqw4ew7l8lz.cloudfront.net"}]
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "observer.votecapsule.yna.co.ke",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [{"Value": "d3rxv5jpd9aukw.cloudfront.net"}]
+      }
+    }
+  ]
+}

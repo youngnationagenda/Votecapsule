@@ -17,7 +17,7 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix('api/v1/notification');
 
   const port = process.env.PORT ?? 3008;
   await app.listen(port);

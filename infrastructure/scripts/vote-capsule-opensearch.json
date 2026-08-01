@@ -1,0 +1,161 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "VoteCapsule OpenSearch Domain for Search and Analytics",
+
+  "Parameters": {
+    "Environment": {
+      "Type": "String",
+      "Default": "production",
+      "AllowedValues": ["production", "staging", "development"]
+    },
+    "VpcId": {
+      "Type": "String",
+      "Default": "vpc-0ae6f8630af9fbfdc"
+    },
+    "SubnetId": {
+      "Type": "String",
+      "Default": "subnet-0171d821c5d5ae868"
+    },
+    "ALBSecurityGroupId": {
+      "Type": "String",
+      "Default": "sg-0141328242fe8f272"
+    }
+  },
+
+  "Resources": {
+    "OpenSearchSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupName": "vote-capsule-opensearch-sg",
+        "GroupDescription": "VoteCapsule OpenSearch domain security group",
+        "VpcId": { "Ref": "VpcId" },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 443,
+            "ToPort": 443,
+            "SourceSecurityGroupId": { "Ref": "ALBSecurityGroupId" },
+            "Description": "HTTPS from ALB and ECS tasks"
+          }
+        ],
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Component", "Value": "OpenSearch" }
+        ]
+      }
+    },
+
+    "OpenSearchMasterUserSecret": {
+      "Type": "AWS::SecretsManager::Secret",
+      "Properties": {
+        "Name": "vote-capsule/opensearch/master-user",
+        "Description": "VoteCapsule OpenSearch master user credentials",
+        "GenerateSecretString": {
+          "SecretStringTemplate": "{\"username\": \"vc-opensearch-admin\"}",
+          "GenerateStringKey": "password",
+          "PasswordLength": 32,
+          "ExcludeCharacters": "\"@/\\ ',;:!<>{}[]"
+        },
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" }
+        ]
+      }
+    },
+
+    "VoteCapsuleOpenSearch": {
+      "Type": "AWS::OpenSearchService::Domain",
+      "DependsOn": ["OpenSearchSecurityGroup", "OpenSearchMasterUserSecret"],
+      "Properties": {
+        "DomainName": "vote-capsule-search",
+        "EngineVersion": "OpenSearch_2.11",
+
+        "ClusterConfig": {
+          "InstanceType": "t3.small.search",
+          "InstanceCount": 1,
+          "DedicatedMasterEnabled": false,
+          "ZoneAwarenessEnabled": false
+        },
+
+        "EBSOptions": {
+          "EBSEnabled": true,
+          "VolumeType": "gp3",
+          "VolumeSize": 20
+        },
+
+        "VPCOptions": {
+          "SubnetIds": [{ "Ref": "SubnetId" }],
+          "SecurityGroupIds": [{ "Fn::GetAtt": ["OpenSearchSecurityGroup", "GroupId"] }]
+        },
+
+        "AdvancedSecurityOptions": {
+          "Enabled": true,
+          "InternalUserDatabaseEnabled": true,
+          "MasterUserOptions": {
+            "MasterUserName": "vc-opensearch-admin",
+            "MasterUserPassword": {
+              "Fn::Sub": "{{resolve:secretsmanager:vote-capsule/opensearch/master-user:SecretString:password}}"
+            }
+          }
+        },
+
+        "EncryptionAtRestOptions": {
+          "Enabled": true
+        },
+
+        "NodeToNodeEncryptionOptions": {
+          "Enabled": true
+        },
+
+        "DomainEndpointOptions": {
+          "EnforceHTTPS": true,
+          "TLSSecurityPolicy": "Policy-Min-TLS-1-2-2019-07"
+        },
+
+        "AccessPolicies": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "AWS": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role"
+              },
+              "Action": "es:*",
+              "Resource": {
+                "Fn::Sub": "arn:aws:es:${AWS::Region}:${AWS::AccountId}:domain/vote-capsule-search/*"
+              }
+            }
+          ]
+        },
+
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Environment", "Value": { "Ref": "Environment" } },
+          { "Key": "Component", "Value": "Search" }
+        ]
+      }
+    }
+  },
+
+  "Outputs": {
+    "OpenSearchDomainEndpoint": {
+      "Description": "OpenSearch domain endpoint",
+      "Value": { "Fn::GetAtt": ["VoteCapsuleOpenSearch", "DomainEndpoint"] },
+      "Export": { "Name": "VoteCapsule-OpenSearch-Endpoint" }
+    },
+    "OpenSearchDomainArn": {
+      "Description": "OpenSearch domain ARN",
+      "Value": { "Fn::GetAtt": ["VoteCapsuleOpenSearch", "Arn"] },
+      "Export": { "Name": "VoteCapsule-OpenSearch-Arn" }
+    },
+    "OpenSearchSecurityGroupId": {
+      "Description": "OpenSearch security group ID",
+      "Value": { "Fn::GetAtt": ["OpenSearchSecurityGroup", "GroupId"] },
+      "Export": { "Name": "VoteCapsule-OpenSearch-SG" }
+    },
+    "OpenSearchMasterUserSecretArn": {
+      "Description": "OpenSearch master user secret ARN",
+      "Value": { "Ref": "OpenSearchMasterUserSecret" },
+      "Export": { "Name": "VoteCapsule-OpenSearch-MasterUser-Secret" }
+    }
+  }
+}

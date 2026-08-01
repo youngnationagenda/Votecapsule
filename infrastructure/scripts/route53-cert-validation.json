@@ -1,0 +1,16 @@
+{
+  "Comment": "ACM DNS validation for *.votecapsule.yna.co.ke",
+  "Changes": [
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "_e0659e037eee4213cae3d7031afa1a09.votecapsule.yna.co.ke.",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [
+          { "Value": "_6fd17bd78afc1919fcf9fa8371fcfadd.jkddzztszm.acm-validations.aws." }
+        ]
+      }
+    }
+  ]
+}

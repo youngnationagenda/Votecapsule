@@ -1,0 +1,26 @@
+{
+  "family": "vc-ai", "cpu": "512", "memory": "1024",
+  "networkMode": "awsvpc", "requiresCompatibilities": ["FARGATE"],
+  "executionRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+  "taskRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+  "containerDefinitions": [{
+    "name": "ai-service",
+    "image": "683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/ai-service:latest",
+    "portMappings": [{"containerPort": 3006}], "essential": true,
+    "environment": [
+      {"name": "PORT", "value": "3006"}, {"name": "NODE_ENV", "value": "production"},
+      {"name": "DB_HOST", "value": "vote-capsule-db.cluster-c43i6c8ow71c.us-east-1.rds.amazonaws.com"},
+      {"name": "DB_PORT", "value": "5432"}, {"name": "DB_NAME", "value": "votecapsule"},
+      {"name": "DB_USER", "value": "vcadmin"}, {"name": "DB_SSL", "value": "true"},
+      {"name": "AWS_REGION", "value": "us-east-1"},
+      {"name": "S3_EVIDENCE_BUCKET", "value": "vote-capsule-evidence-vault-683541453923"},
+      {"name": "SQS_VALIDATION_URL", "value": "https://sqs.us-east-1.amazonaws.com/683541453923/votecapsule-validation"}
+    ],
+    "secrets": [
+      {"name": "DB_PASSWORD", "valueFrom": "arn:aws:secretsmanager:us-east-1:683541453923:secret:vote-capsule/database/credentials-zTDMLX:password::"},
+      {"name": "JWT_SECRET", "valueFrom": "arn:aws:secretsmanager:us-east-1:683541453923:secret:vote-capsule/jwt/secret-bB2dDP:jwt_secret::"}
+    ],
+    "logConfiguration": {"logDriver": "awslogs", "options": {"awslogs-group": "/vote-capsule/ai-service", "awslogs-region": "us-east-1", "awslogs-stream-prefix": "ai", "awslogs-create-group": "true"}},
+    "healthCheck": {"command": ["CMD-SHELL", "curl -f http://localhost:3006/api/v1/ai/health || exit 1"], "interval": 30, "timeout": 5, "retries": 3, "startPeriod": 90}
+  }]
+}

@@ -30,7 +30,7 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
 
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix('api/v1/tenant');
 
   const config = new DocumentBuilder()
     .setTitle('Vote Capsule™ Tenant Service')

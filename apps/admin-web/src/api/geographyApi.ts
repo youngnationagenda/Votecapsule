@@ -1,26 +1,7 @@
 /**
  * Vote Capsule™ Admin Portal — Geography API Client
- *
- * Wraps all 18 Geography Service endpoints.
- * Geography Service is the single source of truth for all Kenya election geography.
- * NEVER hardcode geographic data — always call this API.
  */
-
-import axios from 'axios';
-
-const geographyClient = axios.create({
-  baseURL: import.meta.env['VITE_GEOGRAPHY_API_URL'] ?? '/api/geography',
-  headers: { 'Content-Type': 'application/json' },
-  timeout: 15000,
-});
-
-geographyClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('vc_access_token');
-  if (token && config.headers) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+import { geographyClient } from './apiClient';
 
 export interface GeographyStats {
   counties: number;
@@ -125,11 +106,6 @@ export const geographyApi = {
 
   getTotalRegisteredVoters: async (): Promise<{ total: number }> => {
     const { data } = await geographyClient.get<{ total: number }>('/registered-voters');
-    return data;
-  },
-
-  getVotersByCounty: async () => {
-    const { data } = await geographyClient.get('/registered-voters/by-county');
     return data;
   },
 };

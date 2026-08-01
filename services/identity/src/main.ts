@@ -40,8 +40,9 @@ async function bootstrap(): Promise<void> {
     credentials: true,
   });
 
-  // Global API prefix
-  app.setGlobalPrefix('api/v1');
+  // Global API prefix — include service name to match ALB path-based routing
+  // ALB routes /api/v1/identity/* → this container
+  app.setGlobalPrefix('api/v1/identity');
 
   // OpenAPI / Swagger documentation
   const config = new DocumentBuilder()

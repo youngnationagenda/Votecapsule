@@ -2,6 +2,7 @@
 // VoteCapsule — Geography Service Root Module
 // services/geography/src/app.module.ts
 // ============================================================
+import { HealthController } from './health.controller';
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -14,6 +15,7 @@ import { PollingStation }      from './entities/polling-station.entity';
 import { ElectionVersion }     from './entities/election-version.entity';
 
 @Module({
+  controllers: [HealthController],
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env.local', '.env'] }),
 

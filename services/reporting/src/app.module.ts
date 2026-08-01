@@ -2,6 +2,7 @@
 // VoteCapsule™ — Reporting Service App Module
 // reporting-service/src/app.module.ts
 // ============================================================
+import { HealthController } from './health.controller';
 import { Module }              from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule }       from '@nestjs/typeorm';
@@ -13,6 +14,7 @@ import { EvidenceCapsuleView } from './readers/evidence-capsule.reader';
 import { AiJobView }           from './readers/ai-job.reader';
 
 @Module({
+  controllers: [HealthController],
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
 

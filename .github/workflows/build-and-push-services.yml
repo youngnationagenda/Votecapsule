@@ -76,6 +76,14 @@ jobs:
             dir: services/election
             repo: vote-capsule/election-service
             port: 3011
+          - name: audit
+            dir: services/audit
+            repo: vote-capsule/audit-service
+            port: 3012
+          - name: billing
+            dir: services/billing
+            repo: vote-capsule/billing-service
+            port: 3013
 
     steps:
       - name: Skip if specific service requested and this is not it

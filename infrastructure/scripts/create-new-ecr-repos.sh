@@ -1,12 +1,9 @@
 #!/bin/bash
 # ============================================================
-# VoteCapsule™ — Create ECR Repositories for Phase 7 Services
+# VoteCapsule™ — Create ECR Repositories for New Services
 #
-# Run once to create the 4 new ECR repos needed for:
-#   - notification-service  (port 3008)
-#   - candidate-service     (port 3009)
-#   - reporting-service     (port 3010)
-#   - election-service      (port 3011)
+# Run once to create any new ECR repos needed.
+# Safe to re-run: existing repos are skipped.
 #
 # Usage: bash create-new-ecr-repos.sh
 # ============================================================
@@ -20,6 +17,8 @@ REPOS=(
   "vote-capsule/candidate-service"
   "vote-capsule/reporting-service"
   "vote-capsule/election-service"
+  "vote-capsule/audit-service"
+  "vote-capsule/billing-service"
 )
 
 echo "Creating ECR repositories in ${REGION}..."
