@@ -15,7 +15,7 @@ const MOCK_SERVICES: ServiceHealth[] = [
   { name: 'Identity Service', status: 'operational', latencyMs: 12 },
   { name: 'Tenant Service', status: 'operational', latencyMs: 8 },
   { name: 'Geography Service', status: 'operational', latencyMs: 15 },
-  { name: 'Trust Ledger (QLDB)', status: 'operational', latencyMs: 45 },
+  { name: 'Trust Anchor (Hybrid)', status: 'operational', latencyMs: 45 },
   { name: 'AI Service', status: 'operational', latencyMs: 32 },
   { name: 'Workflow Engine', status: 'operational', latencyMs: 18 },
   { name: 'Evidence Service', status: 'degraded' },  // Phase 3 — wired, database needed

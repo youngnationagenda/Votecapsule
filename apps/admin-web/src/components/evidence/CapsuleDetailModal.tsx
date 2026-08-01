@@ -36,7 +36,8 @@ const CUSTODY_EVENT_CONFIG: Record<string, { label: string; color: string; icon:
   VALIDATION_APPROVED:  { label: 'Approved by Validator', color: 'bg-emerald-500', icon: CheckCircle2 },
   VALIDATION_REJECTED:  { label: 'Rejected by Validator', color: 'bg-red-500',    icon: X },
   VALIDATION_ESCALATED: { label: 'Escalated',            color: 'bg-orange-500',  icon: AlertTriangle },
-  QLDB_ANCHORED:        { label: 'Integrity Verified (QLDB)', color: 'bg-emerald-600', icon: Lock },
+  QLDB_ANCHORED:        { label: 'Integrity Verified',       color: 'bg-emerald-600', icon: Lock },
+  ANCHORED:             { label: 'Integrity Verified',       color: 'bg-emerald-600', icon: Lock },
   S3_LOCKED:            { label: 'Evidence Locked (WORM)', color: 'bg-emerald-700', icon: Lock },
   PUBLISHED:            { label: 'Published',            color: 'bg-[#0B3C6D]',  icon: CheckCircle2 },
   ARCHIVED:             { label: 'Archived',             color: 'bg-gray-500',    icon: Shield },
@@ -215,8 +216,8 @@ export function CapsuleDetailModal({ capsuleId, onClose }: CapsuleDetailModalPro
                 </div>
               )}
 
-              {/* Integrity Verification (QLDB) */}
-              {capsule.qldbDocumentId && (
+              {/* Integrity Verification — Hybrid Anchor (Hedera + RFC 3161) */}
+              {(capsule.anchorStatus === 'ANCHORED' || capsule.anchoredAt || capsule.trustAnchorBatchId) && (
                 <div className="bg-emerald-50 rounded-lg p-4 border border-emerald-100">
                   <div className="flex items-center gap-2 mb-2">
                     <Lock className="w-4 h-4 text-emerald-600" aria-hidden="true" />
@@ -225,14 +226,16 @@ export function CapsuleDetailModal({ capsuleId, onClose }: CapsuleDetailModalPro
                     </h3>
                   </div>
                   <div className="space-y-1 text-xs">
-                    <div className="flex gap-2">
-                      <span className="text-gray-500 flex-shrink-0">QLDB Document:</span>
-                      <span className="font-mono text-gray-700 break-all">{capsule.qldbDocumentId}</span>
-                    </div>
-                    {capsule.qldbAnchoredAt && (
+                    {capsule.trustAnchorBatchId && (
+                      <div className="flex gap-2">
+                        <span className="text-gray-500 flex-shrink-0">Anchor Batch:</span>
+                        <span className="font-mono text-gray-700 break-all">{capsule.trustAnchorBatchId.slice(0, 16)}…</span>
+                      </div>
+                    )}
+                    {capsule.anchoredAt && (
                       <div className="flex gap-2">
                         <span className="text-gray-500 flex-shrink-0">Anchored:</span>
-                        <span className="text-gray-700">{new Date(capsule.qldbAnchoredAt).toLocaleString()}</span>
+                        <span className="text-gray-700">{new Date(capsule.anchoredAt).toLocaleString()}</span>
                       </div>
                     )}
                     {capsule.sha256Hash && (
@@ -243,7 +246,8 @@ export function CapsuleDetailModal({ capsuleId, onClose }: CapsuleDetailModalPro
                     )}
                   </div>
                   <p className="text-xs text-emerald-600 mt-2">
-                    This evidence is anchored to Amazon QLDB — any tampering would change the ledger digest.
+                    This evidence has been integrity-verified with cryptographic proof.
+                    SHA-256 hash, Merkle proof, and RFC 3161 timestamp are independently verifiable.
                   </p>
                 </div>
               )}

@@ -5,7 +5,7 @@
  * - Tenant Service: tenant counts by type
  * - Identity Service: total user count
  * - Geography Service (NEC): polling stations, voters, counties
- * - Trust Service: QLDB ledger status + digest
+ * - Trust Service: Hybrid Anchor status (Hedera + RFC 3161)
  *
  * Evidence capsule stats remain 0 until Evidence Service is fully operational.
  */
@@ -61,13 +61,16 @@ export function DashboardPage(): React.JSX.Element {
     staleTime: 5 * 60 * 1000, // 5 min — NEC data doesn't change often
   });
 
-  // Trust ledger digest
-  const { data: ledgerDigest } = useQuery({
-    queryKey: ['trust-digest'],
-    queryFn: trustApi.getLedgerDigest,
+  // Trust anchor batches — latest batch shows anchor health
+  const { data: trustBatches } = useQuery({
+    queryKey: ['trust-batches'],
+    queryFn: trustApi.getBatches,
     retry: 1,
     staleTime: 30 * 1000,
   });
+  const ledgerDigest = trustBatches?.[0]
+    ? { ledger: 'vote-capsule-trust', digest: trustBatches[0].merkleRoot, at: trustBatches[0].anchoredAt ?? trustBatches[0].batchedAt }
+    : null;
 
   // AI Service stats — advisory only
   const { data: aiStats } = useQuery({

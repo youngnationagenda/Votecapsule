@@ -29,6 +29,8 @@ async function bootstrap() {
   await app.listen(port);
   logger.log(`Trust Service running on port ${port}`);
   logger.log(`API base: http://localhost:${port}/api/v1/trust`);
-  logger.log(`QLDB Ledger: ${process.env.QLDB_LEDGER_NAME ?? 'vote-capsule-trust'}`);
+  logger.log(`Hedera Network: ${process.env.HEDERA_NETWORK ?? 'testnet'}`);
+  logger.log(`RFC 3161 TSA: ${process.env.TSA_URL ?? 'https://freetsa.org/tsr'}`);
+  logger.log(`Merkle Batch Interval: ${process.env.MERKLE_BATCH_INTERVAL_MS ?? '60000'}ms`);
 }
 bootstrap();

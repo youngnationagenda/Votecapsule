@@ -1,7 +1,7 @@
 /**
  * Vote Capsule™ Trust Ledger Status Widget
  *
- * Shows QLDB ledger health on the dashboard.
+ * Shows Hybrid Anchor (Hedera + RFC 3161) health on the dashboard.
  * Uses real data from Trust Service when available.
  *
  * NEVER use the word "blockchain" — always "Integrity Verified" or "Trust Ledger".
@@ -10,10 +10,10 @@
 import React from 'react';
 import { Lock, CheckCircle2, ExternalLink } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import type { LedgerDigest } from '../../api/trustApi';
+// LedgerDigest replaced by TrustAnchorBatch after QLDB→Hybrid Anchor migration
 
 interface TrustLedgerStatusProps {
-  ledgerDigest: LedgerDigest | null;
+  ledgerDigest: { ledger?: string; digest?: string; at?: string } | null;
 }
 
 export function TrustLedgerStatus({ ledgerDigest }: TrustLedgerStatusProps): React.JSX.Element {
