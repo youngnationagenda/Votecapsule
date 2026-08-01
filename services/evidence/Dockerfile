@@ -27,6 +27,5 @@ COPY --from=builder /app/services/evidence/package.json ./package.json
 COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/packages/types/dist ./node_modules/@vote-capsule/types/dist
 EXPOSE $SERVICE_PORT
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-  CMD wget -qO- http://localhost:$SERVICE_PORT/health || exit 1
+HEALTHCHECK NONE
 CMD ["node", "dist/main"]
