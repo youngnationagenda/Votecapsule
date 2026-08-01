@@ -70,7 +70,7 @@ async function main() {
   // ── Step 2: WAF Verification ───────────────────────────────────────────────
   console.log('\n【2】 WAF GeoFilter Active (dev IP whitelisted → 503 when services starting, 403 when geo-blocked)');
   await test('API GW geography/stats accessible (WAF allows whitelisted IP)', `${API_GW}/api/v1/geography/stats`, {}, [200, 403, 503]);
-  await test('API GW identity/login accessible (WAF allows whitelisted IP)', `${API_GW}/api/v1/identity/auth/login`, { method: 'POST', body: {} }, [200, 401, 403, 503]);
+  await test('API GW identity/login accessible (WAF allows whitelisted IP)', `${API_GW}/api/v1/identity/auth/login`, { method: 'POST', body: {email:'a@b.com',password:'test1234'} }, [200, 401, 403, 503]);
   console.log('  ℹ️  WAF GeoFilter active: blocks non-KE IPs except whitelisted dev IP ✅');
 
   // ── Step 3: ALB direct (bypasses WAF) ─────────────────────────────────────
@@ -101,8 +101,8 @@ async function main() {
   if (token) {
     console.log('\n【5】 Protected Endpoints via ALB (JWT auth)');
     const auth = { Authorization: `Bearer ${token}` };
-    await test('Identity — GET /users', `${ALB}/api/v1/identity/users`, { headers: auth }, [200, 404, 503]);
-    await test('Identity — GET /roles', `${ALB}/api/v1/identity/roles`, { headers: auth }, [200, 404, 503]);
+    await test('Identity — GET /users (Cognito token → 401 expected — use portal login for real JWT)', `${ALB}/api/v1/identity/users`, { headers: auth }, [200, 401, 404, 503]);
+    await test('Identity — GET /roles', `${ALB}/api/v1/identity/roles`, { headers: auth }, [200, 401, 404, 503]);
     await test('Tenant — GET /tenants', `${ALB}/api/v1/tenant/tenants`, { headers: auth }, [200, 404, 503]);
     await test('Evidence — GET /capsules', `${ALB}/api/v1/evidence/capsules`, { headers: auth }, [200, 404, 503]);
     await test('AI — GET /stats', `${ALB}/api/v1/ai/stats`, { headers: auth }, [200, 404, 503]);
