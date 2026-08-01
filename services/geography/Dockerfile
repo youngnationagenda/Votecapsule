@@ -26,6 +26,8 @@ COPY --from=builder /app/services/geography/dist ./dist
 COPY --from=builder /app/services/geography/package.json ./package.json
 COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/packages/types/dist ./node_modules/@vote-capsule/types/dist
+# Fix pnpm virtual store path for @vote-capsule/types
+RUN find ./node_modules/.pnpm -path "*vote-capsule+types*/node_modules/@vote-capsule/types" -type d 2>/dev/null | xargs -I{} cp -r ./node_modules/@vote-capsule/types/dist {}/dist 2>/dev/null || true
 EXPOSE $SERVICE_PORT
 HEALTHCHECK NONE
 CMD ["node", "dist/main"]
