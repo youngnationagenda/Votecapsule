@@ -36,10 +36,10 @@ export class WorkflowStepEvent {
   @Column({ name: 'event_type', length: 50, enum: StepEventType })
   eventType!: StepEventType;
 
-  @Column({ name: 'previous_step', length: 100, nullable: true })
+  @Column({ name: 'previous_step', type: 'varchar', length: 100, nullable: true })
   previousStep!: string | null;
 
-  @Column({ name: 'next_step', length: 100, nullable: true })
+  @Column({ name: 'next_step', type: 'varchar', length: 100, nullable: true })
   nextStep!: string | null;
 
   @Column({ name: 'task_resource', length: 500, nullable: true })
