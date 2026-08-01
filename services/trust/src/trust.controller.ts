@@ -13,7 +13,7 @@ import { TrustService }          from './trust.service';
 import { AnchorRequestDto }      from './dto/anchor-request.dto';
 import { RequesterType }         from './entities/trust-verification.entity';
 
-@Controller('trust')
+@Controller()
 export class TrustController {
   private readonly logger = new Logger(TrustController.name);
 

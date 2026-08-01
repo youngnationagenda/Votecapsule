@@ -27,7 +27,7 @@ import { AuditInterceptor } from './common/audit.interceptor';
         host:         config.get<string>('DB_HOST',     'localhost'),
         port:         config.get<number>('DB_PORT',     5432),
         username:     config.get<string>('DB_USER',     'votecapsule'),
-        password:     config.get<string>('DB_PASS',     ''),
+        password:     config.get<string>('DB_PASSWORD', ''),
         database:     config.get<string>('DB_NAME',     'votecapsule'),
         entities:     [WorkflowExecution, WorkflowStepEvent, WorkflowEscalation],
         synchronize:  false,

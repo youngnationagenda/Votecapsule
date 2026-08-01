@@ -24,7 +24,7 @@ import { AiService }         from './ai.service';
 import { TriggerAiJobDto }   from './dto/trigger-ai-job.dto';
 import { ReviewAnomalyDto }  from './dto/review-anomaly.dto';
 
-@Controller('ai')
+@Controller()
 export class AiController {
   constructor(private readonly aiService: AiService) {}
 

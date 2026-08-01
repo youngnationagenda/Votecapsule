@@ -27,7 +27,7 @@ import { AuditInterceptor } from './common/audit.interceptor';
         host:        config.get('DB_HOST', 'localhost'),
         port:        config.get<number>('DB_PORT', 5432),
         username:    config.get('DB_USER', 'postgres'),
-        password:    config.get('DB_PASS', ''),
+        password:    config.get('DB_PASSWORD', ''),
         database:    config.get('DB_NAME', 'votecapsule'),
         entities:    [
           Notification,

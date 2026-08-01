@@ -14,7 +14,7 @@ import { CreateAccessLogDto } from './dto/create-access-log.dto';
 import { CreateComplianceReportDto } from './dto/create-compliance-report.dto';
 import { QueryAuditLogsDto } from './dto/query-audit-logs.dto';
 
-@Controller('audit')
+@Controller()
 export class AuditController {
   private readonly logger = new Logger(AuditController.name);
 

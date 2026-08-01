@@ -10,7 +10,7 @@ import { GeographyService, GeographyStats } from './geography.service';
 import { StationType } from './entities/polling-station.entity';
 
 @ApiTags('NEC Geography')
-@Controller('geography')
+@Controller()
 export class GeographyController {
   constructor(private readonly geo: GeographyService) {}
 

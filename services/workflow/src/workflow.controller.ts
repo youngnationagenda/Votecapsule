@@ -28,7 +28,7 @@ import { EscalationDto, ResolveEscalationDto } from './dto/escalation.dto';
 import { WorkflowType }          from './entities/workflow-execution.entity';
 
 @ApiTags('workflow')
-@Controller('workflow')
+@Controller()
 export class WorkflowController {
   constructor(private readonly workflowService: WorkflowService) {}
 

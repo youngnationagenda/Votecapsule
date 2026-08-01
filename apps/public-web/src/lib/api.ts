@@ -161,13 +161,13 @@ export interface StationsQuery {
 }
 
 export async function getStations(query: StationsQuery = {}): Promise<Station[]> {
-  const { data } = await api.get('/geography/stations', { params: query });
-  return data;
+  const { data } = await api.get('/geography/polling-stations', { params: query });
+  return data?.items ?? data?.data ?? data ?? [];
 }
 
 export async function getStationByCode(code: string): Promise<Station> {
-  const { data } = await api.get(`/geography/stations/${code}`);
-  return data;
+  const { data } = await api.get(`/geography/polling-stations/${code}`);
+  return data?.data ?? data;
 }
 
 // ─── Reporting Progress ──────────────────────────────────────────────────────

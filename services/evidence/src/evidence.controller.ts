@@ -20,7 +20,7 @@ import { AnchorCallbackDto }     from './dto/anchor-callback.dto';
 import { AiResultDto }           from './dto/ai-result.dto';
 import { CapsuleStatus }         from './entities/evidence-capsule.entity';
 
-@Controller('evidence')
+@Controller()
 export class EvidenceController {
   private readonly logger = new Logger(EvidenceController.name);
 
