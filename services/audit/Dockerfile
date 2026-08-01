@@ -31,8 +31,6 @@ COPY --from=builder /app/services/audit/package.json ./package.json
 # Copy built shared packages to all possible paths pnpm might use
 COPY --from=builder /app/packages/types/dist ./node_modules/@vote-capsule/types/dist
 COPY --from=builder /app/packages/database/dist ./node_modules/@vote-capsule/database/dist
-# Also copy to pnpm virtual store path (handles hoisted modules)
-RUN find ./node_modules/.pnpm -name "@vote-capsule+types*" -type d 2>/dev/null | while read d; do cp -r ./node_modules/@vote-capsule/types/dist $d/node_modules/@vote-capsule/types/ 2>/dev/null || true; done
 EXPOSE $SERVICE_PORT
 HEALTHCHECK NONE
 CMD ["node", "dist/main"]
