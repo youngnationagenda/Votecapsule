@@ -15,7 +15,7 @@ import { ConfigService } from '@nestjs/config';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import {
-  S3Client, PutObjectCommand,
+  S3Client, PutObjectCommand, PutObjectRetentionCommand, ObjectLockRetentionMode,
 } from '@aws-sdk/client-s3';
 import {
   EvidenceCapsule, CapsuleStatus, SyncStatus, PositionCode,
@@ -55,6 +55,8 @@ export class EvidenceService {
   private readonly s3: S3Client;
   private readonly bucket: string;
   private readonly geographyServiceUrl: string;
+  private readonly aiServiceUrl: string;
+  private readonly trustServiceUrl: string;
 
   constructor(
     @InjectRepository(EvidenceCapsule)
@@ -73,11 +75,19 @@ export class EvidenceService {
     private readonly config: ConfigService,
     private readonly httpService: HttpService,
   ) {
-    this.s3 = new S3Client({ region: config.get('AWS_REGION', 'af-south-1') });
+    this.s3 = new S3Client({ region: config.get('AWS_REGION', 'us-east-1') });
     this.bucket = config.get('S3_EVIDENCE_BUCKET', 'votecapsule-evidence');
     this.geographyServiceUrl = config.get(
       'GEOGRAPHY_SERVICE_URL',
-      'http://localhost:3004',
+      'http://localhost:3004/api/v1/geography',
+    );
+    this.aiServiceUrl = config.get(
+      'AI_SERVICE_URL',
+      'http://localhost:3006/api/v1/ai',
+    );
+    this.trustServiceUrl = config.get(
+      'TRUST_SERVICE_URL',
+      'http://localhost:3003/api/v1/trust',
     );
   }
 
@@ -251,9 +261,11 @@ export class EvidenceService {
       return saved;
     });
 
-    // Step 6: Enqueue for AI processing (SQS)
-    // TODO: Trust Service integration — SQS publish to evidence-processing queue
-    // await this.sqsService.enqueueForAI(capsule.id);
+    // Step 6: Enqueue for AI processing — POST /ai/verify
+    this.triggerAiVerification(capsule, station).catch((err) =>
+      this.logger.error(`AI trigger failed for capsule ${capsule.id}: ${err?.message}`)
+    );
+
     this.logger.log(`Capsule ${capsule.id} submitted — station ${dto.iebcStationCode}, position ${dto.positionCode}`);
 
     return capsule;
@@ -367,8 +379,14 @@ export class EvidenceService {
       });
     });
 
-    // TODO: Trust Service integration
-    // Trust Service queues capsule for Hybrid Anchor (Hedera + RFC 3161) after APPROVED
+    // Queue for Hybrid Anchor (Hedera + RFC 3161) if APPROVED
+    if (decision === 'APPROVED') {
+      const approved = await this.getCapsule(capsuleId);
+      this.queueForTrustAnchor(approved, validatorUserId).catch((err) =>
+        this.logger.error(`Trust anchor queue failed for capsule ${capsuleId}: ${err?.message}`)
+      );
+    }
+
     this.logger.log(`Capsule ${capsuleId} ${decision} by validator ${validatorUserId}`);
 
     return this.getCapsule(capsuleId);
@@ -582,11 +600,104 @@ export class EvidenceService {
     this.logger.debug(`Uploaded evidence image to s3://${this.bucket}/${key}`);
   }
 
+  // ── AI + Trust integration helpers ──────────────────────
+
+  /**
+   * Fire-and-forget: triggers AI verification pipeline for a newly submitted capsule.
+   * POST /api/v1/ai/verify
+   * Called asynchronously after submitCapsule — does NOT block the response to the mobile app.
+   */
+  private async triggerAiVerification(
+    capsule: EvidenceCapsule,
+    station: StationValidation,
+  ): Promise<void> {
+    const url = `${this.aiServiceUrl}/verify`;
+    const payload = {
+      capsuleId:      capsule.id,
+      iebcStationCode: capsule.iebcStationCode,
+      positionCode:   capsule.positionCode,
+      electionYear:   capsule.electionYear,
+      countyCode:     capsule.countyCode,
+      s3Bucket:       this.bucket,
+      s3Key:          capsule.s3ObjectKey,
+    };
+
+    await firstValueFrom(
+      this.httpService.post(url, payload, {
+        headers: { 'x-internal-service': 'evidence-service' },
+        timeout: 5000,
+      })
+    );
+    this.logger.log(`AI verification triggered for capsule ${capsule.id}`);
+  }
+
+  /**
+   * Fire-and-forget: queues an approved capsule for Hybrid Anchor.
+   * POST /api/v1/trust/anchor
+   * Called asynchronously after approveOrReject(APPROVED) — does NOT block the validator's response.
+   */
+  private async queueForTrustAnchor(
+    capsule: EvidenceCapsule,
+    validatorUserId: string,
+  ): Promise<void> {
+    const url = `${this.trustServiceUrl}/anchor`;
+    const compositeHash = await this.hashRepo.findOne({
+      where: { capsuleId: capsule.id, hashType: 'CAPSULE_COMPOSITE' },
+    });
+    if (!compositeHash) {
+      this.logger.warn(`No composite hash found for capsule ${capsule.id} — skipping trust anchor`);
+      return;
+    }
+
+    const payload = {
+      capsuleId:         capsule.id,
+      sha256Hash:        compositeHash.hashValue,
+      positionCode:      capsule.positionCode,
+      iebcStationCode:   capsule.iebcStationCode,
+      electionYear:      capsule.electionYear,
+      countyCode:        capsule.countyCode,
+      countyName:        capsule.countyName,
+      requestedByService: 'evidence-service',
+      validatorUserId,
+    };
+
+    await firstValueFrom(
+      this.httpService.post(url, payload, {
+        headers: { 'x-internal-service': 'evidence-service' },
+        timeout: 5000,
+      })
+    );
+    this.logger.log(`Trust anchor queued for capsule ${capsule.id} (Merkle batch)`);
+  }
+
   private async applyS3ObjectLock(s3Key: string): Promise<void> {
-    // TODO: Apply WORM Object Lock after trust anchoring (called from recordAnchorCallback)
-    // This requires the bucket to have Object Lock enabled (set in CDK)
-    // await this.s3.send(new PutObjectRetentionCommand({ ... }));
-    this.logger.log(`TODO: Apply S3 Object Lock to ${s3Key}`);
+    // Apply WORM Object Lock after trust anchoring — makes the evidence immutable.
+    // Requires the S3 bucket to have Object Lock enabled (set in CDK VoteCapsuleStorageStack).
+    // Retain for 10 years (Kenya electoral law retention period).
+    const retainUntil = new Date();
+    retainUntil.setFullYear(retainUntil.getFullYear() + 10);
+
+    try {
+      await this.s3.send(new PutObjectRetentionCommand({
+        Bucket:             this.bucket,
+        Key:                s3Key,
+        Retention: {
+          Mode:            ObjectLockRetentionMode.COMPLIANCE,
+          RetainUntilDate: retainUntil,
+        },
+        // BypassGovernanceRetention omitted — COMPLIANCE mode cannot be bypassed
+      }));
+      this.logger.log(`S3 Object Lock (COMPLIANCE, 10yr) applied to s3://${this.bucket}/${s3Key}`);
+    } catch (err: unknown) {
+      // If bucket does not have Object Lock enabled, log warning but do not fail the anchor flow
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('ObjectLockConfigurationNotFoundError') || msg.includes('NoSuchObjectLockConfiguration')) {
+        this.logger.warn(`S3 Object Lock not enabled on bucket ${this.bucket} — skipping WORM lock for ${s3Key}. Enable in CDK to activate.`);
+      } else {
+        this.logger.error(`Failed to apply S3 Object Lock to ${s3Key}: ${msg}`);
+        throw err;
+      }
+    }
   }
 
   private async addCustodyEvent(

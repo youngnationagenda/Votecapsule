@@ -316,6 +316,88 @@ export class ReportingService {
   }
 
   // ══════════════════════════════════════════════════════════
+  //  PUBLIC PORTAL — REPORTING PROGRESS
+  // ══════════════════════════════════════════════════════════
+
+  /**
+   * GET /reporting/public/progress
+   *
+   * Returns nation-wide reporting progress for the most recent active election.
+   * No authentication required — called by the Public Transparency Portal.
+   *
+   * Aggregates PUBLISHED NATIONAL-scope result_snapshots plus a per-county
+   * breakdown so the portal can render the progress map.
+   *
+   * If no published national snapshot exists yet, derives progress from
+   * COUNTY-scope snapshots (early reporting state).
+   */
+  async getPublicProgress(opts: {
+    electionYear?: number;
+    positionCode?: string;
+  } = {}): Promise<{
+    electionYear: number;
+    positionCode: string;
+    totalStations: number;
+    stationsReported: number;
+    percentReported: number;
+    byCounty: Array<{
+      countyName:       string;
+      countyCode:       string;
+      totalStations:    number;
+      stationsReported: number;
+      percentReported:  number;
+    }>;
+  }> {
+    // Default to the most recently computed national snapshot
+    const where: FindOptionsWhere<ResultSnapshot> = {
+      publicationStatus: PublicationStatus.PUBLISHED,
+      scopeLevel:        ScopeLevel.NATIONAL,
+    };
+    if (opts.electionYear) where.electionYear = opts.electionYear;
+    if (opts.positionCode) where.positionCode = opts.positionCode;
+
+    const national = await this.snapshotRepo.findOne({
+      where,
+      order: { computedAt: 'DESC' },
+    });
+
+    // Fall back to county aggregation if no national snapshot published yet
+    const countyWhere: FindOptionsWhere<ResultSnapshot> = {
+      publicationStatus: PublicationStatus.PUBLISHED,
+      scopeLevel:        ScopeLevel.COUNTY,
+    };
+    if (opts.electionYear) countyWhere.electionYear = opts.electionYear;
+    if (opts.positionCode) countyWhere.positionCode = opts.positionCode;
+
+    const counties = await this.snapshotRepo.find({
+      where: countyWhere,
+      order: { countyCode: 'ASC' },
+      select: ['countyCode', 'scopeName', 'totalStations', 'stationsReporting', 'completionPercent'],
+    });
+
+    const totalStations    = national?.totalStations    ?? counties.reduce((s, c) => s + (c.totalStations ?? 0),    0);
+    const stationsReported = national?.stationsReporting ?? counties.reduce((s, c) => s + (c.stationsReporting ?? 0), 0);
+    const percentReported  = totalStations > 0
+      ? Math.round((stationsReported / totalStations) * 10000) / 100
+      : 0;
+
+    const electionYear = national?.electionYear ?? opts.electionYear ?? new Date().getFullYear();
+    const positionCode = national?.positionCode ?? opts.positionCode ?? 'PRESIDENT';
+
+    const byCounty = counties.map((c) => ({
+      countyName:       c.scopeName ?? c.countyCode ?? 'Unknown',
+      countyCode:       c.countyCode ?? '',
+      totalStations:    c.totalStations    ?? 0,
+      stationsReported: c.stationsReporting ?? 0,
+      percentReported:  c.totalStations > 0
+        ? Math.round(((c.stationsReporting ?? 0) / c.totalStations) * 10000) / 100
+        : 0,
+    }));
+
+    return { electionYear, positionCode, totalStations, stationsReported, percentReported, byCounty };
+  }
+
+  // ══════════════════════════════════════════════════════════
   //  VERIFICATION & PUBLICATION
   // ══════════════════════════════════════════════════════════
 

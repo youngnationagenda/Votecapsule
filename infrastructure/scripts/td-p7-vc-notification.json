@@ -1,0 +1,99 @@
+{
+  "family": "vc-notification",
+  "cpu": "512",
+  "memory": "1024",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "executionRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+  "taskRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+  "containerDefinitions": [
+    {
+      "name": "vc-notification",
+      "image": "683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/notification-service:latest",
+      "portMappings": [
+        {
+          "containerPort": 3008,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        {
+          "name": "PORT",
+          "value": "3008"
+        },
+        {
+          "name": "NODE_ENV",
+          "value": "production"
+        },
+        {
+          "name": "DB_HOST",
+          "value": "vote-capsule-db.cluster-c43i6c8ow71c.us-east-1.rds.amazonaws.com"
+        },
+        {
+          "name": "DB_PORT",
+          "value": "5432"
+        },
+        {
+          "name": "DB_NAME",
+          "value": "votecapsule"
+        },
+        {
+          "name": "DB_USER",
+          "value": "vcadmin"
+        },
+        {
+          "name": "DB_SSL",
+          "value": "true"
+        },
+        {
+          "name": "AWS_REGION",
+          "value": "us-east-1"
+        },
+        {
+          "name": "SES_FROM_ADDRESS",
+          "value": "noreply@votecapsule.co.ke"
+        },
+        {
+          "name": "IDENTITY_SERVICE_URL",
+          "value": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/identity"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DB_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:683541453923:secret:vote-capsule/database/credentials-zTDMLX:password::"
+        },
+        {
+          "name": "JWT_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:683541453923:secret:vote-capsule/jwt/secret-bB2dDP:secret::"
+        },
+        {
+          "name": "FIREBASE_SERVICE_ACCOUNT_JSON",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:683541453923:secret:vote-capsule/firebase/service-account-RioPSx"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/vote-capsule/notification-service",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "notification",
+          "awslogs-create-group": "true"
+        }
+      },
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -f http://localhost:3008/api/v1/notification/health || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 10,
+        "retries": 5,
+        "startPeriod": 120
+      }
+    }
+  ]
+}

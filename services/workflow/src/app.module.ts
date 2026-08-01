@@ -12,6 +12,8 @@ import { WorkflowStepEvent }  from './entities/workflow-step-event.entity';
 import { WorkflowEscalation } from './entities/workflow-escalation.entity';
 import { WorkflowModule }     from './workflow.module';
 
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { AuditInterceptor } from './common/audit.interceptor';
 @Module({
   controllers: [HealthController],
   imports: [
@@ -41,6 +43,12 @@ import { WorkflowModule }     from './workflow.module';
     }),
 
     WorkflowModule,
+  ],
+  providers: [
+    {
+      provide:  APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
+    },
   ],
 })
 export class AppModule {}

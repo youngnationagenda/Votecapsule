@@ -30,6 +30,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { SystemRole, JwtPayload } from '@vote-capsule/types';
+import { SubscriptionGuard } from '../common/subscription.guard';
 
 @ApiTags('invitations')
 @Controller('invitations')
@@ -37,11 +38,12 @@ export class InvitationsController {
   constructor(private readonly invitationsService: InvitationsService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, SubscriptionGuard)
   @ApiBearerAuth('jwt')
   @Roles(SystemRole.PLATFORM_SUPER_ADMIN, SystemRole.TENANT_ADMIN)
   @ApiOperation({ summary: 'Create and send a user invitation' })
   @ApiResponse({ status: 201, description: 'Invitation created and sent' })
+  @ApiResponse({ status: 403, description: 'No active subscription' })
   create(
     @Body() dto: CreateInvitationDto,
     @Req() req: Request & { user?: JwtPayload },

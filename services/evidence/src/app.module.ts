@@ -12,6 +12,8 @@ import { EvidenceImage }             from './entities/evidence-image.entity';
 import { EvidenceHash }              from './entities/evidence-hash.entity';
 import { EvidenceChainOfCustody }    from './entities/evidence-chain-of-custody.entity';
 
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { AuditInterceptor } from './common/audit.interceptor';
 @Module({
   controllers: [HealthController],
   imports: [
@@ -43,6 +45,12 @@ import { EvidenceChainOfCustody }    from './entities/evidence-chain-of-custody.
     }),
 
     EvidenceModule,
+  ],
+  providers: [
+    {
+      provide:  APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
+    },
   ],
 })
 export class AppModule {}

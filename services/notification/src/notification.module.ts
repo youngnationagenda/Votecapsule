@@ -4,6 +4,7 @@
 import { Module }          from '@nestjs/common';
 import { TypeOrmModule }   from '@nestjs/typeorm';
 import { ConfigModule }    from '@nestjs/config';
+import { HttpModule }      from '@nestjs/axios';
 
 import { Notification }         from './entities/notification.entity';
 import { NotificationTemplate } from './entities/notification-template.entity';
@@ -25,6 +26,7 @@ import { NotificationController }   from './notification.controller';
       NotificationDevice,
     ]),
     ConfigModule,
+    HttpModule, // For calling Identity Service (email/supervisor lookups)
   ],
   controllers: [NotificationController],
   providers:   [

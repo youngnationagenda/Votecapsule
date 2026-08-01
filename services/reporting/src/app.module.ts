@@ -13,6 +13,8 @@ import { ExportLog }           from './entities/export-log.entity';
 import { EvidenceCapsuleView } from './readers/evidence-capsule.reader';
 import { AiJobView }           from './readers/ai-job.reader';
 
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { AuditInterceptor } from './common/audit.interceptor';
 @Module({
   controllers: [HealthController],
   imports: [
@@ -44,6 +46,12 @@ import { AiJobView }           from './readers/ai-job.reader';
     }),
 
     ReportingModule,
+  ],
+  providers: [
+    {
+      provide:  APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
+    },
   ],
 })
 export class AppModule {}

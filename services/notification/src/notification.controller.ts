@@ -4,6 +4,7 @@
 //
 // POST   /notifications                    — send one notification
 // POST   /notifications/bulk               — fan-out to many users
+// POST   /notifications/email              — direct email (no userId required — for invitations)
 // GET    /notifications/user/:userId       — list user notifications
 // PUT    /notifications/read               — mark as read
 // GET    /notifications/stats              — delivery stats
@@ -17,8 +18,9 @@ import {
   Controller, Post, Get, Put, Delete,
   Body, Param, Query, HttpCode, HttpStatus,
   ParseUUIDPipe, ParseIntPipe, DefaultValuePipe,
-  Logger, BadRequestException,
+  Logger, BadRequestException, IsString, IsNotEmpty,
 } from '@nestjs/common';
+import { IsEmail } from 'class-validator';
 import { NotificationService }                  from './notification.service';
 import { SendNotificationDto, BulkNotificationDto } from './dto/send-notification.dto';
 import { RegisterDeviceDto, MarkReadDto }        from './dto/register-device.dto';
@@ -152,5 +154,26 @@ export class NotificationController {
     }
 
     return { received: true };
+  }
+
+  /**
+   * POST /notifications/email
+   * Send a direct transactional email to a known address.
+   * Used by internal services (e.g. Identity Service for invitation emails)
+   * where a userId does not yet exist.
+   * Body: { to: string, subject: string, textBody: string }
+   */
+  @Post('email')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async sendDirectEmail(
+    @Body('to')       to:       string,
+    @Body('subject')  subject:  string,
+    @Body('textBody') textBody: string,
+  ) {
+    if (!to || !subject || !textBody) {
+      throw new BadRequestException('to, subject, and textBody are required');
+    }
+    await this.notificationService.sendDirectEmail(to, subject, textBody);
+    return { sent: true };
   }
 }

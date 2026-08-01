@@ -27,6 +27,28 @@ export class SubscriptionController {
     return this.subscriptionService.findByTenantId(tenantId);
   }
 
+  /**
+   * GET /subscriptions/tenant/:tenantId/active
+   * Returns { active: boolean, planName?: string, status?: string }
+   * Used by other services to check subscription status before allowing key actions.
+   * Returns 200 always — callers check the `active` field.
+   */
+  @Get('tenant/:tenantId/active')
+  async checkActive(@Param('tenantId') tenantId: string) {
+    const sub = await this.subscriptionService.getActiveSubscription(tenantId);
+    if (!sub) {
+      return { active: false, tenantId };
+    }
+    return {
+      active: true,
+      tenantId,
+      subscriptionId: sub.id,
+      planId:         sub.planId,
+      status:         sub.status,
+      currentPeriodEnd: sub.currentPeriodEnd,
+    };
+  }
+
   /** GET /subscriptions/:id */
   @Get(':id')
   findById(@Param('id') id: string) {

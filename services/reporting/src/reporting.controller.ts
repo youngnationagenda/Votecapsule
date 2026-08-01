@@ -179,6 +179,26 @@ export class ReportingController {
     });
   }
 
+  /**
+   * GET /reports/public/progress
+   * Nation-wide reporting progress — no authentication required.
+   * Called by the Public Transparency Portal's Progress page.
+   *
+   * Returns total/reported station counts nationally and per county.
+   * Defaults to the most recent PUBLISHED election.
+   * Query (all optional): electionYear, positionCode
+   */
+  @Get('public/progress')
+  async getPublicProgress(
+    @Query('electionYear') electionYear?: string,
+    @Query('positionCode') positionCode?: string,
+  ) {
+    return this.service.getPublicProgress({
+      electionYear: electionYear ? parseInt(electionYear, 10) : undefined,
+      positionCode,
+    });
+  }
+
   // ══════════════════════════════════════════════════════════
   //  PUBLICATION
   // ══════════════════════════════════════════════════════════

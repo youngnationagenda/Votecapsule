@@ -11,6 +11,8 @@ import { AiVerificationJob }   from './entities/ai-verification-job.entity';
 import { AiAnomalyEvent }      from './entities/ai-anomaly-event.entity';
 import { AiModule }            from './ai.module';
 
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { AuditInterceptor } from './common/audit.interceptor';
 @Module({
   controllers: [HealthController],
   imports: [
@@ -44,6 +46,12 @@ import { AiModule }            from './ai.module';
     }),
 
     AiModule,
+  ],
+  providers: [
+    {
+      provide:  APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
+    },
   ],
 })
 export class AppModule {}

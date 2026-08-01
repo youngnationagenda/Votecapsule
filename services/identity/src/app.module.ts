@@ -13,6 +13,8 @@ import { InvitationsModule } from './invitations/invitations.module';
 import { DevicesModule } from './devices/devices.module';
 import { DatabaseModule } from './database/database.module';
 
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { AuditInterceptor } from './common/audit.interceptor';
 @Module({
   controllers: [HealthController],
   imports: [
@@ -50,6 +52,12 @@ import { DatabaseModule } from './database/database.module';
     RolesModule,
     InvitationsModule,
     DevicesModule,
+  ],
+  providers: [
+    {
+      provide:  APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
+    },
   ],
 })
 export class AppModule {}

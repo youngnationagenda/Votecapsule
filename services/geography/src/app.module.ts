@@ -14,6 +14,8 @@ import { RegistrationCentre }  from './entities/registration-centre.entity';
 import { PollingStation }      from './entities/polling-station.entity';
 import { ElectionVersion }     from './entities/election-version.entity';
 
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { AuditInterceptor } from './common/audit.interceptor';
 @Module({
   controllers: [HealthController],
   imports: [
@@ -52,6 +54,12 @@ import { ElectionVersion }     from './entities/election-version.entity';
     }),
 
     GeographyModule,
+  ],
+  providers: [
+    {
+      provide:  APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
+    },
   ],
 })
 export class AppModule {}

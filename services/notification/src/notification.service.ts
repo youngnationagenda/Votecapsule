@@ -6,6 +6,9 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository }                       from '@nestjs/typeorm';
 import { Repository, DataSource, In }             from 'typeorm';
+import { HttpService }                            from '@nestjs/axios';
+import { ConfigService }                          from '@nestjs/config';
+import { firstValueFrom }                         from 'rxjs';
 
 import { FcmProvider }   from './providers/fcm.provider';
 import { SesProvider }   from './providers/ses.provider';
@@ -31,6 +34,7 @@ function renderTemplate(template: string, vars: Record<string, string>): string 
 @Injectable()
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
+  private readonly identityServiceUrl: string;
 
   constructor(
     @InjectRepository(Notification)
@@ -42,10 +46,17 @@ export class NotificationService {
     @InjectRepository(NotificationDevice)
     private readonly deviceRepo: Repository<NotificationDevice>,
     private readonly dataSource: DataSource,
-    private readonly fcm:  FcmProvider,
-    private readonly ses:  SesProvider,
-    private readonly sns:  SnsProvider,
-  ) {}
+    private readonly fcm:        FcmProvider,
+    private readonly ses:        SesProvider,
+    private readonly sns:        SnsProvider,
+    private readonly httpService: HttpService,
+    private readonly config:      ConfigService,
+  ) {
+    this.identityServiceUrl = this.config.get(
+      'IDENTITY_SERVICE_URL',
+      'http://localhost:3001/api/v1/identity',
+    );
+  }
 
   // ── Public API ─────────────────────────────────────────────
 
@@ -146,16 +157,43 @@ export class NotificationService {
       tenantName:        detail.tenantId  ?? 'N/A',
     };
 
-    // TODO: Look up supervisor user IDs from Identity Service
-    // For now: publish a platform-level alert to a known supervisor topic.
-    // When Identity Service is queryable, replace with:
-    //   const supervisors = await this.getSupervisors(detail.tenantId);
-    //   for (const supervisor of supervisors) { await this.send(...) }
+    // Fan out to supervisors: look up users with SUPERVISOR or PLATFORM_SUPER_ADMIN role
+    // in the tenant from Identity Service, then push + email each one
+    const supervisorIds = await this.getSupervisorIds(detail.tenantId);
 
-    // Push notification — sent to all registered supervisor devices
-    // (In production: fan-out to supervisor FCM tokens for the tenant)
-    this.logger.log(
-      `[ESCALATION_CREATED] vars=${JSON.stringify(vars)} — supervisor fan-out pending Identity Service integration`,
+    if (supervisorIds.length === 0) {
+      this.logger.warn(`[ESCALATION_CREATED] No supervisors found for tenant ${detail.tenantId ?? 'platform'} — alert not delivered`);
+      return;
+    }
+
+    this.logger.log(`[ESCALATION_CREATED] Fanning out to ${supervisorIds.length} supervisors`);
+
+    await Promise.allSettled(
+      supervisorIds.flatMap((userId) => [
+        // Push notification to all registered devices
+        this.send({
+          userId,
+          tenantId:        detail.tenantId,
+          notificationType: NotificationType.ESCALATION_CREATED,
+          channel:         NotificationChannel.PUSH,
+          templateVars:    vars,
+          referenceId:     detail.escalationId,
+          referenceType:   'escalation',
+        }).catch((err) => this.logger.warn(`Push failed for supervisor ${userId}: ${err?.message}`)),
+
+        // Email for high/critical severity
+        detail.severity === 'HIGH' || detail.severity === 'CRITICAL'
+          ? this.send({
+              userId,
+              tenantId:        detail.tenantId,
+              notificationType: NotificationType.ESCALATION_CREATED,
+              channel:         NotificationChannel.EMAIL,
+              templateVars:    vars,
+              referenceId:     detail.escalationId,
+              referenceType:   'escalation',
+            }).catch((err) => this.logger.warn(`Email failed for supervisor ${userId}: ${err?.message}`))
+          : Promise.resolve(),
+      ])
     );
   }
 
@@ -292,6 +330,20 @@ export class NotificationService {
 
   // ── Private: Dispatch ──────────────────────────────────────
 
+  /**
+   * Send a direct transactional email to a known address.
+   * Used when there is no userId (e.g. invitation emails to new users).
+   * Bypasses template resolution and notification persistence.
+   */
+  async sendDirectEmail(to: string, subject: string, textBody: string): Promise<void> {
+    const result = await this.ses.sendEmail({ to, subject, textBody });
+    if (!result.success) {
+      this.logger.error(`Direct email to ${to} failed: ${result.error}`);
+      throw new Error(`Failed to send email: ${result.error}`);
+    }
+    this.logger.log(`Direct email sent to ${to} (messageId=${result.messageId})`);
+  }
+
   private async dispatch(notification: Notification): Promise<void> {
     const delivery = this.deliveryRepo.create({
       notificationId: notification.id,
@@ -390,14 +442,17 @@ export class NotificationService {
     notification: Notification,
     delivery:     NotificationDelivery,
   ): Promise<void> {
-    // TODO: Look up user email from Identity Service
-    // For now: skip silently if no email address in notification.data
-    const emailTo = notification.data?.['email'] as string | undefined;
+    // Resolve email address: prefer notification.data.email, fall back to Identity Service lookup
+    let emailTo = notification.data?.['email'] as string | undefined;
+
+    if (!emailTo && notification.userId) {
+      emailTo = await this.lookupUserEmail(notification.userId);
+    }
 
     if (!emailTo) {
-      this.logger.warn(`No email address in data for notification ${notification.id} — skipping SES dispatch`);
+      this.logger.warn(`No email address resolved for notification ${notification.id} (userId=${notification.userId}) — skipping SES dispatch`);
       delivery.status       = DeliveryStatus.FAILED;
-      delivery.errorMessage = 'No email address provided in data payload';
+      delivery.errorMessage = 'No email address resolved (not in data, Identity Service lookup failed)';
       return;
     }
 
@@ -431,6 +486,57 @@ export class NotificationService {
     delivery.providerMessageId = result.messageId ?? null;
     delivery.errorMessage      = result.error ?? null;
     if (result.success) delivery.deliveredAt = new Date();
+  }
+
+  // ── Private: Identity Service integration ────────────────
+
+  /**
+   * Look up a user's email address from the Identity Service.
+   * GET /api/v1/identity/users/:userId
+   * Returns null if the user is not found or the service is unavailable.
+   */
+  private async lookupUserEmail(userId: string): Promise<string | null> {
+    try {
+      const url = `${this.identityServiceUrl}/users/${userId}`;
+      const response = await firstValueFrom(
+        this.httpService.get<{ email?: string }>(url, {
+          headers: { 'x-internal-service': 'notification-service' },
+          timeout: 3000,
+        })
+      );
+      return response.data?.email ?? null;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Identity Service email lookup failed for user ${userId}: ${msg}`);
+      return null;
+    }
+  }
+
+  /**
+   * Look up supervisor / admin user IDs from Identity Service for a tenant.
+   * GET /api/v1/identity/users?tenantId=:tenantId&role=SUPERVISOR
+   * Returns an empty array if the service is unavailable.
+   */
+  private async getSupervisorIds(tenantId?: string): Promise<string[]> {
+    try {
+      const params = new URLSearchParams({ role: 'SUPERVISOR', limit: '50' });
+      if (tenantId) params.set('tenantId', tenantId);
+      const url = `${this.identityServiceUrl}/users?${params.toString()}`;
+
+      const response = await firstValueFrom(
+        this.httpService.get<{ items?: Array<{ id: string }> }>(url, {
+          headers: { 'x-internal-service': 'notification-service' },
+          timeout: 3000,
+        })
+      );
+
+      const items = response.data?.items ?? [];
+      return items.map((u) => u.id);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Identity Service supervisor lookup failed (tenant=${tenantId ?? 'platform'}): ${msg}`);
+      return [];
+    }
   }
 
   // ── Private: Template Resolution ──────────────────────────

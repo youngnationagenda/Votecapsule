@@ -7,6 +7,8 @@ import { TenantsModule } from './tenants/tenants.module';
 import { MembersModule } from './members/members.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { AuditInterceptor } from './common/audit.interceptor';
 @Module({
   controllers: [HealthController],
   imports: [
@@ -16,6 +18,12 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
     TenantsModule,
     MembersModule,
     SubscriptionsModule,
+  ],
+  providers: [
+    {
+      provide:  APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
+    },
   ],
 })
 export class AppModule {}

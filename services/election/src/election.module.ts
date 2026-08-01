@@ -5,8 +5,11 @@
 import { Module }         from '@nestjs/common';
 import { ConfigModule }   from '@nestjs/config';
 import { HttpModule }     from '@nestjs/axios';
-import { ElectionController } from './election.controller';
-import { ElectionService }    from './election.service';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { AuditInterceptor }     from './common/audit.interceptor';
+import { SubscriptionGuard }    from './common/subscription.guard';
+import { ElectionController }   from './election.controller';
+import { ElectionService }      from './election.service';
 
 @Module({
   imports: [
@@ -17,6 +20,13 @@ import { ElectionService }    from './election.service';
     }),
   ],
   controllers: [ElectionController],
-  providers:   [ElectionService],
+  providers: [
+    ElectionService,
+    SubscriptionGuard,           // Checks active subscription on POST /elections, POST /candidates/register
+    {
+      provide:  APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
+    },
+  ],
 })
 export class ElectionModule {}

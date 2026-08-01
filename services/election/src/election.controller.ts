@@ -10,9 +10,11 @@
 import {
   Controller, Get, Post, Param, Body, Query,
   Headers, HttpCode, HttpStatus, BadRequestException,
-  Logger,
+  Logger, UseGuards, Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { ElectionService } from './election.service';
+import { SubscriptionGuard } from './common/subscription.guard';
 import {
   ListElectionsQuery,
   ListPositionsQuery,
@@ -84,13 +86,17 @@ export class ElectionController {
    */
   @Post('elections')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(SubscriptionGuard)
   createElection(
     @Body() body: CreateElectionBody,
     @Headers('x-tenant-id') tenantId: string,
     @Headers('x-user-id')   userId:   string,
+    @Req() req: Request,
   ) {
     if (!tenantId) throw new BadRequestException('X-Tenant-Id header is required');
     if (!userId)   throw new BadRequestException('X-User-Id header is required');
+    // Expose tenantId on req for SubscriptionGuard header resolution
+    (req as Request & { tenantIdFromHeader?: string }).tenantIdFromHeader = tenantId;
     return this.service.createElection(body, tenantId, userId);
   }
 
@@ -147,6 +153,7 @@ export class ElectionController {
    */
   @Post('candidates/register')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(SubscriptionGuard)
   registerCandidate(
     @Body() body: RegisterCandidateBody,
     @Headers('x-tenant-id') tenantId: string,

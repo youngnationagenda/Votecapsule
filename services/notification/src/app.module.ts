@@ -12,6 +12,8 @@ import { NotificationDelivery } from './entities/notification-delivery.entity';
 import { NotificationDevice }   from './entities/notification-device.entity';
 import { NotificationModule }   from './notification.module';
 
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { AuditInterceptor } from './common/audit.interceptor';
 @Module({
   controllers: [HealthController],
   imports: [
@@ -42,6 +44,12 @@ import { NotificationModule }   from './notification.module';
     }),
 
     NotificationModule,
+  ],
+  providers: [
+    {
+      provide:  APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
+    },
   ],
 })
 export class AppModule {}

@@ -16,6 +16,9 @@ import {
 import { Pool } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
 import * as crypto from 'crypto';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
+import { firstValueFrom } from 'rxjs';
 import { DATABASE_POOL } from '../database/database.module';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
 import { UsersService } from '../users/users.service';
@@ -39,10 +42,19 @@ export class InvitationsService {
   // Invitations expire after 72 hours
   private readonly EXPIRY_HOURS = 72;
 
+  private readonly notificationServiceUrl: string;
+
   constructor(
     @Inject(DATABASE_POOL) private readonly db: Pool,
     private readonly usersService: UsersService,
-  ) {}
+    private readonly httpService: HttpService,
+    private readonly config: ConfigService,
+  ) {
+    this.notificationServiceUrl = this.config.get(
+      'NOTIFICATION_SERVICE_URL',
+      'http://localhost:3008/api/v1/notification',
+    );
+  }
 
   async findAll(tenantId?: string): Promise<Invitation[]> {
     const query = tenantId
@@ -96,9 +108,14 @@ export class InvitationsService {
     );
 
     this.logger.log(`Invitation created for ${dto.email}`);
-    // TODO: Notification Service integration — send invitation email via SNS/SES
-    // Call POST /api/notification/email with template: INVITATION
-    return result.rows[0]!;
+
+    // Send invitation email via Notification Service (fire-and-forget — don't fail if it's down)
+    const invitation = result.rows[0]!;
+    this.sendInvitationEmail(invitation, dto).catch((err) =>
+      this.logger.warn(`Failed to send invitation email for ${dto.email}: ${err?.message}`)
+    );
+
+    return invitation;
   }
 
   async accept(token: string, userId: string): Promise<void> {
@@ -146,5 +163,48 @@ export class InvitationsService {
     if (result.rowCount === 0) {
       throw new NotFoundException('Pending invitation not found');
     }
+  }
+
+  // ── Internal: Notification integration ───────────────────
+
+  /**
+   * Sends invitation email via Notification Service.
+   * Uses a direct email payload (not template-based) because the invitee
+   * has no userId yet — they haven't registered.
+   *
+   * POST /api/v1/notification/email
+   */
+  private async sendInvitationEmail(
+    invitation: Invitation,
+    dto: CreateInvitationDto,
+  ): Promise<void> {
+    const acceptUrl = `https://votecapsule.yna.co.ke/accept-invite?token=${invitation.token}`;
+    const expiryHours = this.EXPIRY_HOURS;
+
+    await firstValueFrom(
+      this.httpService.post(
+        `${this.notificationServiceUrl}/email`,
+        {
+          to:      invitation.email,
+          subject: 'You have been invited to VoteCapsule™',
+          textBody: [
+            `You have been invited to join the VoteCapsule™ election integrity platform.`,
+            ``,
+            `Click the link below to accept your invitation (expires in ${expiryHours} hours):`,
+            `${acceptUrl}`,
+            ``,
+            `If you did not expect this invitation, you can safely ignore this email.`,
+            ``,
+            `— The VoteCapsule™ Team`,
+          ].join('\n'),
+        },
+        {
+          headers:  { 'x-internal-service': 'identity-service' },
+          timeout:  5000,
+        },
+      )
+    );
+
+    this.logger.log(`Invitation email dispatched to ${invitation.email} (expires ${invitation.expiresAt.toISOString()})`);
   }
 }

@@ -14,6 +14,8 @@ import { Candidate }           from './entities/candidate.entity';
 import { CandidateStatusLog }  from './entities/candidate-status-log.entity';
 import { CandidateBallotRef }  from './entities/candidate-ballot-ref.entity';
 
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { AuditInterceptor } from './common/audit.interceptor';
 @Module({
   controllers: [HealthController],
   imports: [
@@ -46,6 +48,12 @@ import { CandidateBallotRef }  from './entities/candidate-ballot-ref.entity';
     }),
 
     CandidateModule,
+  ],
+  providers: [
+    {
+      provide:  APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
+    },
   ],
 })
 export class AppModule {}

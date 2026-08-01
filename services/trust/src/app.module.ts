@@ -10,6 +10,8 @@ import { TrustModule }       from './trust.module';
 import { TrustAnchor }       from './entities/trust-anchor.entity';
 import { TrustVerification } from './entities/trust-verification.entity';
 
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { AuditInterceptor } from './common/audit.interceptor';
 @Module({
   controllers: [HealthController],
   imports: [
@@ -38,6 +40,12 @@ import { TrustVerification } from './entities/trust-verification.entity';
     }),
 
     TrustModule,
+  ],
+  providers: [
+    {
+      provide:  APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
+    },
   ],
 })
 export class AppModule {}

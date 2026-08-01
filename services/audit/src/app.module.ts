@@ -13,6 +13,8 @@ import { AccessLog } from './entities/access-log.entity';
 import { ComplianceReport } from './entities/compliance-report.entity';
 import { SystemLog } from './entities/system-log.entity';
 
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { AuditInterceptor } from './common/audit.interceptor';
 @Module({
   controllers: [HealthController],
   imports: [
@@ -43,6 +45,12 @@ import { SystemLog } from './entities/system-log.entity';
     }),
 
     AuditModule,
+  ],
+  providers: [
+    {
+      provide:  APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
+    },
   ],
 })
 export class AppModule {}

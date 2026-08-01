@@ -1,0 +1,86 @@
+{
+  "Name": "vote-capsule-waf",
+  "Scope": "REGIONAL",
+  "Id": "f111d530-4e13-488a-b98f-fc54948cc399",
+  "DefaultAction": { "Allow": {} },
+  "Description": "VoteCapsule API Gateway WAF protection rate limiting SQLi XSS geo-filter",
+  "Rules": [
+    {
+      "Name": "DevWhitelist",
+      "Priority": 0,
+      "Statement": {
+        "IPSetReferenceStatement": {
+          "ARN": "arn:aws:wafv2:us-east-1:683541453923:regional/ipset/vote-capsule-dev-whitelist/e4443cb8-3575-400e-8bfd-c9cd636eb41c"
+        }
+      },
+      "Action": { "Allow": {} },
+      "VisibilityConfig": {
+        "SampledRequestsEnabled": true,
+        "CloudWatchMetricsEnabled": true,
+        "MetricName": "DevWhitelist"
+      }
+    },
+    {
+      "Name": "AWSManagedRulesCommonRuleSet",
+      "Priority": 1,
+      "Statement": { "ManagedRuleGroupStatement": { "VendorName": "AWS", "Name": "AWSManagedRulesCommonRuleSet" } },
+      "OverrideAction": { "Count": {} },
+      "VisibilityConfig": { "SampledRequestsEnabled": true, "CloudWatchMetricsEnabled": true, "MetricName": "CommonRuleSet" }
+    },
+    {
+      "Name": "AWSManagedRulesSQLiRuleSet",
+      "Priority": 2,
+      "Statement": { "ManagedRuleGroupStatement": { "VendorName": "AWS", "Name": "AWSManagedRulesSQLiRuleSet" } },
+      "OverrideAction": { "None": {} },
+      "VisibilityConfig": { "SampledRequestsEnabled": true, "CloudWatchMetricsEnabled": true, "MetricName": "SQLiRuleSet" }
+    },
+    {
+      "Name": "AWSManagedRulesKnownBadInputsRuleSet",
+      "Priority": 3,
+      "Statement": { "ManagedRuleGroupStatement": { "VendorName": "AWS", "Name": "AWSManagedRulesKnownBadInputsRuleSet" } },
+      "OverrideAction": { "None": {} },
+      "VisibilityConfig": { "SampledRequestsEnabled": true, "CloudWatchMetricsEnabled": true, "MetricName": "KnownBadInputs" }
+    },
+    {
+      "Name": "VoteCapsuleRateLimit",
+      "Priority": 10,
+      "Statement": { "RateBasedStatement": { "Limit": 1000, "EvaluationWindowSec": 300, "AggregateKeyType": "IP" } },
+      "Action": { "Block": {} },
+      "VisibilityConfig": { "SampledRequestsEnabled": true, "CloudWatchMetricsEnabled": true, "MetricName": "RateLimit" }
+    },
+    {
+      "Name": "VoteCapsuleGeoFilter",
+      "Priority": 20,
+      "Statement": {
+        "NotStatement": {
+          "Statement": {
+            "GeoMatchStatement": {
+              "CountryCodes": ["KE","US","GB","DE","FR","AU","CA","ZA","NG","ET","TZ","UG"]
+            }
+          }
+        }
+      },
+      "Action": { "Block": {} },
+      "VisibilityConfig": { "SampledRequestsEnabled": true, "CloudWatchMetricsEnabled": true, "MetricName": "GeoFilter" }
+    },
+    {
+      "Name": "VoteCapsuleSizeConstraint",
+      "Priority": 30,
+      "Statement": {
+        "SizeConstraintStatement": {
+          "FieldToMatch": { "Body": { "OversizeHandling": "CONTINUE" } },
+          "ComparisonOperator": "GT",
+          "Size": 10485760,
+          "TextTransformations": [{ "Priority": 0, "Type": "NONE" }]
+        }
+      },
+      "Action": { "Block": {} },
+      "VisibilityConfig": { "SampledRequestsEnabled": true, "CloudWatchMetricsEnabled": true, "MetricName": "SizeConstraint" }
+    }
+  ],
+  "VisibilityConfig": {
+    "SampledRequestsEnabled": true,
+    "CloudWatchMetricsEnabled": true,
+    "MetricName": "VoteCapsuleWAF"
+  }
+}
