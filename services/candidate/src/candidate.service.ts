@@ -127,7 +127,114 @@ export class CandidateService {
 
   async updateElectionStatus(id: string, status: ElectionStatus): Promise<Election> {
     const election = await this.getElection(id);
+    this.assertValidTransition(election.status, status);
     election.status = status;
+    // Keep isActive flag in sync with ACTIVE status
+    if (status === ElectionStatus.ACTIVE)             election.isActive = true;
+    if (status === ElectionStatus.TALLYING ||
+        status === ElectionStatus.RESULTS_PUBLISHED ||
+        status === ElectionStatus.CLOSED ||
+        status === ElectionStatus.CANCELLED)          election.isActive = false;
+    return this.electionRepo.save(election);
+  }
+
+  // ── Election lifecycle transition helpers ─────────────────
+
+  /**
+   * Valid forward transitions for the Kenya 2027 election lifecycle:
+   *
+   *   PLANNING → NOMINATION → CAMPAIGN → ACTIVE → TALLYING → RESULTS_PUBLISHED → CLOSED
+   *   Any state → CANCELLED  (emergency cancel)
+   *   TALLYING → ACTIVE      (reopen polling stations in special circumstances)
+   */
+  private assertValidTransition(from: ElectionStatus, to: ElectionStatus): void {
+    if (to === ElectionStatus.CANCELLED) return; // Always allowed
+
+    const allowed: Partial<Record<ElectionStatus, ElectionStatus[]>> = {
+      [ElectionStatus.PLANNING]:          [ElectionStatus.NOMINATION],
+      [ElectionStatus.NOMINATION]:        [ElectionStatus.CAMPAIGN],
+      [ElectionStatus.CAMPAIGN]:          [ElectionStatus.ACTIVE],
+      [ElectionStatus.ACTIVE]:            [ElectionStatus.TALLYING],
+      [ElectionStatus.TALLYING]:          [ElectionStatus.RESULTS_PUBLISHED, ElectionStatus.ACTIVE],
+      [ElectionStatus.RESULTS_PUBLISHED]: [ElectionStatus.CLOSED],
+      [ElectionStatus.CLOSED]:            [],
+      [ElectionStatus.CANCELLED]:         [],
+    };
+
+    const validNext = allowed[from] ?? [];
+    if (!validNext.includes(to)) {
+      throw new BadRequestException(
+        `Invalid status transition: ${from} → ${to}. ` +
+        `Allowed next states from ${from}: [${validNext.join(', ') || 'none'}]`
+      );
+    }
+  }
+
+  /**
+   * Open the nomination period — PLANNING → NOMINATION
+   */
+  async openNominations(id: string): Promise<Election> {
+    return this.updateElectionStatus(id, ElectionStatus.NOMINATION);
+  }
+
+  /**
+   * Open the campaign period — NOMINATION → CAMPAIGN
+   */
+  async openCampaign(id: string): Promise<Election> {
+    return this.updateElectionStatus(id, ElectionStatus.CAMPAIGN);
+  }
+
+  /**
+   * Open voting day — CAMPAIGN → ACTIVE
+   * Also deactivates all other elections for the tenant.
+   */
+  async openVoting(id: string, tenantId: string): Promise<Election> {
+    return this.dataSource.transaction(async (manager) => {
+      await manager.update(Election, { tenantId, isActive: true }, { isActive: false });
+      const election = await manager.findOne(Election, { where: { id } });
+      if (!election) throw new NotFoundException(`Election ${id} not found`);
+      if (election.tenantId !== tenantId) throw new BadRequestException('Tenant mismatch');
+      this.assertValidTransition(election.status, ElectionStatus.ACTIVE);
+      election.status   = ElectionStatus.ACTIVE;
+      election.isActive = true;
+      return manager.save(election);
+    });
+  }
+
+  /**
+   * Close polls and begin tallying — ACTIVE → TALLYING
+   */
+  async closePolls(id: string): Promise<Election> {
+    return this.updateElectionStatus(id, ElectionStatus.TALLYING);
+  }
+
+  /**
+   * Publish official results — TALLYING → RESULTS_PUBLISHED
+   */
+  async publishResults(id: string): Promise<Election> {
+    return this.updateElectionStatus(id, ElectionStatus.RESULTS_PUBLISHED);
+  }
+
+  /**
+   * Archive the election — RESULTS_PUBLISHED → CLOSED
+   */
+  async closeElection(id: string): Promise<Election> {
+    return this.updateElectionStatus(id, ElectionStatus.CLOSED);
+  }
+
+  /**
+   * Emergency cancel — any state → CANCELLED
+   */
+  async cancelElection(id: string, reason?: string): Promise<Election> {
+    const election = await this.getElection(id);
+    if (election.status === ElectionStatus.CLOSED) {
+      throw new BadRequestException('Cannot cancel a closed election');
+    }
+    election.status   = ElectionStatus.CANCELLED;
+    election.isActive = false;
+    if (reason) {
+      election.description = `[CANCELLED: ${reason}] ${election.description ?? ''}`.trim();
+    }
     return this.electionRepo.save(election);
   }
 
@@ -339,6 +446,144 @@ export class CandidateService {
       this.logger.log(`Candidate ${id} status: ${fromStatus} → ${dto.status} by ${changedBy}`);
       return updated;
     });
+  }
+
+  // ── Named candidate approval workflow methods ────────────
+
+  /**
+   * Valid candidate status transitions:
+   *
+   *   PENDING_NOMINATION → NOMINATED    (authority records receipt)
+   *   NOMINATED          → APPROVED     (cleared by Election Authority)
+   *   NOMINATED          → DISQUALIFIED (rejected at nomination stage)
+   *   APPROVED           → DISQUALIFIED (disqualified post-clearance)
+   *   PENDING_NOMINATION → WITHDRAWN    (candidate withdraws before nomination)
+   *   NOMINATED          → WITHDRAWN    (candidate withdraws after nomination)
+   *   APPROVED           → WITHDRAWN    (candidate withdraws after approval)
+   */
+  private assertValidCandidateTransition(from: CandidateStatus, to: CandidateStatus): void {
+    const allowed: Partial<Record<CandidateStatus, CandidateStatus[]>> = {
+      [CandidateStatus.PENDING_NOMINATION]: [CandidateStatus.NOMINATED, CandidateStatus.WITHDRAWN],
+      [CandidateStatus.NOMINATED]:          [CandidateStatus.APPROVED, CandidateStatus.DISQUALIFIED, CandidateStatus.WITHDRAWN],
+      [CandidateStatus.APPROVED]:           [CandidateStatus.ELECTED, CandidateStatus.NOT_ELECTED, CandidateStatus.DISQUALIFIED, CandidateStatus.WITHDRAWN],
+      [CandidateStatus.ELECTED]:            [],  // Terminal — results are immutable
+      [CandidateStatus.NOT_ELECTED]:        [],  // Terminal — results are immutable
+      [CandidateStatus.WITHDRAWN]:          [],
+      [CandidateStatus.DISQUALIFIED]:       [],
+    };
+
+    const validNext = allowed[from] ?? [];
+    if (!validNext.includes(to)) {
+      throw new BadRequestException(
+        `Invalid candidate status transition: ${from} → ${to}. ` +
+        `Allowed from ${from}: [${validNext.join(', ') || 'none'}]`
+      );
+    }
+  }
+
+  /**
+   * Nominate a candidate — records authority receipt of nomination papers.
+   * PENDING_NOMINATION → NOMINATED
+   */
+  async nominateCandidate(id: string, authorityUserId: string, gazetteReference?: string): Promise<Candidate> {
+    const dto: UpdateCandidateStatusDto = {
+      status:           CandidateStatus.NOMINATED,
+      reason:           'Nomination papers received and recorded',
+      gazetteReference,
+    };
+    this.assertValidCandidateTransition(
+      (await this.getCandidate(id)).status,
+      CandidateStatus.NOMINATED,
+    );
+    return this.updateCandidateStatus(id, dto, authorityUserId);
+  }
+
+  /**
+   * Approve a candidate — cleared by Election Authority for ballot.
+   * NOMINATED → APPROVED
+   * AI ASSISTS, HUMANS DECIDE — final approval is always human.
+   */
+  async approveCandidate(id: string, authorityUserId: string, gazetteReference?: string): Promise<Candidate> {
+    const dto: UpdateCandidateStatusDto = {
+      status:           CandidateStatus.APPROVED,
+      reason:           'Candidate cleared for ballot by Election Authority',
+      gazetteReference,
+    };
+    this.assertValidCandidateTransition(
+      (await this.getCandidate(id)).status,
+      CandidateStatus.APPROVED,
+    );
+    return this.updateCandidateStatus(id, dto, authorityUserId);
+  }
+
+  /**
+   * Disqualify a candidate — reason is required for the audit trail.
+   * NOMINATED|APPROVED → DISQUALIFIED
+   */
+  async disqualifyCandidate(id: string, authorityUserId: string, reason: string, gazetteReference?: string): Promise<Candidate> {
+    if (!reason?.trim()) throw new BadRequestException('Disqualification reason is required');
+    const dto: UpdateCandidateStatusDto = {
+      status:           CandidateStatus.DISQUALIFIED,
+      reason,
+      gazetteReference,
+    };
+    this.assertValidCandidateTransition(
+      (await this.getCandidate(id)).status,
+      CandidateStatus.DISQUALIFIED,
+    );
+    return this.updateCandidateStatus(id, dto, authorityUserId);
+  }
+
+  /**
+   * Record election result — APPROVED → ELECTED
+   * Called after official tally confirms a winner.
+   * AI ASSISTS, HUMANS DECIDE.
+   */
+  async electCandidate(id: string, authorityUserId: string, gazetteReference?: string): Promise<Candidate> {
+    const dto: UpdateCandidateStatusDto = {
+      status:           CandidateStatus.ELECTED,
+      reason:           'Declared elected per official tally',
+      gazetteReference,
+    };
+    this.assertValidCandidateTransition(
+      (await this.getCandidate(id)).status,
+      CandidateStatus.ELECTED,
+    );
+    return this.updateCandidateStatus(id, dto, authorityUserId);
+  }
+
+  /**
+   * Record non-election result — APPROVED → NOT_ELECTED
+   * Called for all losing candidates after official tally.
+   */
+  async markCandidateNotElected(id: string, authorityUserId: string, gazetteReference?: string): Promise<Candidate> {
+    const dto: UpdateCandidateStatusDto = {
+      status:           CandidateStatus.NOT_ELECTED,
+      reason:           'Official tally result recorded',
+      gazetteReference,
+    };
+    this.assertValidCandidateTransition(
+      (await this.getCandidate(id)).status,
+      CandidateStatus.NOT_ELECTED,
+    );
+    return this.updateCandidateStatus(id, dto, authorityUserId);
+  }
+
+  /**
+   * Withdraw a candidate — either self-requested or authority-initiated.
+   * PENDING_NOMINATION | NOMINATED | APPROVED → WITHDRAWN
+   */
+  async withdrawCandidate(id: string, changedBy: string, reason?: string, withdrawalDate?: string): Promise<Candidate> {
+    const dto: UpdateCandidateStatusDto = {
+      status:         CandidateStatus.WITHDRAWN,
+      reason:         reason ?? 'Withdrawn',
+      withdrawalDate,
+    };
+    this.assertValidCandidateTransition(
+      (await this.getCandidate(id)).status,
+      CandidateStatus.WITHDRAWN,
+    );
+    return this.updateCandidateStatus(id, dto, changedBy);
   }
 
   async getCandidateStatusHistory(candidateId: string): Promise<CandidateStatusLog[]> {

@@ -94,7 +94,8 @@ export class CandidateController {
 
   /**
    * PATCH /candidates/elections/:id/status
-   * Update election status (PLANNING → NOMINATION → CAMPAIGN → ACTIVE → CLOSED).
+   * Generic status update — validates transitions server-side.
+   * Prefer the named lifecycle endpoints below for clarity.
    */
   @Patch('elections/:id/status')
   async updateElectionStatus(
@@ -103,6 +104,87 @@ export class CandidateController {
   ) {
     if (!status) throw new BadRequestException('status is required');
     return this.service.updateElectionStatus(id, status);
+  }
+
+  // ── Named lifecycle transitions ───────────────────────────
+
+  /**
+   * POST /candidates/elections/:id/nominations/open
+   * PLANNING → NOMINATION — opens the candidate registration window.
+   */
+  @Post('elections/:id/nominations/open')
+  @HttpCode(HttpStatus.OK)
+  async openNominations(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.openNominations(id);
+  }
+
+  /**
+   * POST /candidates/elections/:id/campaign/open
+   * NOMINATION → CAMPAIGN — nominations close, campaigning begins.
+   */
+  @Post('elections/:id/campaign/open')
+  @HttpCode(HttpStatus.OK)
+  async openCampaign(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.openCampaign(id);
+  }
+
+  /**
+   * POST /candidates/elections/:id/voting/open
+   * CAMPAIGN → ACTIVE — voting day begins, evidence capture opens.
+   * Header: X-Tenant-Id required.
+   */
+  @Post('elections/:id/voting/open')
+  @HttpCode(HttpStatus.OK)
+  async openVoting(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Headers('x-tenant-id') tenantId: string,
+  ) {
+    if (!tenantId) throw new BadRequestException('X-Tenant-Id header is required');
+    return this.service.openVoting(id, tenantId);
+  }
+
+  /**
+   * POST /candidates/elections/:id/voting/close
+   * ACTIVE → TALLYING — polls close, counting begins.
+   */
+  @Post('elections/:id/voting/close')
+  @HttpCode(HttpStatus.OK)
+  async closePolls(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.closePolls(id);
+  }
+
+  /**
+   * POST /candidates/elections/:id/results/publish
+   * TALLYING → RESULTS_PUBLISHED — official results published.
+   * AI ASSISTS, HUMANS DECIDE.
+   */
+  @Post('elections/:id/results/publish')
+  @HttpCode(HttpStatus.OK)
+  async publishResults(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.publishResults(id);
+  }
+
+  /**
+   * POST /candidates/elections/:id/close
+   * RESULTS_PUBLISHED → CLOSED — archive the election.
+   */
+  @Post('elections/:id/close')
+  @HttpCode(HttpStatus.OK)
+  async closeElection(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.closeElection(id);
+  }
+
+  /**
+   * POST /candidates/elections/:id/cancel
+   * Any state → CANCELLED. Provide reason in body.
+   */
+  @Post('elections/:id/cancel')
+  @HttpCode(HttpStatus.OK)
+  async cancelElection(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('reason') reason?: string,
+  ) {
+    return this.service.cancelElection(id, reason);
   }
 
   // ══════════════════════════════════════════════════════════
@@ -262,6 +344,111 @@ export class CandidateController {
   ) {
     if (!userId) throw new BadRequestException('X-User-Id header is required');
     return this.service.updateCandidateStatus(id, dto, userId);
+  }
+
+  // ── Named approval workflow endpoints ────────────────────
+
+  /**
+   * POST /candidates/:id/nominate
+   * PENDING_NOMINATION → NOMINATED
+   * Records receipt of nomination papers by election authority.
+   * Header: X-User-Id (election official)
+   */
+  @Post(':id/nominate')
+  @HttpCode(HttpStatus.OK)
+  async nominateCandidate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('gazetteReference')   gazetteReference: string,
+    @Headers('x-user-id')       userId: string,
+  ) {
+    if (!userId) throw new BadRequestException('X-User-Id header is required');
+    return this.service.nominateCandidate(id, userId, gazetteReference);
+  }
+
+  /**
+   * POST /candidates/:id/approve
+   * NOMINATED → APPROVED
+   * Clears candidate for ballot. AI ASSISTS, HUMANS DECIDE.
+   * Header: X-User-Id (election authority official)
+   */
+  @Post(':id/approve')
+  @HttpCode(HttpStatus.OK)
+  async approveCandidate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('gazetteReference')   gazetteReference: string,
+    @Headers('x-user-id')       userId: string,
+  ) {
+    if (!userId) throw new BadRequestException('X-User-Id header is required');
+    return this.service.approveCandidate(id, userId, gazetteReference);
+  }
+
+  /**
+   * POST /candidates/:id/disqualify
+   * NOMINATED|APPROVED → DISQUALIFIED
+   * Reason and gazette reference required for legal record.
+   * Header: X-User-Id (election authority official)
+   */
+  @Post(':id/disqualify')
+  @HttpCode(HttpStatus.OK)
+  async disqualifyCandidate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('reason')           reason: string,
+    @Body('gazetteReference') gazetteReference: string,
+    @Headers('x-user-id')     userId: string,
+  ) {
+    if (!userId) throw new BadRequestException('X-User-Id header is required');
+    return this.service.disqualifyCandidate(id, userId, reason, gazetteReference);
+  }
+
+  /**
+   * POST /candidates/:id/withdraw
+   * PENDING_NOMINATION|NOMINATED|APPROVED → WITHDRAWN
+   * Can be self-requested or authority-initiated.
+   * Header: X-User-Id
+   */
+  @Post(':id/withdraw')
+  @HttpCode(HttpStatus.OK)
+  async withdrawCandidate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('reason')         reason?: string,
+    @Body('withdrawalDate') withdrawalDate?: string,
+    @Headers('x-user-id')   userId?: string,
+  ) {
+    if (!userId) throw new BadRequestException('X-User-Id header is required');
+    return this.service.withdrawCandidate(id, userId, reason, withdrawalDate);
+  }
+
+  /**
+   * POST /candidates/:id/elect
+   * APPROVED → ELECTED — records official election result.
+   * AI ASSISTS, HUMANS DECIDE.
+   * Header: X-User-Id (election authority official)
+   */
+  @Post(':id/elect')
+  @HttpCode(HttpStatus.OK)
+  async electCandidate(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('gazetteReference')   gazetteReference: string,
+    @Headers('x-user-id')       userId: string,
+  ) {
+    if (!userId) throw new BadRequestException('X-User-Id header is required');
+    return this.service.electCandidate(id, userId, gazetteReference);
+  }
+
+  /**
+   * POST /candidates/:id/not-elected
+   * APPROVED → NOT_ELECTED — records losing result.
+   * Header: X-User-Id
+   */
+  @Post(':id/not-elected')
+  @HttpCode(HttpStatus.OK)
+  async markNotElected(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('gazetteReference')   gazetteReference: string,
+    @Headers('x-user-id')       userId: string,
+  ) {
+    if (!userId) throw new BadRequestException('X-User-Id header is required');
+    return this.service.markCandidateNotElected(id, userId, gazetteReference);
   }
 
   /**

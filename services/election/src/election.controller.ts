@@ -237,6 +237,90 @@ export class ElectionController {
     return this.service.getRegisteredVoters(query);
   }
 
+  // ── Election lifecycle transitions ───────────────────────
+
+  /**
+   * POST /elections/:id/nominations/open
+   * PLANNING → NOMINATION — opens candidate registration.
+   */
+  @Post('elections/:id/nominations/open')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(SubscriptionGuard)
+  openNominations(@Param('id') id: string) {
+    return this.service.openNominations(id);
+  }
+
+  /**
+   * POST /elections/:id/campaign/open
+   * NOMINATION → CAMPAIGN — nominations close, campaigning begins.
+   */
+  @Post('elections/:id/campaign/open')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(SubscriptionGuard)
+  openCampaign(@Param('id') id: string) {
+    return this.service.openCampaign(id);
+  }
+
+  /**
+   * POST /elections/:id/voting/open
+   * CAMPAIGN → ACTIVE — voting day begins.
+   * Header: X-Tenant-Id required.
+   */
+  @Post('elections/:id/voting/open')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(SubscriptionGuard)
+  openVoting(
+    @Param('id') id: string,
+    @Headers('x-tenant-id') tenantId: string,
+  ) {
+    if (!tenantId) throw new BadRequestException('X-Tenant-Id header is required');
+    return this.service.openVoting(id, tenantId);
+  }
+
+  /**
+   * POST /elections/:id/voting/close
+   * ACTIVE → TALLYING — polls close.
+   */
+  @Post('elections/:id/voting/close')
+  @HttpCode(HttpStatus.OK)
+  closePolls(@Param('id') id: string) {
+    return this.service.closePolls(id);
+  }
+
+  /**
+   * POST /elections/:id/results/publish
+   * TALLYING → RESULTS_PUBLISHED — official results published.
+   * AI ASSISTS, HUMANS DECIDE.
+   */
+  @Post('elections/:id/results/publish')
+  @HttpCode(HttpStatus.OK)
+  publishResults(@Param('id') id: string) {
+    return this.service.publishResults(id);
+  }
+
+  /**
+   * POST /elections/:id/close
+   * RESULTS_PUBLISHED → CLOSED — archive.
+   */
+  @Post('elections/:id/close')
+  @HttpCode(HttpStatus.OK)
+  closeElection(@Param('id') id: string) {
+    return this.service.closeElection(id);
+  }
+
+  /**
+   * POST /elections/:id/cancel
+   * Any → CANCELLED — emergency cancellation.
+   */
+  @Post('elections/:id/cancel')
+  @HttpCode(HttpStatus.OK)
+  cancelElection(
+    @Param('id') id: string,
+    @Body('reason') reason?: string,
+  ) {
+    return this.service.cancelElection(id, reason);
+  }
+
   // ── Geography (NEC SSoT pass-through) ───────────────────
 
   /**

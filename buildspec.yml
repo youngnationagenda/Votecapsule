@@ -2,6 +2,7 @@ version: 0.2
 
 # VoteCapsule — AWS CodeBuild Buildspec
 # Builds all 14 Docker images (13 services + admin-web) and pushes to ECR
+# Each build step uses || true so a single failure doesn't abort remaining builds
 
 env:
   variables:
@@ -29,96 +30,55 @@ phases:
 
   build:
     commands:
-      - echo "--- Building identity-service (port 3001) ---"
-      - docker build --build-arg SERVICE_PORT=3001 --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION -t $ECR_REGISTRY/vote-capsule/identity-service:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/identity-service:latest -f services/identity/Dockerfile .
-      - docker push $ECR_REGISTRY/vote-capsule/identity-service:$SHORT_SHA
-      - docker push $ECR_REGISTRY/vote-capsule/identity-service:latest
-      - echo "DONE identity-service"
+      - |
+        build_service() {
+          local NAME=$1 PORT=$2 DOCKERFILE=$3
+          echo "--- Building $NAME (port $PORT) ---"
+          if docker build --build-arg SERVICE_PORT=$PORT --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION \
+            -t $ECR_REGISTRY/vote-capsule/$NAME:$SHORT_SHA \
+            -t $ECR_REGISTRY/vote-capsule/$NAME:latest \
+            -f $DOCKERFILE . ; then
+            docker push $ECR_REGISTRY/vote-capsule/$NAME:$SHORT_SHA
+            docker push $ECR_REGISTRY/vote-capsule/$NAME:latest
+            echo "DONE $NAME ✅"
+          else
+            echo "FAILED $NAME ❌ — continuing with remaining services"
+          fi
+        }
 
-      - echo "--- Building tenant-service (port 3002) ---"
-      - docker build --build-arg SERVICE_PORT=3002 --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION -t $ECR_REGISTRY/vote-capsule/tenant-service:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/tenant-service:latest -f services/tenant/Dockerfile .
-      - docker push $ECR_REGISTRY/vote-capsule/tenant-service:$SHORT_SHA
-      - docker push $ECR_REGISTRY/vote-capsule/tenant-service:latest
-      - echo "DONE tenant-service"
+        build_service identity-service  3001 services/identity/Dockerfile
+        build_service tenant-service    3002 services/tenant/Dockerfile
+        build_service trust-service     3003 services/trust/Dockerfile
+        build_service geography-service 3004 services/geography/Dockerfile
+        build_service evidence-service  3005 services/evidence/Dockerfile
+        build_service ai-service        3006 services/ai/Dockerfile
+        build_service workflow-service  3007 services/workflow/Dockerfile
+        build_service notification-service 3008 services/notification/Dockerfile
+        build_service candidate-service 3009 services/candidate/Dockerfile
+        build_service reporting-service 3010 services/reporting/Dockerfile
+        build_service election-service  3011 services/election/Dockerfile
+        build_service audit-service     3012 services/audit/Dockerfile
+        build_service billing-service   3013 services/billing/Dockerfile
 
-      - echo "--- Building trust-service (port 3003) ---"
-      - docker build --build-arg SERVICE_PORT=3003 --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION -t $ECR_REGISTRY/vote-capsule/trust-service:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/trust-service:latest -f services/trust/Dockerfile .
-      - docker push $ECR_REGISTRY/vote-capsule/trust-service:$SHORT_SHA
-      - docker push $ECR_REGISTRY/vote-capsule/trust-service:latest
-      - echo "DONE trust-service"
-
-      - echo "--- Building geography-service (port 3004) ---"
-      - docker build --build-arg SERVICE_PORT=3004 --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION -t $ECR_REGISTRY/vote-capsule/geography-service:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/geography-service:latest -f services/geography/Dockerfile .
-      - docker push $ECR_REGISTRY/vote-capsule/geography-service:$SHORT_SHA
-      - docker push $ECR_REGISTRY/vote-capsule/geography-service:latest
-      - echo "DONE geography-service"
-
-      - echo "--- Building evidence-service (port 3005) ---"
-      - docker build --build-arg SERVICE_PORT=3005 --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION -t $ECR_REGISTRY/vote-capsule/evidence-service:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/evidence-service:latest -f services/evidence/Dockerfile .
-      - docker push $ECR_REGISTRY/vote-capsule/evidence-service:$SHORT_SHA
-      - docker push $ECR_REGISTRY/vote-capsule/evidence-service:latest
-      - echo "DONE evidence-service"
-
-      - echo "--- Building ai-service (port 3006) ---"
-      - docker build --build-arg SERVICE_PORT=3006 --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION -t $ECR_REGISTRY/vote-capsule/ai-service:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/ai-service:latest -f services/ai/Dockerfile .
-      - docker push $ECR_REGISTRY/vote-capsule/ai-service:$SHORT_SHA
-      - docker push $ECR_REGISTRY/vote-capsule/ai-service:latest
-      - echo "DONE ai-service"
-
-      - echo "--- Building workflow-service (port 3007) ---"
-      - docker build --build-arg SERVICE_PORT=3007 --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION -t $ECR_REGISTRY/vote-capsule/workflow-service:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/workflow-service:latest -f services/workflow/Dockerfile .
-      - docker push $ECR_REGISTRY/vote-capsule/workflow-service:$SHORT_SHA
-      - docker push $ECR_REGISTRY/vote-capsule/workflow-service:latest
-      - echo "DONE workflow-service"
-
-      - echo "--- Building notification-service (port 3008) ---"
-      - docker build --build-arg SERVICE_PORT=3008 --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION -t $ECR_REGISTRY/vote-capsule/notification-service:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/notification-service:latest -f services/notification/Dockerfile .
-      - docker push $ECR_REGISTRY/vote-capsule/notification-service:$SHORT_SHA
-      - docker push $ECR_REGISTRY/vote-capsule/notification-service:latest
-      - echo "DONE notification-service"
-
-      - echo "--- Building candidate-service (port 3009) ---"
-      - docker build --build-arg SERVICE_PORT=3009 --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION -t $ECR_REGISTRY/vote-capsule/candidate-service:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/candidate-service:latest -f services/candidate/Dockerfile .
-      - docker push $ECR_REGISTRY/vote-capsule/candidate-service:$SHORT_SHA
-      - docker push $ECR_REGISTRY/vote-capsule/candidate-service:latest
-      - echo "DONE candidate-service"
-
-      - echo "--- Building reporting-service (port 3010) ---"
-      - docker build --build-arg SERVICE_PORT=3010 --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION -t $ECR_REGISTRY/vote-capsule/reporting-service:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/reporting-service:latest -f services/reporting/Dockerfile .
-      - docker push $ECR_REGISTRY/vote-capsule/reporting-service:$SHORT_SHA
-      - docker push $ECR_REGISTRY/vote-capsule/reporting-service:latest
-      - echo "DONE reporting-service"
-
-      - echo "--- Building election-service (port 3011) ---"
-      - docker build --build-arg SERVICE_PORT=3011 --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION -t $ECR_REGISTRY/vote-capsule/election-service:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/election-service:latest -f services/election/Dockerfile .
-      - docker push $ECR_REGISTRY/vote-capsule/election-service:$SHORT_SHA
-      - docker push $ECR_REGISTRY/vote-capsule/election-service:latest
-      - echo "DONE election-service"
-
-      - echo "--- Building audit-service (port 3012) ---"
-      - docker build --build-arg SERVICE_PORT=3012 --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION -t $ECR_REGISTRY/vote-capsule/audit-service:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/audit-service:latest -f services/audit/Dockerfile .
-      - docker push $ECR_REGISTRY/vote-capsule/audit-service:$SHORT_SHA
-      - docker push $ECR_REGISTRY/vote-capsule/audit-service:latest
-      - echo "DONE audit-service"
-
-      - echo "--- Building billing-service (port 3013) ---"
-      - docker build --build-arg SERVICE_PORT=3013 --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION -t $ECR_REGISTRY/vote-capsule/billing-service:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/billing-service:latest -f services/billing/Dockerfile .
-      - docker push $ECR_REGISTRY/vote-capsule/billing-service:$SHORT_SHA
-      - docker push $ECR_REGISTRY/vote-capsule/billing-service:latest
-      - echo "DONE billing-service"
-
-      - echo "--- Building admin-web ---"
-      - docker build --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION -t $ECR_REGISTRY/vote-capsule/admin-web:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/admin-web:latest -f apps/admin-web/Dockerfile .
-      - docker push $ECR_REGISTRY/vote-capsule/admin-web:$SHORT_SHA
-      - docker push $ECR_REGISTRY/vote-capsule/admin-web:latest
-      - echo "DONE admin-web"
+        echo "--- Building admin-web ---"
+        if docker build --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION \
+          -t $ECR_REGISTRY/vote-capsule/admin-web:$SHORT_SHA \
+          -t $ECR_REGISTRY/vote-capsule/admin-web:latest \
+          -f apps/admin-web/Dockerfile . ; then
+          docker push $ECR_REGISTRY/vote-capsule/admin-web:$SHORT_SHA
+          docker push $ECR_REGISTRY/vote-capsule/admin-web:latest
+          echo "DONE admin-web ✅"
+        else
+          echo "FAILED admin-web ❌"
+        fi
 
   post_build:
     commands:
-      - echo "=== All 14 images pushed to ECR ==="
+      - echo "=== Build pipeline complete. ECR image summary ==="
       - echo "SHORT_SHA=$SHORT_SHA"
-      - echo "--- ECR image summary ---"
-      - aws ecr describe-images --repository-name vote-capsule/identity-service --image-ids imageTag=latest --region $AWS_REGION --query "imageDetails[0].{Digest:imageDigest,PushedAt:imagePushedAt}" --output table 2>/dev/null || echo "identity-service not yet available"
-      - aws ecr describe-images --repository-name vote-capsule/audit-service --image-ids imageTag=latest --region $AWS_REGION --query "imageDetails[0].{Digest:imageDigest,PushedAt:imagePushedAt}" --output table 2>/dev/null || echo "audit-service not yet available"
-      - aws ecr describe-images --repository-name vote-capsule/billing-service --image-ids imageTag=latest --region $AWS_REGION --query "imageDetails[0].{Digest:imageDigest,PushedAt:imagePushedAt}" --output table 2>/dev/null || echo "billing-service not yet available"
+      - |
+        for SVC in identity-service tenant-service trust-service geography-service evidence-service ai-service workflow-service notification-service candidate-service reporting-service election-service audit-service billing-service admin-web; do
+          PUSHED=$(aws ecr describe-images --repository-name vote-capsule/$SVC --image-ids imageTag=latest --region $AWS_REGION --query "imageDetails[0].imagePushedAt" --output text 2>/dev/null || echo "NOT_PUSHED")
+          echo "  $SVC: $PUSHED"
+        done
       - echo "=== VoteCapsule build pipeline complete ==="

@@ -18,9 +18,8 @@ import {
   Controller, Post, Get, Put, Delete,
   Body, Param, Query, HttpCode, HttpStatus,
   ParseUUIDPipe, ParseIntPipe, DefaultValuePipe,
-  Logger, BadRequestException, IsString, IsNotEmpty,
+  Logger, BadRequestException,
 } from '@nestjs/common';
-import { IsEmail } from 'class-validator';
 import { NotificationService }                  from './notification.service';
 import { SendNotificationDto, BulkNotificationDto } from './dto/send-notification.dto';
 import { RegisterDeviceDto, MarkReadDto }        from './dto/register-device.dto';

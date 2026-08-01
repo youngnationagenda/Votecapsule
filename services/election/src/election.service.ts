@@ -298,6 +298,49 @@ export class ElectionService {
     };
   }
 
+  // ── Election lifecycle transitions ────────────────────────
+  // Proxied to Candidate Service which owns the election records.
+
+  /** PLANNING → NOMINATION */
+  async openNominations(id: string): Promise<unknown> {
+    return this.post(this.candidateUrl, `/elections/${id}/nominations/open`, {});
+  }
+
+  /** NOMINATION → CAMPAIGN */
+  async openCampaign(id: string): Promise<unknown> {
+    return this.post(this.candidateUrl, `/elections/${id}/campaign/open`, {});
+  }
+
+  /** CAMPAIGN → ACTIVE — also deactivates other elections for the tenant */
+  async openVoting(id: string, tenantId: string): Promise<unknown> {
+    return this.post(
+      this.candidateUrl,
+      `/elections/${id}/voting/open`,
+      {},
+      { 'x-tenant-id': tenantId },
+    );
+  }
+
+  /** ACTIVE → TALLYING */
+  async closePolls(id: string): Promise<unknown> {
+    return this.post(this.candidateUrl, `/elections/${id}/voting/close`, {});
+  }
+
+  /** TALLYING → RESULTS_PUBLISHED */
+  async publishResults(id: string): Promise<unknown> {
+    return this.post(this.candidateUrl, `/elections/${id}/results/publish`, {});
+  }
+
+  /** RESULTS_PUBLISHED → CLOSED */
+  async closeElection(id: string): Promise<unknown> {
+    return this.post(this.candidateUrl, `/elections/${id}/close`, {});
+  }
+
+  /** Any → CANCELLED */
+  async cancelElection(id: string, reason?: string): Promise<unknown> {
+    return this.post(this.candidateUrl, `/elections/${id}/cancel`, { reason });
+  }
+
   // ── Health ───────────────────────────────────────────────
 
   async health() {

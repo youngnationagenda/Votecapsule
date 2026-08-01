@@ -19,12 +19,14 @@ export enum ElectionType {
 }
 
 export enum ElectionStatus {
-  PLANNING    = 'PLANNING',
-  NOMINATION  = 'NOMINATION',
-  CAMPAIGN    = 'CAMPAIGN',
-  ACTIVE      = 'ACTIVE',
-  CLOSED      = 'CLOSED',
-  CANCELLED   = 'CANCELLED',
+  PLANNING           = 'PLANNING',           // Setup phase — not yet public
+  NOMINATION         = 'NOMINATION',         // Candidates can register
+  CAMPAIGN           = 'CAMPAIGN',           // Campaigning allowed
+  ACTIVE             = 'ACTIVE',             // Voting day — evidence capture open
+  TALLYING           = 'TALLYING',           // Polls closed, counting in progress
+  RESULTS_PUBLISHED  = 'RESULTS_PUBLISHED',  // Official results published
+  CLOSED             = 'CLOSED',             // Archived — read-only
+  CANCELLED          = 'CANCELLED',          // Election cancelled
 }
 
 @Entity('candidate_elections')

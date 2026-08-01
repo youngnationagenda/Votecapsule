@@ -6,8 +6,9 @@ import { Module }        from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule }  from '@nestjs/config';
 
-import { ReportingController }  from './reporting.controller';
-import { ReportingService }     from './reporting.service';
+import { ReportingController }       from './reporting.controller';
+import { PublicReportingController } from './public-reporting.controller';
+import { ReportingService }          from './reporting.service';
 import { ResultSnapshot }       from './entities/result-snapshot.entity';
 import { Publication }          from './entities/publication.entity';
 import { ExportLog }            from './entities/export-log.entity';
@@ -27,7 +28,7 @@ import { AiJobView }            from './readers/ai-job.reader';
       AiJobView,            // read-only; Reporting Service never writes to ai_verification_jobs
     ]),
   ],
-  controllers: [ReportingController],
+  controllers: [ReportingController, PublicReportingController],
   providers:   [ReportingService],
   exports:     [ReportingService],
 })
