@@ -25,7 +25,8 @@ COPY --from=builder /app/deploy/trust/node_modules ./node_modules
 COPY --from=builder /app/services/trust/dist ./dist
 COPY --from=builder /app/services/trust/package.json ./package.json
 COPY --from=builder /app/packages ./packages
-COPY --from=builder /app/packages/types/dist ./node_modules/@vote-capsule/types/dist
+COPY --from=builder /app/packages/types/dist/cjs ./node_modules/@vote-capsule/types/dist/cjs
+COPY --from=builder /app/packages/types/dist/esm ./node_modules/@vote-capsule/types/dist/esm
 EXPOSE $SERVICE_PORT
 HEALTHCHECK NONE
 CMD ["node", "dist/main"]

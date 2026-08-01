@@ -29,7 +29,8 @@ COPY --from=builder /app/deploy/audit/node_modules ./node_modules
 COPY --from=builder /app/services/audit/dist ./dist
 COPY --from=builder /app/services/audit/package.json ./package.json
 # Copy built shared packages to all possible paths pnpm might use
-COPY --from=builder /app/packages/types/dist ./node_modules/@vote-capsule/types/dist
+COPY --from=builder /app/packages/types/dist/cjs ./node_modules/@vote-capsule/types/dist/cjs
+COPY --from=builder /app/packages/types/dist/esm ./node_modules/@vote-capsule/types/dist/esm
 COPY --from=builder /app/packages/database/dist ./node_modules/@vote-capsule/database/dist
 EXPOSE $SERVICE_PORT
 HEALTHCHECK NONE

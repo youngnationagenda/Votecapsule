@@ -2,16 +2,20 @@
   "name": "@vote-capsule/types",
   "version": "1.0.0",
   "description": "Vote Capsule™ Shared TypeScript Types",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
   "exports": {
-    ".": "./dist/index.js",
-    "./dist/common": "./dist/common.js"
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js",
+      "types": "./dist/esm/index.d.ts"
+    }
   },
   "files": ["dist"],
   "scripts": {
-    "build": "tsc --project tsconfig.json",
-    "dev": "tsc --project tsconfig.json --watch",
+    "build": "tsc --project tsconfig.esm.json && tsc --project tsconfig.cjs.json",
+    "dev": "tsc --project tsconfig.esm.json --watch",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"
   },
