@@ -22,7 +22,7 @@ async function main() {
   const tests = [
     // Phase 7 - running, OLD prefix (api/v1 not api/v1/service)
     ['GET', '/api/v1/notification/health'],
-    ['GET', '/api/v1/notification/notifications/stats'],
+    ['GET', '/api/v1/notification/stats'],
     ['GET', '/api/v1/candidate/health'],
     ['GET', '/api/v1/election/health'],
     ['GET', '/api/v1/reporting/health'],
