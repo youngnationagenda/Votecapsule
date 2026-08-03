@@ -4,7 +4,7 @@ import { AlertTriangle, TrendingDown } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
 
 export function RiskAnalysisPage(): React.JSX.Element {
-  const { data: risks } = useQuery({ queryKey: ['observer','risks'], queryFn: () => apiClient.get('/ai/anomalies?published=true').then(r => r.data?.data ?? []) });
+  const { data: risks } = useQuery({ queryKey: ['observer','risks'], queryFn: () => apiClient.get('/ai/jobs/flagged').then(r => r.data?.data ?? []) });
 
   const severityBadge: Record<string, string> = { HIGH: 'bg-red-100 text-red-700', MEDIUM: 'bg-amber-100 text-amber-700', LOW: 'bg-yellow-100 text-yellow-700' };
 

@@ -5,7 +5,7 @@ import { TrendingUp } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
 
 export function AnalyticsPage(): React.JSX.Element {
-  const { data: analytics } = useQuery({ queryKey: ['party','analytics'], queryFn: () => apiClient.get('/reporting/analytics').then(r => r.data?.data ?? {}) });
+  const { data: analytics } = useQuery({ queryKey: ['party','analytics'], queryFn: () => apiClient.get('/reporting/reports/analytics').then(r => r.data?.data ?? {}) });
 
   return (
     <div className="space-y-6">

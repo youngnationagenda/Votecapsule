@@ -10,8 +10,9 @@ COPY packages/ ./packages/
 COPY services/workflow/ ./services/workflow/
 RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @vote-capsule/types build 2>/dev/null || true
-RUN pnpm --filter @vote-capsule/database build 2>/dev/null || true
-RUN pnpm --filter @vote-capsule/workflow-service build
+RUN pnpm --filter @vote-capsule/database build 2>/dev/null || true && mkdir -p /app/packages/database/dist
+# Use tsc directly for reliable monorepo builds
+RUN cd services/workflow && npx tsc --project tsconfig.json
 RUN pnpm --filter @vote-capsule/workflow-service deploy --prod /app/deploy/workflow
 
 FROM public.ecr.aws/docker/library/node:20-alpine AS runner
@@ -24,7 +25,6 @@ ENV GIT_SHA=$GIT_SHA
 COPY --from=builder /app/deploy/workflow/node_modules ./node_modules
 COPY --from=builder /app/services/workflow/dist ./dist
 COPY --from=builder /app/services/workflow/package.json ./package.json
-COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/packages/types/dist/cjs ./node_modules/@vote-capsule/types/dist/cjs
 COPY --from=builder /app/packages/types/dist/esm ./node_modules/@vote-capsule/types/dist/esm
 EXPOSE $SERVICE_PORT

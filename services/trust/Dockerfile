@@ -10,8 +10,9 @@ COPY packages/ ./packages/
 COPY services/trust/ ./services/trust/
 RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @vote-capsule/types build 2>/dev/null || true
-RUN pnpm --filter @vote-capsule/database build 2>/dev/null || true
-RUN pnpm --filter @vote-capsule/trust-service build
+RUN pnpm --filter @vote-capsule/database build 2>/dev/null || true && mkdir -p /app/packages/database/dist
+# Use tsc directly for reliable monorepo builds
+RUN cd services/trust && npx tsc --project tsconfig.json
 RUN pnpm --filter @vote-capsule/trust-service deploy --prod /app/deploy/trust
 
 FROM public.ecr.aws/docker/library/node:20-alpine AS runner
@@ -24,7 +25,6 @@ ENV GIT_SHA=$GIT_SHA
 COPY --from=builder /app/deploy/trust/node_modules ./node_modules
 COPY --from=builder /app/services/trust/dist ./dist
 COPY --from=builder /app/services/trust/package.json ./package.json
-COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/packages/types/dist/cjs ./node_modules/@vote-capsule/types/dist/cjs
 COPY --from=builder /app/packages/types/dist/esm ./node_modules/@vote-capsule/types/dist/esm
 EXPOSE $SERVICE_PORT

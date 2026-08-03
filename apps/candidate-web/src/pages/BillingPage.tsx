@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { CreditCard, Download } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
 export function BillingPage(): React.JSX.Element {
-  const { data: invoices } = useQuery({ queryKey: ['candidate','billing'], queryFn: () => apiClient.get('/tenant/billing/invoices').then(r => r.data?.data ?? []) });
+  const { data: invoices } = useQuery({ queryKey: ['candidate','billing'], queryFn: () => apiClient.get('/billing/invoices').then(r => r.data?.data ?? []) });
   return (
     <div className="space-y-6">
       <div><h2 className="text-xl font-bold text-gray-900">Billing</h2><p className="text-sm text-gray-500">Your subscription invoices and payment history</p></div>

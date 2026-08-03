@@ -17,7 +17,7 @@
       "bundleIdentifier": "ke.co.votecapsule.agent",
       "buildNumber": "1",
       "infoPlist": {
-        "NSCameraUsageDescription": "VoteCapsule requires camera access to photograph election result forms.",
+        "NSCameraUsageDescription": "VoteCapsule requires camera access to photograph election result forms and scan IEBC barcodes.",
         "NSLocationWhenInUseUsageDescription": "VoteCapsule attaches GPS coordinates to evidence submissions for geolocation verification.",
         "NSPhotoLibraryAddUsageDescription": "VoteCapsule may save captured evidence to your photo library."
       }
@@ -43,7 +43,10 @@
     "plugins": [
       [
         "expo-camera",
-        { "cameraPermission": "VoteCapsule requires camera access to photograph election result forms." }
+        {
+          "cameraPermission": "VoteCapsule requires camera access to photograph election result forms and scan IEBC barcodes.",
+          "microphonePermission": false
+        }
       ],
       [
         "expo-location",

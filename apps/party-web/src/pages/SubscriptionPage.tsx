@@ -4,7 +4,7 @@ import { Settings, CheckCircle } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
 
 export function SubscriptionPage(): React.JSX.Element {
-  const { data: subscription } = useQuery({ queryKey: ['subscription'], queryFn: () => apiClient.get('/tenant/subscriptions/current').then(r => r.data?.data ?? null) });
+  const { data: subscription } = useQuery({ queryKey: ['subscription'], queryFn: () => apiClient.get('/billing/subscriptions/tenant/' + (user?.tenantId ?? '')).then(r => r.data?.data ?? null) });
 
   return (
     <div className="space-y-6">

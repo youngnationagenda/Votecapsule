@@ -38,19 +38,19 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-  { label: 'Tenants', path: '/tenants', icon: Building2 },
-  { label: 'Evidence', path: '/evidence', icon: Camera },
-  { label: 'Elections', path: '/elections', icon: Vote, stub: true },
-  { label: 'Users', path: '/users', icon: Users },
-  { label: 'Roles', path: '/roles', icon: Shield },
-  { label: 'AI Operations', path: '/ai-operations', icon: Bot, stub: true },
-  { label: 'Trust Ledger', path: '/trust-ledger', icon: Lock },
-  { label: 'Billing', path: '/billing', icon: CreditCard, stub: true },
-  { label: 'Security', path: '/security', icon: AlertCircle },
-  { label: 'Audit Log', path: '/audit', icon: FileText },
+  { label: 'Dashboard',     path: '/dashboard',    icon: LayoutDashboard },
+  { label: 'Tenants',       path: '/tenants',      icon: Building2 },
+  { label: 'Elections',     path: '/elections',    icon: Vote },
+  { label: 'Evidence',      path: '/evidence',     icon: Camera },
+  { label: 'Users',         path: '/users',        icon: Users },
+  { label: 'Roles',         path: '/roles',        icon: Shield },
+  { label: 'AI Operations', path: '/ai-operations', icon: Bot },
+  { label: 'Trust Ledger',  path: '/trust-ledger', icon: Lock },
+  { label: 'Billing',       path: '/billing',      icon: CreditCard },
+  { label: 'Security',      path: '/security',     icon: AlertCircle },
+  { label: 'Audit Log',     path: '/audit',        icon: FileText },
   { label: 'Configuration', path: '/configuration', icon: Wrench },
-  { label: 'Settings', path: '/settings', icon: Settings },
+  { label: 'Settings',      path: '/settings',     icon: Settings },
 ];
 
 interface SidebarProps {

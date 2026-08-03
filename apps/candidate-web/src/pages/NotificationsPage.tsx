@@ -2,9 +2,11 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Bell, CheckCircle } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { useAppSelector } from '../store/hooks';
 
 export function NotificationsPage(): React.JSX.Element {
-  const { data: notifications } = useQuery({ queryKey: ['candidate','notifications'], queryFn: () => apiClient.get('/notification/notifications?scope=mine').then(r => r.data?.data ?? []) });
+  const user = useAppSelector((s: any) => s.auth.user);
+  const { data: notifications } = useQuery({ queryKey: ['candidate','notifications'], queryFn: () => apiClient.get(`/notification/user/\${user?.id ?? ''}`).then(r => r.data?.items ?? r.data?.data ?? r.data ?? []) });
 
   return (
     <div className="space-y-6">

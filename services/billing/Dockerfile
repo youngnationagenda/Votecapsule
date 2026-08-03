@@ -10,8 +10,9 @@ COPY packages/ ./packages/
 COPY services/billing/ ./services/billing/
 RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @vote-capsule/types build 2>/dev/null || true
-RUN pnpm --filter @vote-capsule/database build 2>/dev/null || true
-RUN pnpm --filter @vote-capsule/billing-service build
+RUN pnpm --filter @vote-capsule/database build 2>/dev/null || true && mkdir -p /app/packages/database/dist
+# Use tsc directly for reliable monorepo builds
+RUN cd services/billing && npx tsc --project tsconfig.json
 RUN pnpm --filter @vote-capsule/billing-service deploy --prod /app/deploy/billing
 
 FROM public.ecr.aws/docker/library/node:20-alpine AS runner

@@ -56,12 +56,12 @@ export const trustApi = {
   },
 
   getBatches: async (): Promise<TrustAnchorBatch[]> => {
-    const { data } = await trustClient.get<TrustAnchorBatch[]>('/batches');
+    const { data } = await trustClient.get<TrustAnchorBatch[]>('/stats');
     return data;
   },
 
   getHistory: async (capsuleId: string) => {
-    const { data } = await trustClient.get(`/history/${capsuleId}`);
+    const { data } = await trustClient.get(`/verify/${capsuleId}`);
     return data;
   },
 };

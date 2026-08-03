@@ -8,10 +8,10 @@ export function IncidentTrackingPage(): React.JSX.Element {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', pollingStationCode: '', severity: 'MEDIUM' });
 
-  const { data: incidents } = useQuery({ queryKey: ['observer','incidents'], queryFn: () => apiClient.get('/reporting/incidents').then(r => r.data?.data ?? []) });
+  const { data: incidents } = useQuery({ queryKey: ['observer','incidents'], queryFn: () => apiClient.get('/audit/logs?limit=20&resourceType=OBSERVER_INCIDENT').then(r => r.data?.items ?? r.data?.data ?? r.data ?? []) });
 
   const logMutation = useMutation({
-    mutationFn: (p: typeof form) => apiClient.post('/reporting/incidents', { ...p, source: 'OBSERVER' }),
+    mutationFn: (p: typeof form) => apiClient.post('/audit/logs', { action: 'OBSERVER_INCIDENT_LOGGED', resourceType: 'OBSERVER_INCIDENT', serviceName: 'observer-portal', metadata: { ...p, source: 'OBSERVER' }, status: 'SUCCESS' }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['observer','incidents'] }); setShowForm(false); },
   });
 

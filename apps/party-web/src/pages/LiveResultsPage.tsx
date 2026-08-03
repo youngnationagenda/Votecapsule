@@ -7,7 +7,7 @@ import { apiClient } from '../api/apiClient';
 export function LiveResultsPage(): React.JSX.Element {
   const { data: results, refetch, isFetching } = useQuery({
     queryKey: ['party','live-results'],
-    queryFn: () => apiClient.get('/reporting/results').then(r => r.data?.data ?? []),
+    queryFn: () => apiClient.get('/reporting/reports/results').then(r => r.data?.data ?? []),
     refetchInterval: 30_000,
   });
 

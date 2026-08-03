@@ -6,8 +6,8 @@ import { useAppSelector } from '../store/hooks';
 
 export function DashboardPage(): React.JSX.Element {
   const user = useAppSelector((s) => s.auth.user);
-  const { data: profile } = useQuery({ queryKey: ['candidate','profile'], queryFn: () => apiClient.get('/candidate/candidates/me').then(r => r.data?.data ?? {}) });
-  const { data: reporting } = useQuery({ queryKey: ['candidate','reporting'], queryFn: () => apiClient.get('/reporting/candidate/dashboard').then(r => r.data?.data ?? {}) });
+  const { data: profile } = useQuery({ queryKey: ['candidate','profile'], queryFn: () => apiClient.get(`/candidate/candidates/${user?.id ?? ''}`).then(r => r.data?.data ?? r.data ?? {}) });
+  const { data: reporting } = useQuery({ queryKey: ['candidate','reporting'], queryFn: () => apiClient.get('/reporting/reports/dashboard').then(r => r.data?.data ?? {}) });
 
   const stats = [
     { label: 'My Position', value: profile?.position ?? 'MP', icon: Users, color: 'text-amber-600', bg: 'bg-amber-50' },

@@ -1,0 +1,20 @@
+{
+  "Role": "arn:aws:iam::683541453923:role/vote-capsule-s3-replication-role",
+  "Rules": [
+    {
+      "ID": "ReplicateEvidenceToJohannesburg",
+      "Priority": 1,
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": ""
+      },
+      "Destination": {
+        "Bucket": "arn:aws:s3:::vote-capsule-evidence-vault-dr-683541453923",
+        "StorageClass": "STANDARD"
+      },
+      "DeleteMarkerReplication": {
+        "Status": "Enabled"
+      }
+    }
+  ]
+}

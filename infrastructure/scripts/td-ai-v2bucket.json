@@ -1,0 +1,50 @@
+{
+  "family": "vc-ai",
+  "taskRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+  "executionRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "containerDefinitions": [
+    {
+      "name": "ai-service",
+      "image": "683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/ai-service:latest",
+      "portMappings": [{ "containerPort": 3006, "hostPort": 3006, "protocol": "tcp" }],
+      "essential": true,
+      "environment": [
+        { "name": "S3_EVIDENCE_BUCKET", "value": "vote-capsule-evidence-vault-v2-683541453923" },
+        { "name": "AWS_REGION", "value": "us-east-1" },
+        { "name": "PORT", "value": "3006" },
+        { "name": "DB_PORT", "value": "5432" },
+        { "name": "DB_USER", "value": "vcadmin" },
+        { "name": "DB_NAME", "value": "votecapsule" },
+        { "name": "DB_HOST", "value": "vote-capsule-db.cluster-c43i6c8ow71c.us-east-1.rds.amazonaws.com" },
+        { "name": "DB_SSL", "value": "true" },
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "SQS_VALIDATION_URL", "value": "https://sqs.us-east-1.amazonaws.com/683541453923/votecapsule-validation" },
+        { "name": "EVIDENCE_SERVICE_URL", "value": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/evidence" },
+        { "name": "GEOGRAPHY_SERVICE_URL", "value": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/geography" },
+        { "name": "AUDIT_SERVICE_URL", "value": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/audit" },
+        { "name": "ALLOWED_ORIGINS", "value": "http://localhost:3000,http://localhost:5173,https://votecapsule.yna.co.ke,https://transparency.votecapsule.yna.co.ke,https://authority.votecapsule.yna.co.ke,https://party.votecapsule.yna.co.ke,https://candidate.votecapsule.yna.co.ke,https://observer.votecapsule.yna.co.ke" }
+      ],
+      "secrets": [
+        { "name": "DB_PASSWORD", "valueFrom": "arn:aws:secretsmanager:us-east-1:683541453923:secret:vote-capsule/database/credentials-zTDMLX:password::" },
+        { "name": "JWT_SECRET", "valueFrom": "arn:aws:secretsmanager:us-east-1:683541453923:secret:vote-capsule/jwt/secret-bB2dDP:secret::" }
+      ],
+      "healthCheck": {
+        "command": ["CMD-SHELL", "exit 0"],
+        "interval": 30, "timeout": 5, "retries": 3, "startPeriod": 60
+      },
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/vote-capsule/ai-service",
+          "awslogs-create-group": "true",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ai"
+        }
+      }
+    }
+  ]
+}

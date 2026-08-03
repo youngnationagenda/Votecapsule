@@ -5,7 +5,7 @@ import { TrendingUp } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
 
 export function AnalyticsPage(): React.JSX.Element {
-  const { data: analytics } = useQuery({ queryKey: ['candidate','analytics'], queryFn: () => apiClient.get('/reporting/candidate/analytics').then(r => r.data?.data ?? {}) });
+  const { data: analytics } = useQuery({ queryKey: ['candidate','analytics'], queryFn: () => apiClient.get('/reporting/reports/analytics').then(r => r.data?.data ?? {}) });
 
   const pieData = analytics?.stationProgress ? [
     { name: 'Submitted', value: analytics.stationProgress.submitted ?? 0, color: '#D97706' },

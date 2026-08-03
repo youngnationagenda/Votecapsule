@@ -5,7 +5,7 @@ import { BarChart3, RefreshCw } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
 
 export function LiveReportingPage(): React.JSX.Element {
-  const { data: results, refetch, isFetching } = useQuery({ queryKey: ['observer','live'], queryFn: () => apiClient.get('/reporting/results/published').then(r => r.data?.data ?? []), refetchInterval: 30_000 });
+  const { data: results, refetch, isFetching } = useQuery({ queryKey: ['observer','live'], queryFn: () => apiClient.get('/reporting/public/results?electionYear=2027&positionCode=PRESIDENT').then(r => r.data?.data ?? []), refetchInterval: 30_000 });
 
   return (
     <div className="space-y-6">

@@ -4,7 +4,7 @@ import { TrendingUp, CheckCircle, Clock } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
 
 export function StationProgressPage(): React.JSX.Element {
-  const { data: progress } = useQuery({ queryKey: ['candidate','station-progress'], queryFn: () => apiClient.get('/reporting/candidate/station-progress').then(r => r.data?.data ?? []) });
+  const { data: progress } = useQuery({ queryKey: ['candidate','station-progress'], queryFn: () => apiClient.get('/reporting/public/progress').then(r => r.data?.data ?? []) });
 
   const submitted = (progress ?? []).filter((s: any) => s.hasSubmitted).length;
   const total = (progress ?? []).length;

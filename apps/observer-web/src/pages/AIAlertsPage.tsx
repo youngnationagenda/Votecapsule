@@ -4,7 +4,7 @@ import { Brain, AlertTriangle } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
 
 export function AIAlertsPage(): React.JSX.Element {
-  const { data: alerts } = useQuery({ queryKey: ['observer','ai-alerts'], queryFn: () => apiClient.get('/ai/alerts?published=true').then(r => r.data?.data ?? []) });
+  const { data: alerts } = useQuery({ queryKey: ['observer','ai-alerts'], queryFn: () => apiClient.get('/ai/jobs/flagged').then(r => r.data?.data ?? []) });
 
   return (
     <div className="space-y-6">

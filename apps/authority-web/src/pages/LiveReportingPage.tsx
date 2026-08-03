@@ -9,7 +9,7 @@ const COLORS = ['#059669', '#0B3C6D', '#7C3AED', '#D97706', '#DC2626', '#0369A1'
 export function LiveReportingPage(): React.JSX.Element {
   const { data: stats, refetch, isFetching } = useQuery({
     queryKey: ['reporting', 'live'],
-    queryFn: () => apiClient.get('/reporting/dashboard').then((r) => r.data?.data ?? r.data ?? {}),
+    queryFn: () => apiClient.get('/reporting/reports/dashboard').then((r) => r.data?.data ?? r.data ?? {}),
     refetchInterval: 30_000,
   });
 

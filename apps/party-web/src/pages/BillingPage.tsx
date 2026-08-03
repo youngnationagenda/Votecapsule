@@ -4,7 +4,7 @@ import { CreditCard, Download } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
 
 export function BillingPage(): React.JSX.Element {
-  const { data: invoices } = useQuery({ queryKey: ['billing','invoices'], queryFn: () => apiClient.get('/tenant/billing/invoices').then(r => r.data?.data ?? []) });
+  const { data: invoices } = useQuery({ queryKey: ['billing','invoices'], queryFn: () => apiClient.get('/billing/invoices').then(r => r.data?.data ?? []) });
 
   return (
     <div className="space-y-6">

@@ -5,7 +5,7 @@ import { apiClient } from '../api/apiClient';
 
 export function DashboardPage(): React.JSX.Element {
   const { data: candidates } = useQuery({ queryKey: ['party','candidates'], queryFn: () => apiClient.get('/candidate/candidates').then(r => r.data?.data ?? []) });
-  const { data: reporting } = useQuery({ queryKey: ['party','dashboard'], queryFn: () => apiClient.get('/reporting/dashboard').then(r => r.data?.data ?? {}) });
+  const { data: reporting } = useQuery({ queryKey: ['party','dashboard'], queryFn: () => apiClient.get('/reporting/reports/dashboard').then(r => r.data?.data ?? {}) });
 
   const stats = [
     { label: 'Party Candidates', value: candidates?.length ?? 0, icon: Users, color: 'text-violet-600', bg: 'bg-violet-50' },

@@ -2,10 +2,12 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { MapPin, ChevronRight } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { useAppSelector } from '../store/hooks';
 
 export function AssignedRegionPage(): React.JSX.Element {
-  const { data: stations } = useQuery({ queryKey: ['candidate','stations'], queryFn: () => apiClient.get('/geography/polling-stations?scope=mine').then(r => r.data?.data ?? []) });
-  const { data: profile } = useQuery({ queryKey: ['candidate','profile'], queryFn: () => apiClient.get('/candidate/candidates/me').then(r => r.data?.data ?? {}) });
+  const user = useAppSelector((s: any) => s.auth.user);
+  const { data: stations } = useQuery({ queryKey: ['candidate','stations'], queryFn: () => apiClient.get('/geography/polling-stations').then(r => r.data?.items ?? r.data?.data ?? r.data ?? []) });
+  const { data: profile } = useQuery({ queryKey: ['candidate','profile'], queryFn: () => apiClient.get(`/candidate/candidates/\${user?.id ?? ''}`).then(r => r.data?.data ?? r.data ?? {}) });
 
   return (
     <div className="space-y-6">

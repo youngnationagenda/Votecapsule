@@ -12,7 +12,8 @@ COPY services/identity/ ./services/identity/
 RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @vote-capsule/types build 2>/dev/null || true
 RUN pnpm --filter @vote-capsule/database build 2>/dev/null || true && mkdir -p /app/packages/database/dist
-RUN pnpm --filter @vote-capsule/identity-service build
+# Use tsc directly for reliable monorepo builds
+RUN cd services/identity && npx tsc --project tsconfig.json
 # Produce a self-contained node_modules for the service using deploy
 RUN pnpm --filter @vote-capsule/identity-service deploy --prod /app/deploy/identity
 

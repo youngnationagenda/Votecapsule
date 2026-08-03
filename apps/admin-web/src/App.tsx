@@ -24,6 +24,9 @@ import { AuditLogPage } from './pages/AuditLogPage';
 import { ConfigurationPage } from './pages/ConfigurationPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { EvidencePage } from './pages/EvidencePage';
+import { ElectionsPage } from './pages/ElectionsPage';
+import { AiOperationsPage } from './pages/AiOperationsPage';
+import { BillingAdminPage } from './pages/BillingAdminPage';
 import { ComingSoonPage } from './pages/ComingSoonPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { useAppSelector } from './store/hooks';
@@ -64,10 +67,16 @@ export default function App(): React.JSX.Element {
           {/* Evidence Capsules — now with real data from Evidence Service */}
           <Route path="/evidence" element={<EvidencePage />} />
 
-          {/* Stub pages — Coming Soon */}
-          <Route path="/elections" element={<ComingSoonPage title="Elections" description="Election management will be available once the Election Service is deployed. This integrates with the NEC Agent workstream." />} />
-          <Route path="/ai-operations" element={<ComingSoonPage title="AI Operations" description="AI model status and monitoring. Available in Phase 4." />} />
-          <Route path="/billing" element={<ComingSoonPage title="Billing" description="Billing and subscription management. Available in Phase 7." />} />
+          {/* Elections — full lifecycle management */}
+          <Route path="/elections" element={<ElectionsPage />} />
+
+          {/* AI Operations — verification monitoring */}
+          <Route path="/ai-operations" element={<AiOperationsPage />} />
+
+          {/* Billing — plans, subscriptions, invoices */}
+          <Route path="/billing" element={<BillingAdminPage />} />
+
+          {/* Support — coming soon */}
           <Route path="/support" element={<ComingSoonPage title="Support" description="Support ticket overview. Coming soon." />} />
         </Route>
       </Route>
