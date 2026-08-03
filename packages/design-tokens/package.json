@@ -2,26 +2,27 @@
   "name": "@vote-capsule/design-tokens",
   "version": "1.0.0",
   "description": "Vote Capsule™ Design Tokens — Single source of truth for all design values",
-  "main": "./dist/index.js",
-  "module": "./dist/index.mjs",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js",
+      "types": "./dist/esm/index.d.ts"
     }
   },
   "files": ["dist"],
   "scripts": {
-    "build": "tsc --project tsconfig.json",
-    "dev": "tsc --project tsconfig.json --watch",
+    "build": "tsc --project tsconfig.esm.json && tsc --project tsconfig.cjs.json",
+    "dev": "tsc --project tsconfig.esm.json --watch",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint src --ext .ts",
     "clean": "rimraf dist"
   },
   "devDependencies": {
     "typescript": "^5.7.2",
     "rimraf": "^6.0.1"
-  }
+  },
+  "keywords": ["design-tokens", "vote-capsule", "tailwind", "theme"],
+  "license": "UNLICENSED"
 }
