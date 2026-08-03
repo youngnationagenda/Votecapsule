@@ -78,7 +78,9 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::683541453923:role/vote-capsule-github-actions-role
+          role-session-name: GitHubActions-${{ github.run_id }}
           aws-region: us-east-1
+          audience: sts.amazonaws.com
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -88,7 +90,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'pnpm'
 
       - name: Install dependencies

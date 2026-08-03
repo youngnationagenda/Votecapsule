@@ -31,7 +31,9 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::683541453923:role/vote-capsule-github-actions-role
+          role-session-name: GitHubActions-${{ github.run_id }}
           aws-region: us-east-1
+          audience: sts.amazonaws.com
 
       - name: Start CodeBuild project
         id: codebuild

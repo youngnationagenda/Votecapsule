@@ -96,7 +96,9 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::683541453923:role/vote-capsule-github-actions-role
+          role-session-name: GitHubActions-${{ matrix.service.name }}-${{ github.run_id }}
           aws-region: us-east-1
+          audience: sts.amazonaws.com
 
       - name: Login to Amazon ECR
         id: ecr-login
