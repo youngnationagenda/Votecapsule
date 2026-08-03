@@ -21,7 +21,6 @@ ARG GIT_SHA
 ENV PORT=$SERVICE_PORT
 ENV GIT_SHA=$GIT_SHA
 COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/services/workflow/node_modules ./node_modules
 COPY --from=builder /app/services/workflow/dist ./dist
 COPY --from=builder /app/services/workflow/package.json ./package.json
 COPY --from=builder /app/packages/types/dist/cjs ./node_modules/@vote-capsule/types/dist/cjs
