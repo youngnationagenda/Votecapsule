@@ -23,6 +23,7 @@ ENV PORT=$SERVICE_PORT
 ENV GIT_SHA=$GIT_SHA
 # Use ONLY the workspace root node_modules (has all deps via pnpm virtual store)
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/services/geography/node_modules ./node_modules
 # Copy compiled TypeScript output
 COPY --from=builder /app/services/geography/dist ./dist
 COPY --from=builder /app/services/geography/package.json ./package.json
