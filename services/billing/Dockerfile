@@ -13,7 +13,7 @@ RUN pnpm --filter @vote-capsule/types build 2>/dev/null || true
 RUN pnpm --filter @vote-capsule/database build 2>/dev/null || true && mkdir -p /app/packages/database/dist
 # Use tsc directly for reliable monorepo builds
 RUN cd services/billing && npx tsc --project tsconfig.json
-RUN pnpm --filter @vote-capsule/billing-service deploy --prod /app/deploy/billing
+RUN pnpm --filter @vote-capsule/billing-service deploy --prod /app/services/billing/deploy
 
 FROM public.ecr.aws/docker/library/node:20-alpine AS runner
 WORKDIR /app
@@ -22,7 +22,7 @@ ARG SERVICE_PORT
 ARG GIT_SHA
 ENV PORT=$SERVICE_PORT
 ENV GIT_SHA=$GIT_SHA
-COPY --from=builder /app/deploy/billing/node_modules ./node_modules
+COPY --from=builder /app/services/billing/deploy/node_modules ./node_modules
 COPY --from=builder /app/services/billing/dist ./dist
 COPY --from=builder /app/services/billing/package.json ./package.json
 COPY --from=builder /app/packages ./packages

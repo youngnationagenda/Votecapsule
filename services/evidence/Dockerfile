@@ -11,9 +11,8 @@ COPY services/evidence/ ./services/evidence/
 RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @vote-capsule/types build 2>/dev/null || true
 RUN pnpm --filter @vote-capsule/database build 2>/dev/null || true && mkdir -p /app/packages/database/dist
-# Use tsc directly for reliable monorepo builds
 RUN cd services/evidence && npx tsc --project tsconfig.json
-RUN pnpm --filter @vote-capsule/evidence-service deploy --prod /app/deploy/evidence
+RUN pnpm --filter @vote-capsule/evidence-service deploy --prod /app/services/evidence/deploy
 
 FROM public.ecr.aws/docker/library/node:20-alpine AS runner
 WORKDIR /app
@@ -22,7 +21,7 @@ ARG SERVICE_PORT
 ARG GIT_SHA
 ENV PORT=$SERVICE_PORT
 ENV GIT_SHA=$GIT_SHA
-COPY --from=builder /app/deploy/evidence/node_modules ./node_modules
+COPY --from=builder /app/services/evidence/deploy/node_modules ./node_modules
 COPY --from=builder /app/services/evidence/dist ./dist
 COPY --from=builder /app/services/evidence/package.json ./package.json
 COPY --from=builder /app/packages/types/dist/cjs ./node_modules/@vote-capsule/types/dist/cjs

@@ -14,8 +14,8 @@ RUN pnpm --filter @vote-capsule/types build 2>/dev/null || true
 RUN pnpm --filter @vote-capsule/database build 2>/dev/null || true && mkdir -p /app/packages/database/dist
 # Use tsc directly for reliable monorepo builds
 RUN cd services/identity && npx tsc --project tsconfig.json
-# Produce a self-contained node_modules for the service using deploy
-RUN pnpm --filter @vote-capsule/identity-service deploy --prod /app/deploy/identity
+# pnpm deploy resolves relative to package root — use service-local path
+RUN pnpm --filter @vote-capsule/identity-service deploy --prod /app/services/identity/deploy
 
 FROM public.ecr.aws/docker/library/node:20-alpine AS runner
 WORKDIR /app
@@ -24,8 +24,7 @@ ARG SERVICE_PORT
 ARG GIT_SHA
 ENV PORT=$SERVICE_PORT
 ENV GIT_SHA=$GIT_SHA
-# Copy the self-contained production node_modules from pnpm deploy
-COPY --from=builder /app/deploy/identity/node_modules ./node_modules
+COPY --from=builder /app/services/identity/deploy/node_modules ./node_modules
 # Copy compiled service dist
 COPY --from=builder /app/services/identity/dist ./dist
 COPY --from=builder /app/services/identity/package.json ./package.json
