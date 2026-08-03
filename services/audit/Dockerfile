@@ -1,5 +1,4 @@
 # Vote Capsule(tm) -- Audit Service
-# Monorepo-aware Docker build using ECR Public mirror
 ARG SERVICE_PORT=3012
 ARG GIT_SHA=local
 
@@ -12,10 +11,7 @@ COPY services/audit/ ./services/audit/
 RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @vote-capsule/types build 2>/dev/null || true
 RUN pnpm --filter @vote-capsule/database build 2>/dev/null || true && mkdir -p /app/packages/database/dist
-# Use tsc directly for reliable monorepo builds
-RUN cd services/audit && npx tsc --project tsconfig.json
-# pnpm deploy resolves relative to the package root — use service-local path
-RUN pnpm --filter @vote-capsule/audit-service deploy --prod /app/services/audit/deploy
+RUN cd /app/services/audit && npx tsc --project tsconfig.json --noEmitOnError false
 
 FROM public.ecr.aws/docker/library/node:20-alpine AS runner
 WORKDIR /app
@@ -24,7 +20,8 @@ ARG SERVICE_PORT
 ARG GIT_SHA
 ENV PORT=$SERVICE_PORT
 ENV GIT_SHA=$GIT_SHA
-COPY --from=builder /app/services/audit/deploy/node_modules ./node_modules
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/services/audit/node_modules ./node_modules
 COPY --from=builder /app/services/audit/dist ./dist
 COPY --from=builder /app/services/audit/package.json ./package.json
 COPY --from=builder /app/packages/types/dist/cjs ./node_modules/@vote-capsule/types/dist/cjs

@@ -1,5 +1,4 @@
 # Vote Capsule(tm) -- Identity Service
-# Monorepo-aware Docker build using ECR Public mirror
 ARG SERVICE_PORT=3001
 ARG GIT_SHA=local
 
@@ -12,10 +11,7 @@ COPY services/identity/ ./services/identity/
 RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @vote-capsule/types build 2>/dev/null || true
 RUN pnpm --filter @vote-capsule/database build 2>/dev/null || true && mkdir -p /app/packages/database/dist
-# Use tsc directly for reliable monorepo builds
-RUN cd services/identity && npx tsc --project tsconfig.json
-# pnpm deploy resolves relative to package root — use service-local path
-RUN pnpm --filter @vote-capsule/identity-service deploy --prod /app/services/identity/deploy
+RUN cd /app/services/identity && npx tsc --project tsconfig.json --noEmitOnError false
 
 FROM public.ecr.aws/docker/library/node:20-alpine AS runner
 WORKDIR /app
@@ -24,11 +20,10 @@ ARG SERVICE_PORT
 ARG GIT_SHA
 ENV PORT=$SERVICE_PORT
 ENV GIT_SHA=$GIT_SHA
-COPY --from=builder /app/services/identity/deploy/node_modules ./node_modules
-# Copy compiled service dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/services/identity/node_modules ./node_modules
 COPY --from=builder /app/services/identity/dist ./dist
 COPY --from=builder /app/services/identity/package.json ./package.json
-# Copy built shared packages to all possible paths pnpm might use
 COPY --from=builder /app/packages/types/dist/cjs ./node_modules/@vote-capsule/types/dist/cjs
 COPY --from=builder /app/packages/types/dist/esm ./node_modules/@vote-capsule/types/dist/esm
 COPY --from=builder /app/packages/database/dist ./node_modules/@vote-capsule/database/dist

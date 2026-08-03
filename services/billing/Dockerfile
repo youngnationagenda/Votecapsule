@@ -11,9 +11,7 @@ COPY services/billing/ ./services/billing/
 RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @vote-capsule/types build 2>/dev/null || true
 RUN pnpm --filter @vote-capsule/database build 2>/dev/null || true && mkdir -p /app/packages/database/dist
-# Use tsc directly for reliable monorepo builds
-RUN cd services/billing && npx tsc --project tsconfig.json
-RUN pnpm --filter @vote-capsule/billing-service deploy --prod /app/services/billing/deploy
+RUN cd /app/services/billing && npx tsc --project tsconfig.json --noEmitOnError false
 
 FROM public.ecr.aws/docker/library/node:20-alpine AS runner
 WORKDIR /app
@@ -22,10 +20,10 @@ ARG SERVICE_PORT
 ARG GIT_SHA
 ENV PORT=$SERVICE_PORT
 ENV GIT_SHA=$GIT_SHA
-COPY --from=builder /app/services/billing/deploy/node_modules ./node_modules
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/services/billing/node_modules ./node_modules
 COPY --from=builder /app/services/billing/dist ./dist
 COPY --from=builder /app/services/billing/package.json ./package.json
-COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/packages/types/dist/cjs ./node_modules/@vote-capsule/types/dist/cjs
 COPY --from=builder /app/packages/types/dist/esm ./node_modules/@vote-capsule/types/dist/esm
 EXPOSE $SERVICE_PORT
