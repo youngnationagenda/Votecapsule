@@ -11,7 +11,7 @@ export class ElectionVersion {
   @Column({ length: 100 })
   label: string;
 
-  @Column({ name: 'gazette_reference', length: 200, nullable: true })
+  @Column({ name: 'gazette_reference', type: 'varchar', length: 200, nullable: true })
   gazetteReference: string | null;
 
   @Column({ name: 'is_active', default: false })

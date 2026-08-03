@@ -33,7 +33,7 @@ export class WorkflowStepEvent {
   @Column({ name: 'step_name', length: 100 })
   stepName!: string;
 
-  @Column({ name: 'event_type', length: 50, enum: StepEventType })
+  @Column({ name: 'event_type', type: 'varchar', length: 50, enum: StepEventType })
   eventType!: StepEventType;
 
   @Column({ name: 'previous_step', type: 'varchar', length: 100, nullable: true })

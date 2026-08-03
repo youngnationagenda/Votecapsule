@@ -53,7 +53,7 @@ export class AiVerificationJob {
   @Column({ name: 'county_code', type: 'char', length: 3 })
   countyCode: string;
 
-  @Column({ name: 'status', length: 20, default: AiJobStatus.QUEUED, enum: AiJobStatus })
+  @Column({ name: 'status', type: 'varchar', length: 20, default: AiJobStatus.QUEUED, enum: AiJobStatus })
   status: AiJobStatus;
 
   @Column({ name: 'queued_at', type: 'timestamptz', default: () => 'NOW()' })
@@ -71,7 +71,7 @@ export class AiVerificationJob {
   @Column({ name: 'textract_job_id', length: 255, nullable: true })
   textractJobId: string | null;
 
-  @Column({ name: 'textract_status', length: 30, nullable: true, enum: TextractStatus })
+  @Column({ name: 'textract_status', type: 'varchar', length: 30, nullable: true, enum: TextractStatus })
   textractStatus: TextractStatus | null;
 
   @Column({ name: 's3_bucket', length: 255, nullable: true })
@@ -101,7 +101,7 @@ export class AiVerificationJob {
   @Column({ name: 'overall_confidence', type: 'numeric', precision: 5, scale: 4, nullable: true })
   overallConfidence: number | null;
 
-  @Column({ name: 'routing_decision', length: 20, nullable: true, enum: RoutingDecision })
+  @Column({ name: 'routing_decision', type: 'varchar', length: 20, nullable: true, enum: RoutingDecision })
   routingDecision: RoutingDecision | null;
 
   @Column({ name: 'routing_reason', type: 'text', nullable: true })

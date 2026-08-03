@@ -42,7 +42,7 @@ export class WorkflowExecution {
   @Column({ name: 'state_machine_arn', length: 2048, nullable: true })
   stateMachineArn!: string | null;
 
-  @Column({ name: 'workflow_type', length: 50, enum: WorkflowType })
+  @Column({ name: 'workflow_type', type: 'varchar', length: 50, enum: WorkflowType })
   workflowType!: WorkflowType;
 
   @Column({ name: 'tenant_id', type: 'uuid', nullable: true })
@@ -60,7 +60,7 @@ export class WorkflowExecution {
   @Column({ name: 'initiator_service', length: 100, nullable: true })
   initiatorService!: string | null;
 
-  @Column({ name: 'status', length: 30, default: WorkflowStatus.RUNNING, enum: WorkflowStatus })
+  @Column({ name: 'status', type: 'varchar', length: 30, default: WorkflowStatus.RUNNING, enum: WorkflowStatus })
   status!: WorkflowStatus;
 
   @Column({ name: 'current_step', length: 100, nullable: true })

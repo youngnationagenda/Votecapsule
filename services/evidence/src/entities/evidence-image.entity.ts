@@ -24,7 +24,7 @@ export class EvidenceImage {
   imageIndex: number;
 
   @Column({
-    name: 'image_type', length: 30,
+    name: 'image_type', type: 'varchar', length: 30,
     default: ImageType.FORM_FRONT,
     enum: ImageType,
   })

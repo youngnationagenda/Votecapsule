@@ -40,7 +40,7 @@ export class EvidenceChainOfCustody {
   capsuleId: string;
 
   @Column({
-    name: 'event_type', length: 50,
+    name: 'event_type', type: 'varchar', length: 50,
     enum: CustodyEventType,
   })
   eventType: CustodyEventType;

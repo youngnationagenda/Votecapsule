@@ -51,10 +51,10 @@ export class AiAnomalyEvent {
   @Column({ name: 'capsule_id', type: 'uuid' })
   capsuleId: string;
 
-  @Column({ name: 'anomaly_type', length: 50, enum: AnomalyType })
+  @Column({ name: 'anomaly_type', type: 'varchar', length: 50, enum: AnomalyType })
   anomalyType: AnomalyType;
 
-  @Column({ name: 'severity', length: 20, default: AnomalySeverity.MEDIUM, enum: AnomalySeverity })
+  @Column({ name: 'severity', type: 'varchar', length: 20, default: AnomalySeverity.MEDIUM, enum: AnomalySeverity })
   severity: AnomalySeverity;
 
   @Column({ name: 'description', type: 'text' })
@@ -72,7 +72,7 @@ export class AiAnomalyEvent {
   @Column({ name: 'reviewed_at', type: 'timestamptz', nullable: true })
   reviewedAt: Date | null;
 
-  @Column({ name: 'review_outcome', length: 20, nullable: true, enum: ReviewOutcome })
+  @Column({ name: 'review_outcome', type: 'varchar', length: 20, nullable: true, enum: ReviewOutcome })
   reviewOutcome: ReviewOutcome | null;
 
   @CreateDateColumn({ name: 'detected_at' })

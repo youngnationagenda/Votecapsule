@@ -33,10 +33,10 @@ export class WorkflowEscalation {
   @Column({ name: 'execution_id', type: 'uuid' })
   executionId!: string;
 
-  @Column({ name: 'escalation_type', length: 50, enum: EscalationType })
+  @Column({ name: 'escalation_type', type: 'varchar', length: 50, enum: EscalationType })
   escalationType!: EscalationType;
 
-  @Column({ name: 'severity', length: 20, default: EscalationSeverity.HIGH, enum: EscalationSeverity })
+  @Column({ name: 'severity', type: 'varchar', length: 20, default: EscalationSeverity.HIGH, enum: EscalationSeverity })
   severity!: EscalationSeverity;
 
   @Column({ name: 'message', type: 'text' })

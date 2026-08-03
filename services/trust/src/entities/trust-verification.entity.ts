@@ -30,7 +30,7 @@ export class TrustVerification {
   @Column({ name: 'sha256_hash', type: 'char', length: 64 })
   sha256Hash: string;
 
-  @Column({ name: 'requester_type', length: 50, enum: RequesterType })
+  @Column({ name: 'requester_type', type: 'varchar', length: 50, enum: RequesterType })
   requesterType: RequesterType;
 
   @Column({ name: 'requester_id', length: 255, nullable: true })
