@@ -37,14 +37,14 @@ export class TrustVerification {
   requesterId: string | null;
 
   /** TRUE = Merkle proof recomputes to the anchored root */
-  @Column({ name: 'hash_match' })
+  @Column({ name: 'hash_match', type: 'boolean' })
   hashMatch: boolean;
 
   /** TRUE = proof valid AND batch is DUAL_ANCHORED */
-  @Column({ name: 'verified', default: false })
+  @Column({ name: 'verified', type: 'boolean', default: false })
   verified: boolean;
 
-  @Column({ name: 'duration_ms', nullable: true })
+  @Column({ name: 'duration_ms', type: 'integer', nullable: true })
   durationMs: number | null;
 
   @CreateDateColumn({ name: 'verified_at' })

@@ -45,10 +45,10 @@ export class EvidenceChainOfCustody {
   })
   eventType: CustodyEventType;
 
-  @Column({ name: 'previous_status', length: 30, nullable: true })
+  @Column({ name: 'previous_status', type: 'varchar', length: 30, nullable: true })
   previousStatus: string | null;
 
-  @Column({ name: 'new_status', length: 30, nullable: true })
+  @Column({ name: 'new_status', type: 'varchar', length: 30, nullable: true })
   newStatus: string | null;
 
   /** NULL for automated system events */
@@ -56,7 +56,7 @@ export class EvidenceChainOfCustody {
   actorUserId: string | null;
 
   /** Service name for automated events e.g. "evidence-service", "ai-service" */
-  @Column({ name: 'actor_service', length: 100, nullable: true })
+  @Column({ name: 'actor_service', type: 'varchar', length: 100, nullable: true })
   actorService: string | null;
 
   @Column({ name: 'actor_device_id', type: 'uuid', nullable: true })

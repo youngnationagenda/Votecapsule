@@ -36,10 +36,10 @@ export class WorkflowExecution {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ name: 'execution_arn', length: 2048, unique: true, nullable: true })
+  @Column({ name: 'execution_arn', type: 'varchar', length: 2048, unique: true, nullable: true })
   executionArn!: string | null;
 
-  @Column({ name: 'state_machine_arn', length: 2048, nullable: true })
+  @Column({ name: 'state_machine_arn', type: 'varchar', length: 2048, nullable: true })
   stateMachineArn!: string | null;
 
   @Column({ name: 'workflow_type', type: 'varchar', length: 50, enum: WorkflowType })
@@ -57,13 +57,13 @@ export class WorkflowExecution {
   @Column({ name: 'initiator_user_id', type: 'uuid', nullable: true })
   initiatorUserId!: string | null;
 
-  @Column({ name: 'initiator_service', length: 100, nullable: true })
+  @Column({ name: 'initiator_service', type: 'varchar', length: 100, nullable: true })
   initiatorService!: string | null;
 
   @Column({ name: 'status', type: 'varchar', length: 30, default: WorkflowStatus.RUNNING, enum: WorkflowStatus })
   status!: WorkflowStatus;
 
-  @Column({ name: 'current_step', length: 100, nullable: true })
+  @Column({ name: 'current_step', type: 'varchar', length: 100, nullable: true })
   currentStep!: string | null;
 
   @Column({ name: 'started_at', type: 'timestamptz', default: () => 'NOW()' })
@@ -75,7 +75,7 @@ export class WorkflowExecution {
   @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })
   completedAt!: Date | null;
 
-  @Column({ name: 'duration_ms', nullable: true })
+  @Column({ name: 'duration_ms', type: 'integer', nullable: true })
   durationMs!: number | null;
 
   @Column({ name: 'attempt_count', type: 'smallint', default: 1 })

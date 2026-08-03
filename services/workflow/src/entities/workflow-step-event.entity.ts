@@ -42,7 +42,7 @@ export class WorkflowStepEvent {
   @Column({ name: 'next_step', type: 'varchar', length: 100, nullable: true })
   nextStep!: string | null;
 
-  @Column({ name: 'task_resource', length: 500, nullable: true })
+  @Column({ name: 'task_resource', type: 'varchar', length: 500, nullable: true })
   taskResource!: string | null;
 
   @Column({ name: 'input_data', type: 'jsonb', nullable: true })
@@ -51,7 +51,7 @@ export class WorkflowStepEvent {
   @Column({ name: 'output_data', type: 'jsonb', nullable: true })
   outputData!: Record<string, unknown> | null;
 
-  @Column({ name: 'error_code', length: 100, nullable: true })
+  @Column({ name: 'error_code', type: 'varchar', length: 100, nullable: true })
   errorCode!: string | null;
 
   @Column({ name: 'error_cause', type: 'text', nullable: true })

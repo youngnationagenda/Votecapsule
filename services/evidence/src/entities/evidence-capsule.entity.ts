@@ -106,7 +106,7 @@ export class EvidenceCapsule {
   @Column({ name: 'agent_device_id', type: 'uuid', nullable: true })
   agentDeviceId: string | null;
 
-  @Column({ name: 'assigned_party_org', length: 255, nullable: true })
+  @Column({ name: 'assigned_party_org', type: 'varchar', length: 255, nullable: true })
   assignedPartyOrg: string | null;
 
   // ── Capture timing ────────────────────────────────────────
@@ -152,13 +152,13 @@ export class EvidenceCapsule {
   trustAnchorBatchId: string | null;
 
   /** PENDING | HEDERA_ONLY | TSA_ONLY | DUAL_ANCHORED | FAILED */
-  @Column({ name: 'anchor_status', length: 30, nullable: true })
+  @Column({ name: 'anchor_status', type: 'varchar', length: 30, nullable: true })
   anchorStatus: string | null;
 
   @Column({ name: 'anchored_at', type: 'timestamptz', nullable: true })
   anchoredAt: Date | null;
 
-  @Column({ name: 's3_object_key', length: 500, nullable: true })
+  @Column({ name: 's3_object_key', type: 'varchar', length: 500, nullable: true })
   s3ObjectKey: string | null;
 
   @Column({ name: 's3_locked', default: false })
@@ -183,7 +183,7 @@ export class EvidenceCapsule {
   @Column({ name: 'validated_at', type: 'timestamptz', nullable: true })
   validatedAt: Date | null;
 
-  @Column({ name: 'validation_decision', length: 20, nullable: true })
+  @Column({ name: 'validation_decision', type: 'varchar', length: 20, nullable: true })
   validationDecision: string | null;
 
   // ── Publication ───────────────────────────────────────────
