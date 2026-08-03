@@ -6,6 +6,7 @@ import { DatabaseModule } from './database/database.module';
 import { TenantsModule } from './tenants/tenants.module';
 import { MembersModule } from './members/members.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { AuthModule } from './common/auth.module';
 
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { AuditInterceptor } from './common/audit.interceptor';
@@ -14,6 +15,7 @@ import { AuditInterceptor } from './common/audit.interceptor';
   imports: [
     ConfigModule.forRoot({ isGlobal: true, envFilePath: ['.env.local', '.env'] }),
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60000, limit: 200 }]),
+    AuthModule,
     DatabaseModule,
     TenantsModule,
     MembersModule,
