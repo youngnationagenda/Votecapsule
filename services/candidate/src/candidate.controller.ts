@@ -35,6 +35,104 @@ export class CandidateController {
 
   /**
    * POST /candidates/elections
+  // ══════════════════════════════════════════════════════════
+  //  PARTY NOMINATION ELECTIONS
+  //
+  //  Political parties use VoteCapsule™ to run internal
+  //  nominations with the same evidence capture + reconciliation
+  //  as the General Election — full auditability and integrity.
+  // ══════════════════════════════════════════════════════════
+
+  /**
+   * POST /candidates/nominations
+   * Create a Party Nomination election linked to a General Election.
+   * Tenant = the political party.
+   * Header: X-Tenant-Id (party tenant), X-User-Id, X-Party-Id
+   */
+  @Post('nominations')
+  @HttpCode(HttpStatus.CREATED)
+  async createPartyNomination(
+    @Body() dto: {
+      partyId: string;
+      parentElectionId: string;
+      name: string;
+      electionYear: number;
+      nominationOpenDate?: string;
+      nominationVotingDate?: string;
+      nominationDeadline?: string;
+      nominationFeeKes?: number;
+      maxCandidatesPerPosition?: number;
+      description?: string;
+    },
+    @Headers('x-tenant-id') tenantId: string,
+    @Headers('x-user-id')   userId:   string,
+  ) {
+    if (!tenantId) throw new BadRequestException('X-Tenant-Id header is required');
+    if (!userId)   throw new BadRequestException('X-User-Id header is required');
+    return this.service.createPartyNomination({ ...dto, tenantId }, userId);
+  }
+
+  /**
+   * GET /candidates/nominations?parentElectionId=xxx
+   * List all party nomination elections for a given general election.
+   * Used by admin portal to see all parties' nominations.
+   */
+  @Get('nominations')
+  async listPartyNominations(
+    @Query('parentElectionId') parentElectionId?: string,
+    @Headers('x-tenant-id') tenantId?: string,
+  ) {
+    if (parentElectionId) {
+      return this.service.listPartyNominations(parentElectionId);
+    }
+    if (tenantId) {
+      return this.service.listPartyNominationsForTenant(tenantId);
+    }
+    throw new BadRequestException('Either parentElectionId query param or X-Tenant-Id header is required');
+  }
+
+  /**
+   * POST /candidates/nominations/:id/declare-winner
+   * Declare the winner of a party nomination for a specific candidate.
+   * Sets nominationWon=TRUE on winner, FALSE on all other candidates for same position.
+   * Header: X-User-Id (party official declaring the result)
+   */
+  @Post('nominations/:id/declare-winner')
+  @HttpCode(HttpStatus.OK)
+  async declareNominationWinner(
+    @Param('id') nominationElectionId: string,
+    @Body('candidateId') candidateId: string,
+    @Headers('x-user-id') userId: string,
+  ) {
+    if (!candidateId) throw new BadRequestException('candidateId is required in body');
+    if (!userId)      throw new BadRequestException('X-User-Id header is required');
+    return this.service.declareNominationWinner(nominationElectionId, candidateId, userId);
+  }
+
+  /**
+   * POST /candidates/nominations/promote/:candidateId
+   * Promote a nomination winner to the parent General Election
+   * as a PARTY_SPONSORED candidate.
+   *
+   * Creates a new candidate in the General Election with:
+   *   - sponsorshipType = PARTY_SPONSORED
+   *   - status = PENDING_NOMINATION (still needs IEBC approval)
+   *
+   * Header: X-User-Id (party official)
+   */
+  @Post('nominations/promote/:candidateId')
+  @HttpCode(HttpStatus.CREATED)
+  async promoteNominationWinner(
+    @Param('candidateId', ParseUUIDPipe) candidateId: string,
+    @Headers('x-user-id') userId: string,
+  ) {
+    if (!userId) throw new BadRequestException('X-User-Id header is required');
+    return this.service.promoteNominationWinner(candidateId, userId);
+  }
+
+  // ── General election creation ─────────────────────────────
+
+  /**
    * Create a new election.
    * Header: X-Tenant-Id, X-User-Id
    */

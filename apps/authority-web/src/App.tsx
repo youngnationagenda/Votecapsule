@@ -16,6 +16,8 @@ import { AIReviewPage } from './pages/AIReviewPage';
 import { PublicationControlPage } from './pages/PublicationControlPage';
 import { ObserverCoordinationPage } from './pages/ObserverCoordinationPage';
 import { OfficialReportsPage } from './pages/OfficialReportsPage';
+import { FormBEntryPage } from './pages/FormBEntryPage';
+import { FormCDeclarationPage } from './pages/FormCDeclarationPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { useAppSelector } from './store/hooks';
 
@@ -39,6 +41,8 @@ export default function App(): React.JSX.Element {
           <Route path="/publication" element={<PublicationControlPage />} />
           <Route path="/observers" element={<ObserverCoordinationPage />} />
           <Route path="/reports" element={<OfficialReportsPage />} />
+          <Route path="/form-b-entry" element={<FormBEntryPage />} />
+          <Route path="/form-c-declaration" element={<FormCDeclarationPage />} />
         </Route>
       </Route>
 

@@ -2,28 +2,37 @@
 // VoteCapsule™ — Sync Engine
 // apps/agent-mobile/src/services/syncEngine.ts
 //
-// Offline-first upload queue. Runs as a background loop.
-// Takes QUEUED / FAILED capsules from AsyncStorage and
-// uploads them to the Evidence Service when connectivity
-// is available.
+// Offline-first upload queue. Runs as a timed background loop.
+// Picks QUEUED / FAILED capsules from AsyncStorage and uploads
+// them to the Evidence Service when connectivity is available.
 //
 // State machine per capsule:
-//   DRAFT → CAPTURED → QUEUED → UPLOADING → UPLOADED → (deleted from queue)
-//   QUEUED / UPLOADED → FAILED (on error, retry with back-off)
+//   DRAFT → CAPTURED → QUEUED → UPLOADING → UPLOADED
+//                   ↑____________FAILED (retry with back-off)
+//
+// Hardening additions:
+//  - UPLOADING capsules that are older than STUCK_THRESHOLD_MS
+//    are reset to QUEUED so they are retried (handles app crash
+//    mid-upload or killed process).
+//  - Capsule image file existence is checked before each upload.
+//  - Successful uploads are marked UPLOADED with the server ID.
 // ============================================================
 import NetInfo from '@react-native-community/netinfo';
 import * as FileSystem from 'expo-file-system';
 import {
   getAllCapsules,
   updateCapsule,
-  deleteCapsule,
   getPendingCapsules,
+  getCapsule,
 } from '../utils/storage';
 import { uploadCapsule } from './api';
 import { LocalCapsule } from '../types';
 
-const MAX_RETRIES    = 5;
-const RETRY_DELAY_MS = [5_000, 15_000, 30_000, 60_000, 120_000]; // exponential steps
+const MAX_RETRIES       = 5;
+const STUCK_THRESHOLD_MS = 3 * 60 * 1000; // 3 minutes — assume stuck if UPLOADING this long
+
+/** Exponential back-off delays per attempt index (0-indexed) */
+const RETRY_DELAY_MS = [5_000, 15_000, 30_000, 60_000, 120_000];
 
 let syncTimer: ReturnType<typeof setInterval> | null = null;
 let isSyncing = false;
@@ -32,8 +41,8 @@ let isSyncing = false;
 
 export function startSyncEngine(intervalMs = 30_000): void {
   if (syncTimer) return; // already running
-  syncTimer = setInterval(() => runSync(), intervalMs);
-  runSync(); // run once immediately on start
+  runSync();             // run immediately on start
+  syncTimer = setInterval(runSync, intervalMs);
 }
 
 export function stopSyncEngine(): void {
@@ -51,6 +60,7 @@ export async function runSync(): Promise<void> {
 
   isSyncing = true;
   try {
+    await recoverStuckCapsules();
     const pending = await getPendingCapsules();
     for (const capsule of pending) {
       await uploadOneCapsule(capsule);
@@ -60,33 +70,66 @@ export async function runSync(): Promise<void> {
   }
 }
 
-/** Trigger immediate sync of a single capsule (called after capture). */
+/**
+ * Immediately mark a newly-captured capsule as QUEUED and
+ * attempt a single upload if we're online.
+ */
 export async function enqueueAndSync(localId: string): Promise<void> {
-  await updateCapsule(localId, { status: 'QUEUED' });
+  await updateCapsule(localId, { status: 'QUEUED', syncAttempts: 0 });
+
   const netState = await NetInfo.fetch();
-  if (netState.isConnected) {
-    const capsule = await (await import('../utils/storage')).getCapsule(localId);
-    if (capsule) await uploadOneCapsule(capsule);
+  if (!netState.isConnected) return;
+
+  const capsule = await getCapsule(localId);
+  if (capsule) await uploadOneCapsule(capsule);
+}
+
+// ── Stuck capsule recovery ────────────────────────────────────
+
+/**
+ * If the app was killed mid-upload the capsule will be permanently
+ * stuck in UPLOADING. Detect these and reset them to QUEUED.
+ */
+async function recoverStuckCapsules(): Promise<void> {
+  const all  = await getAllCapsules();
+  const now  = Date.now();
+  const stuck = all.filter(
+    (c) =>
+      c.status === 'UPLOADING' &&
+      now - new Date(c.updatedAt).getTime() > STUCK_THRESHOLD_MS,
+  );
+  for (const c of stuck) {
+    await updateCapsule(c.localId, {
+      status:        'QUEUED',
+      lastSyncError: 'Reset from stuck UPLOADING state',
+    });
   }
 }
 
 // ── Core upload ───────────────────────────────────────────────
 
 async function uploadOneCapsule(capsule: LocalCapsule): Promise<void> {
+  // Max retries reached → mark permanently failed
   if (capsule.syncAttempts >= MAX_RETRIES) {
     await updateCapsule(capsule.localId, {
       status:        'FAILED',
-      lastSyncError: `Max retries (${MAX_RETRIES}) exceeded`,
+      lastSyncError: `Maximum retry limit (${MAX_RETRIES}) exceeded`,
     });
     return;
   }
 
-  // Check image still exists on device
+  // Apply back-off delay based on attempt number (skip on first attempt)
+  if (capsule.syncAttempts > 0) {
+    const delayIdx = Math.min(capsule.syncAttempts - 1, RETRY_DELAY_MS.length - 1);
+    await sleep(RETRY_DELAY_MS[delayIdx]);
+  }
+
+  // Check image file still exists on device
   const fileInfo = await FileSystem.getInfoAsync(capsule.imageUri);
   if (!fileInfo.exists) {
     await updateCapsule(capsule.localId, {
       status:        'FAILED',
-      lastSyncError: 'Image file no longer exists on device',
+      lastSyncError: `Image file no longer exists on device: ${capsule.imageUri}`,
     });
     return;
   }
@@ -110,6 +153,7 @@ async function uploadOneCapsule(capsule: LocalCapsule): Promise<void> {
         altitude:        capsule.gps?.altitude ?? undefined,
         accuracyMeters:  capsule.gps?.accuracyMeters ?? undefined,
       },
+      capsule.tallyData ?? null,
     );
 
     // Upload successful — record server ID and mark UPLOADED
@@ -120,7 +164,7 @@ async function uploadOneCapsule(capsule: LocalCapsule): Promise<void> {
     });
 
   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
+    const msg      = err instanceof Error ? err.message : String(err);
     const attempts = capsule.syncAttempts + 1;
     await updateCapsule(capsule.localId, {
       status:        attempts >= MAX_RETRIES ? 'FAILED' : 'QUEUED',
@@ -128,4 +172,10 @@ async function uploadOneCapsule(capsule: LocalCapsule): Promise<void> {
       lastSyncError: msg,
     });
   }
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

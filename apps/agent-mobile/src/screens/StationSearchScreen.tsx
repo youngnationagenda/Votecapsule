@@ -5,21 +5,24 @@
 // Agents find their polling station via:
 //   1. Barcode scan — scan the IEBC barcode on Form 35A envelope
 //   2. Direct 15-digit code entry
-//   3. Name search (station, centre, or area name)
+//   3. Name / area search (with local offline cache fallback)
 //
-// Results are cached for offline use.
+// Results are cached offline in AsyncStorage.
 // ============================================================
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TextInput, FlatList,
   TouchableOpacity, ActivityIndicator, Alert, Modal,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 import { RootStackParamList, PollingStation } from '../types';
 import { validateStation, searchStations as searchStationsApi } from '../services/api';
 import { useCaptureStore } from '../store/captureStore';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { EmptyState } from '../components/EmptyState';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'StationSearch'>;
@@ -27,13 +30,49 @@ type Props = {
 
 const CACHE_KEY = 'vc:station_cache';
 
-// IEBC barcode contains the 15-digit station code — extract it
+/** Extract a 15-digit IEBC station code from raw barcode data. */
 function extractIebcCode(raw: string): string | null {
-  // Direct 15-digit code
-  if (/^\d{15}$/.test(raw.trim())) return raw.trim();
-  // Code embedded in longer barcode data (e.g. "KE2027001001000100101")
-  const match = raw.match(/\d{15}/);
+  const trimmed = raw.trim();
+  if (/^\d{15}$/.test(trimmed)) return trimmed;
+  const match = trimmed.match(/\d{15}/);
   return match ? match[0] : null;
+}
+
+async function loadCache(): Promise<Record<string, PollingStation>> {
+  try {
+    const raw = await AsyncStorage.getItem(CACHE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
+async function saveToCache(stations: PollingStation[]): Promise<void> {
+  try {
+    const cache = await loadCache();
+    stations.forEach((s) => { cache[s.iebcCode] = s; });
+    await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(cache));
+  } catch {
+    // Cache is best-effort
+  }
+}
+
+function mapStation(raw: any): PollingStation {
+  return {
+    iebcCode:          raw.iebcCode          ?? raw.iebc_code          ?? raw.iebcStationCode ?? '',
+    streamName:        raw.streamName         ?? raw.stream_name         ?? raw.name            ?? '',
+    registeredVoters:  raw.registeredVoters   ?? raw.registered_voters   ?? 0,
+    countyCode:        raw.countyCode         ?? raw.county_code         ?? '',
+    countyName:        raw.countyName         ?? raw.county_name         ?? '',
+    constituencyCode:  raw.constituencyCode   ?? raw.constituency_code   ?? '',
+    constituencyName:  raw.constituencyName   ?? raw.constituency_name   ?? '',
+    wardCode:          raw.wardCode           ?? raw.ward_code           ?? '',
+    wardName:          raw.wardName           ?? raw.ward_name           ?? '',
+    centreName:        raw.centreName         ?? raw.centre_name         ?? '',
+    centreCode:        raw.centreCode         ?? raw.centre_code         ?? '',
+    latitude:          raw.latitude           ?? null,
+    longitude:         raw.longitude          ?? null,
+  };
 }
 
 export default function StationSearchScreen({ navigation }: Props) {
@@ -47,8 +86,16 @@ export default function StationSearchScreen({ navigation }: Props) {
 
   const [permission, requestPermission] = useCameraPermissions();
   const { setStation } = useCaptureStore();
+  const insets = useSafeAreaInsets();
 
-  // ── Barcode scan ─────────────────────────────────────────
+  // ── Station select ────────────────────────────────────────
+
+  const handleSelect = useCallback((station: PollingStation) => {
+    setStation(station);
+    navigation.navigate('Capture', { stationCode: station.iebcCode });
+  }, [setStation, navigation]);
+
+  // ── Barcode scanner ───────────────────────────────────────
 
   const handleOpenScanner = async () => {
     if (!permission?.granted) {
@@ -63,13 +110,13 @@ export default function StationSearchScreen({ navigation }: Props) {
   };
 
   const handleBarcodeScan = useCallback(async (result: BarcodeScanningResult) => {
-    if (scanHandled) return; // prevent double-fire
+    if (scanHandled) return;
     setScanHandled(true);
     setScannerOpen(false);
 
     const code = extractIebcCode(result.data);
     if (!code) {
-      Alert.alert('Invalid Barcode', `Could not extract IEBC station code from: "${result.data}"`);
+      Alert.alert('Invalid Barcode', `Could not find a 15-digit IEBC code in:\n"${result.data}"`);
       setScanHandled(false);
       return;
     }
@@ -77,32 +124,34 @@ export default function StationSearchScreen({ navigation }: Props) {
     setCodeInput(code);
     setIsValidating(true);
     try {
-      const data = await validateStation(code);
+      const data    = await validateStation(code);
       const station = mapStation(data);
+      await saveToCache([station]);
       handleSelect(station);
     } catch {
-      Alert.alert('Station Not Found', `Station code ${code} not found in NEC database.`);
+      Alert.alert('Station Not Found', `Station code ${code} is not in the NEC database.\n\nCheck the barcode and try again.`);
       setScanHandled(false);
     } finally {
       setIsValidating(false);
     }
-  }, [scanHandled]);
+  }, [scanHandled, handleSelect]);
 
   // ── Manual code entry ─────────────────────────────────────
 
   const handleValidateCode = async () => {
     const code = codeInput.trim();
-    if (code.length !== 15) {
+    if (!/^\d{15}$/.test(code)) {
       Alert.alert('Invalid Code', 'IEBC station code must be exactly 15 digits.');
       return;
     }
     setIsValidating(true);
     try {
-      const data = await validateStation(code);
+      const data    = await validateStation(code);
       const station = mapStation(data);
+      await saveToCache([station]);
       handleSelect(station);
     } catch {
-      Alert.alert('Not Found', `Station code ${code} not found in NEC database.`);
+      Alert.alert('Not Found', `Station code ${code} was not found in the NEC database.`);
     } finally {
       setIsValidating(false);
     }
@@ -114,27 +163,23 @@ export default function StationSearchScreen({ navigation }: Props) {
     if (q.trim().length < 3) { setResults([]); return; }
     setIsSearching(true);
     try {
-      const data = await searchStationsApi(q.trim());
-      const stations = Array.isArray(data) ? mapStations(data) : [];
+      const data     = await searchStationsApi(q.trim());
+      const stations = (Array.isArray(data) ? data : []).map(mapStation);
       setResults(stations);
-      // Cache results for offline use
-      if (stations.length > 0) {
-        const cache = await loadCache();
-        stations.forEach((s) => { cache[s.iebcCode] = s; });
-        await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(cache));
-      }
+      if (stations.length > 0) await saveToCache(stations);
     } catch {
-      // Fall back to local cache
-      const cache = await loadCache();
+      // Offline fallback — search local cache
+      const cache   = await loadCache();
       const q_lower = q.toLowerCase();
-      const cached = Object.values(cache).filter(
+      const cached  = Object.values(cache).filter(
         (s: any) =>
-          s.streamName?.toLowerCase().includes(q_lower) ||
-          s.centreName?.toLowerCase().includes(q_lower) ||
-          s.wardName?.toLowerCase().includes(q_lower) ||
-          s.constituencyName?.toLowerCase().includes(q_lower),
-      );
-      setResults(cached as PollingStation[]);
+          s.streamName?.toLowerCase().includes(q_lower)        ||
+          s.centreName?.toLowerCase().includes(q_lower)        ||
+          s.wardName?.toLowerCase().includes(q_lower)          ||
+          s.constituencyName?.toLowerCase().includes(q_lower)  ||
+          s.countyName?.toLowerCase().includes(q_lower),
+      ) as PollingStation[];
+      setResults(cached);
     } finally {
       setIsSearching(false);
     }
@@ -145,22 +190,17 @@ export default function StationSearchScreen({ navigation }: Props) {
     return () => clearTimeout(timer);
   }, [query, doSearch]);
 
-  // ── Station select ────────────────────────────────────────
-
-  const handleSelect = (station: PollingStation) => {
-    setStation(station);
-    navigation.navigate('Capture', { stationCode: station.iebcCode });
-  };
-
   // ── Result card ───────────────────────────────────────────
 
   const renderResult = ({ item }: { item: PollingStation }) => (
-    <TouchableOpacity style={styles.resultCard} onPress={() => handleSelect(item)}>
-      <Text style={styles.resultStream}>{item.streamName}</Text>
-      <Text style={styles.resultCentre}>{item.centreName}</Text>
-      <Text style={styles.resultConst}>{item.constituencyName} · {item.countyName}</Text>
+    <TouchableOpacity style={styles.resultCard} onPress={() => handleSelect(item)} activeOpacity={0.75}>
+      <View style={styles.resultHeader}>
+        <Text style={styles.resultStream} numberOfLines={1}>{item.streamName}</Text>
+        <Text style={styles.resultVoters}>{item.registeredVoters.toLocaleString()} voters</Text>
+      </View>
+      <Text style={styles.resultCentre} numberOfLines={1}>{item.centreName}</Text>
+      <Text style={styles.resultConst}>{item.wardName} · {item.constituencyName} · {item.countyName}</Text>
       <Text style={styles.resultCode}>{item.iebcCode}</Text>
-      <Text style={styles.resultVoters}>{item.registeredVoters.toLocaleString()} registered voters</Text>
     </TouchableOpacity>
   );
 
@@ -173,24 +213,33 @@ export default function StationSearchScreen({ navigation }: Props) {
           <CameraView
             style={StyleSheet.absoluteFill}
             facing="back"
-            barcodeScannerSettings={{ barcodeTypes: ['code128', 'code39', 'qr', 'ean13', 'ean8', 'upc_a', 'upc_e'] }}
+            barcodeScannerSettings={{
+              barcodeTypes: ['code128', 'code39', 'qr', 'ean13', 'ean8', 'upc_a', 'upc_e', 'pdf417'],
+            }}
             onBarcodeScanned={handleBarcodeScan}
           />
-          {/* Scan guide overlay */}
-          <View style={styles.scanOverlay}>
+          <View style={[styles.scanOverlay, { paddingTop: insets.top }]}>
             <View style={styles.scanHeader}>
               <Text style={styles.scanTitle}>Scan IEBC Barcode</Text>
-              <Text style={styles.scanSubtitle}>Point camera at the barcode on the Form 35A envelope</Text>
+              <Text style={styles.scanSubtitle}>
+                Point at the barcode on the Form 35A envelope
+              </Text>
             </View>
+
             <View style={styles.scanFrame}>
-              {/* Corner markers */}
               <View style={[styles.corner, styles.cornerTL]} />
               <View style={[styles.corner, styles.cornerTR]} />
               <View style={[styles.corner, styles.cornerBL]} />
               <View style={[styles.corner, styles.cornerBR]} />
+              <View style={styles.scanLine} />
             </View>
-            <View style={styles.scanFooter}>
-              <TouchableOpacity style={styles.cancelScanBtn} onPress={() => setScannerOpen(false)}>
+
+            <View style={[styles.scanFooter, { paddingBottom: insets.bottom + 20 }]}>
+              <Text style={styles.scanHint}>Barcode will be scanned automatically</Text>
+              <TouchableOpacity
+                style={styles.cancelScanBtn}
+                onPress={() => setScannerOpen(false)}
+              >
                 <Text style={styles.cancelScanText}>Cancel</Text>
               </TouchableOpacity>
             </View>
@@ -200,41 +249,48 @@ export default function StationSearchScreen({ navigation }: Props) {
     );
   }
 
-  // ── Main screen ───────────────────────────────────────────
+  // ── Main search screen ────────────────────────────────────
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: insets.top + 8 }]}>
+      {/* Title */}
       <Text style={styles.title}>Find Polling Station</Text>
 
-      {/* Scan button — primary method per V8 spec */}
+      {/* ── Scan button ────────────────────────────────────── */}
       <TouchableOpacity style={styles.scanBtn} onPress={handleOpenScanner}>
         <Text style={styles.scanBtnIcon}>📷</Text>
-        <View style={styles.scanBtnText}>
+        <View style={styles.scanBtnBody}>
           <Text style={styles.scanBtnLabel}>Scan IEBC Barcode</Text>
-          <Text style={styles.scanBtnSub}>Scan barcode on Form 35A envelope</Text>
+          <Text style={styles.scanBtnSub}>Fastest — scan barcode on Form 35A envelope</Text>
         </View>
         <Text style={styles.scanBtnArrow}>›</Text>
       </TouchableOpacity>
 
+      {/* ── Divider ────────────────────────────────────────── */}
       <View style={styles.divider}>
         <View style={styles.dividerLine} />
         <Text style={styles.dividerText}>or enter manually</Text>
         <View style={styles.dividerLine} />
       </View>
 
-      {/* Direct 15-digit code entry */}
+      {/* ── Code entry ─────────────────────────────────────── */}
       <View style={styles.codeRow}>
         <TextInput
           style={styles.codeInput}
           value={codeInput}
-          onChangeText={setCodeInput}
+          onChangeText={(t) => setCodeInput(t.replace(/\D/g, '').slice(0, 15))}
           placeholder="15-digit IEBC code"
           placeholderTextColor="#475569"
           keyboardType="numeric"
           maxLength={15}
+          returnKeyType="go"
+          onSubmitEditing={handleValidateCode}
         />
         <TouchableOpacity
-          style={[styles.codeBtn, (isValidating || codeInput.length !== 15) && styles.codeBtnDisabled]}
+          style={[
+            styles.codeBtn,
+            (isValidating || codeInput.length !== 15) && styles.codeBtnDisabled,
+          ]}
           onPress={handleValidateCode}
           disabled={isValidating || codeInput.length !== 15}
         >
@@ -245,120 +301,154 @@ export default function StationSearchScreen({ navigation }: Props) {
         </TouchableOpacity>
       </View>
 
-      {/* Name search */}
-      <TextInput
-        style={styles.searchInput}
-        value={query}
-        onChangeText={setQuery}
-        placeholder="Search by station, centre, or area name…"
-        placeholderTextColor="#475569"
-        clearButtonMode="always"
-      />
+      {/* ── Name search ────────────────────────────────────── */}
+      <View style={styles.searchWrapper}>
+        <Text style={styles.searchIcon}>🔍</Text>
+        <TextInput
+          style={styles.searchInput}
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search station, centre, ward, constituency…"
+          placeholderTextColor="#475569"
+          clearButtonMode="always"
+          returnKeyType="search"
+        />
+      </View>
 
       {isSearching && (
         <ActivityIndicator color="#3b82f6" style={{ marginVertical: 12 }} />
       )}
 
+      {/* ── Results ────────────────────────────────────────── */}
       <FlatList
         data={results}
         keyExtractor={(s) => s.iebcCode}
         renderItem={renderResult}
-        contentContainerStyle={{ paddingHorizontal: 0, paddingBottom: 40 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
         ListEmptyComponent={
           !isSearching && query.length >= 3 ? (
-            <Text style={styles.noResults}>No stations found. Try a different name or scan the barcode.</Text>
+            <EmptyState
+              icon="🔍"
+              title="No stations found"
+              subtitle={`No results for "${query}". Try a different name, scan the barcode, or enter the 15-digit code directly.`}
+            />
           ) : null
         }
         keyboardShouldPersistTaps="handled"
-        style={{ flex: 1, marginTop: 8 }}
+        style={{ flex: 1 }}
       />
     </View>
   );
 }
 
-// ── Data helpers ──────────────────────────────────────────────
-
-function mapStation(raw: any): PollingStation {
-  return {
-    iebcCode:          raw.iebcCode        ?? raw.iebc_code       ?? raw.iebcStationCode ?? '',
-    streamName:        raw.streamName      ?? raw.stream_name     ?? raw.name            ?? '',
-    registeredVoters:  raw.registeredVoters ?? raw.registered_voters ?? 0,
-    countyCode:        raw.countyCode      ?? raw.county_code     ?? '',
-    countyName:        raw.countyName      ?? raw.county_name     ?? '',
-    constituencyCode:  raw.constituencyCode ?? raw.constituency_code ?? '',
-    constituencyName:  raw.constituencyName ?? raw.constituency_name ?? '',
-    wardCode:          raw.wardCode        ?? raw.ward_code       ?? '',
-    wardName:          raw.wardName        ?? raw.ward_name       ?? '',
-    centreName:        raw.centreName      ?? raw.centre_name     ?? '',
-    centreCode:        raw.centreCode      ?? raw.centre_code     ?? '',
-    latitude:          raw.latitude        ?? null,
-    longitude:         raw.longitude       ?? null,
-  };
-}
-
-function mapStations(raw: any[]): PollingStation[] {
-  return raw.map(mapStation);
-}
-
-async function loadCache(): Promise<Record<string, PollingStation>> {
-  const raw = await AsyncStorage.getItem(CACHE_KEY);
-  return raw ? JSON.parse(raw) : {};
-}
-
-// ── Styles ────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  container:        { flex: 1, backgroundColor: '#0a1628', padding: 16, paddingTop: 56 },
+  container:        { flex: 1, backgroundColor: '#0a1628', paddingHorizontal: 16 },
   title:            { color: '#f1f5f9', fontSize: 20, fontWeight: '700', marginBottom: 16 },
 
-  // Scan button
-  scanBtn:          { backgroundColor: '#1e3a5f', borderRadius: 12, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12, borderWidth: 1, borderColor: '#2563eb', marginBottom: 16 },
-  scanBtnIcon:      { fontSize: 28 },
-  scanBtnText:      { flex: 1 },
-  scanBtnLabel:     { color: '#60a5fa', fontSize: 15, fontWeight: '600' },
-  scanBtnSub:       { color: '#475569', fontSize: 12, marginTop: 2 },
-  scanBtnArrow:     { color: '#3b82f6', fontSize: 22 },
+  // Scan
+  scanBtn: {
+    backgroundColor: '#1e3a5f',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#2563eb',
+    marginBottom: 16,
+  },
+  scanBtnIcon:   { fontSize: 28 },
+  scanBtnBody:   { flex: 1 },
+  scanBtnLabel:  { color: '#60a5fa', fontSize: 15, fontWeight: '600' },
+  scanBtnSub:    { color: '#475569', fontSize: 12, marginTop: 2 },
+  scanBtnArrow:  { color: '#3b82f6', fontSize: 22 },
 
   // Divider
-  divider:          { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  dividerLine:      { flex: 1, height: 1, backgroundColor: '#1e293b' },
-  dividerText:      { color: '#475569', fontSize: 12 },
+  divider:       { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  dividerLine:   { flex: 1, height: 1, backgroundColor: '#1e293b' },
+  dividerText:   { color: '#475569', fontSize: 12 },
 
   // Code entry
-  codeRow:          { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  codeInput:        { flex: 1, backgroundColor: '#1e293b', borderRadius: 8, color: '#f1f5f9', fontSize: 14, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1, borderColor: '#334155', fontFamily: 'monospace' },
-  codeBtn:          { backgroundColor: '#3b82f6', borderRadius: 8, paddingHorizontal: 20, justifyContent: 'center' },
-  codeBtnDisabled:  { backgroundColor: '#1e3a5f', opacity: 0.6 },
-  codeBtnText:      { color: '#fff', fontWeight: '600', fontSize: 15 },
+  codeRow:       { flexDirection: 'row', gap: 8, marginBottom: 12 },
+  codeInput: {
+    flex: 1,
+    backgroundColor: '#1e293b',
+    borderRadius: 8,
+    color: '#f1f5f9',
+    fontSize: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+    fontFamily: 'monospace',
+    letterSpacing: 2,
+  },
+  codeBtn:         { backgroundColor: '#3b82f6', borderRadius: 8, paddingHorizontal: 20, justifyContent: 'center' },
+  codeBtnDisabled: { backgroundColor: '#1e293b', borderWidth: 1, borderColor: '#334155' },
+  codeBtnText:     { color: '#fff', fontWeight: '600', fontSize: 15 },
 
-  // Search input
-  searchInput:      { backgroundColor: '#1e293b', borderRadius: 8, color: '#f1f5f9', fontSize: 15, paddingHorizontal: 12, paddingVertical: 12, borderWidth: 1, borderColor: '#334155' },
+  // Search
+  searchWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1e293b',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+    marginBottom: 4,
+  },
+  searchIcon:    { paddingLeft: 12, fontSize: 16 },
+  searchInput: {
+    flex: 1,
+    color: '#f1f5f9',
+    fontSize: 14,
+    paddingHorizontal: 10,
+    paddingVertical: 12,
+  },
 
   // Result cards
-  resultCard:       { backgroundColor: '#1e293b', borderRadius: 10, padding: 14, marginBottom: 8 },
-  resultStream:     { color: '#f1f5f9', fontSize: 14, fontWeight: '600' },
-  resultCentre:     { color: '#94a3b8', fontSize: 12, marginTop: 2 },
-  resultConst:      { color: '#64748b', fontSize: 12, marginTop: 2 },
-  resultCode:       { color: '#475569', fontSize: 11, fontFamily: 'monospace', marginTop: 4 },
-  resultVoters:     { color: '#22c55e', fontSize: 11, marginTop: 2 },
-  noResults:        { color: '#475569', fontSize: 14, textAlign: 'center', paddingTop: 32 },
+  resultCard:    { backgroundColor: '#1e293b', borderRadius: 10, padding: 14, marginBottom: 8 },
+  resultHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
+  resultStream:  { color: '#f1f5f9', fontSize: 14, fontWeight: '600', flex: 1, marginRight: 8 },
+  resultVoters:  { color: '#22c55e', fontSize: 11, paddingTop: 2 },
+  resultCentre:  { color: '#94a3b8', fontSize: 12, marginBottom: 2 },
+  resultConst:   { color: '#64748b', fontSize: 11, marginBottom: 4 },
+  resultCode:    { color: '#334155', fontSize: 11, fontFamily: 'monospace' },
 
   // Scanner modal
   scannerContainer: { flex: 1, backgroundColor: '#000' },
   scanOverlay:      { ...StyleSheet.absoluteFillObject, justifyContent: 'space-between' },
-  scanHeader:       { backgroundColor: 'rgba(0,0,0,0.7)', padding: 20, paddingTop: 60, alignItems: 'center' },
-  scanTitle:        { color: '#fff', fontSize: 18, fontWeight: '700' },
-  scanSubtitle:     { color: '#94a3b8', fontSize: 13, marginTop: 4, textAlign: 'center' },
-  scanFrame:        { alignSelf: 'center', width: 280, height: 140, position: 'relative' },
-
-  // Corner markers
-  corner:           { position: 'absolute', width: 24, height: 24, borderColor: '#3b82f6', borderWidth: 3 },
-  cornerTL:         { top: 0, left: 0, borderRightWidth: 0, borderBottomWidth: 0, borderTopLeftRadius: 4 },
-  cornerTR:         { top: 0, right: 0, borderLeftWidth: 0, borderBottomWidth: 0, borderTopRightRadius: 4 },
-  cornerBL:         { bottom: 0, left: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomLeftRadius: 4 },
-  cornerBR:         { bottom: 0, right: 0, borderLeftWidth: 0, borderTopWidth: 0, borderBottomRightRadius: 4 },
-
-  scanFooter:       { backgroundColor: 'rgba(0,0,0,0.7)', padding: 30, alignItems: 'center' },
-  cancelScanBtn:    { backgroundColor: '#1e293b', borderRadius: 8, paddingVertical: 12, paddingHorizontal: 32 },
-  cancelScanText:   { color: '#f1f5f9', fontSize: 15, fontWeight: '600' },
+  scanHeader: {
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 24,
+    alignItems: 'center',
+  },
+  scanTitle:     { color: '#fff', fontSize: 18, fontWeight: '700' },
+  scanSubtitle:  { color: '#94a3b8', fontSize: 13, marginTop: 6, textAlign: 'center' },
+  scanFrame: {
+    alignSelf: 'center',
+    width: 300,
+    height: 150,
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  corner:        { position: 'absolute', width: 28, height: 28, borderColor: '#3b82f6', borderWidth: 3 },
+  cornerTL:      { top: 0, left: 0, borderRightWidth: 0, borderBottomWidth: 0, borderTopLeftRadius: 4 },
+  cornerTR:      { top: 0, right: 0, borderLeftWidth: 0, borderBottomWidth: 0, borderTopRightRadius: 4 },
+  cornerBL:      { bottom: 0, left: 0, borderRightWidth: 0, borderTopWidth: 0, borderBottomLeftRadius: 4 },
+  cornerBR:      { bottom: 0, right: 0, borderLeftWidth: 0, borderTopWidth: 0, borderBottomRightRadius: 4 },
+  scanLine:      { position: 'absolute', left: 4, right: 4, height: 2, backgroundColor: 'rgba(59,130,246,0.6)' },
+  scanFooter: {
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    paddingTop: 24,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    gap: 14,
+  },
+  scanHint:      { color: '#64748b', fontSize: 13 },
+  cancelScanBtn: { backgroundColor: '#1e293b', borderRadius: 8, paddingVertical: 12, paddingHorizontal: 40 },
+  cancelScanText:{ color: '#f1f5f9', fontSize: 15, fontWeight: '600' },
 });

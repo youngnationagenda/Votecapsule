@@ -238,6 +238,33 @@ export class EvidenceCapsule {
   @Column({ name: 'is_deleted', default: false })
   isDeleted: boolean;
 
+
+  // ── Tally data (Form A entry from mobile agent) ───────────
+
+  @Column({ name: 'tally_data', type: 'jsonb', nullable: true })
+  tallyData: Record<string, any> | null;
+
+  @Column({ name: 'form_type', type: 'varchar', length: 10, nullable: true })
+  formType: string | null;
+
+  @Column({ name: 'registered_voters_form', type: 'int', nullable: true })
+  registeredVotersForm: number | null;
+
+  @Column({ name: 'ballots_issued', type: 'int', nullable: true })
+  ballotsIssued: number | null;
+
+  @Column({ name: 'spoilt_ballots', type: 'int', nullable: true })
+  spoiltBallots: number | null;
+
+  @Column({ name: 'rejected_ballots_form', type: 'int', nullable: true })
+  rejectedBallotsForm: number | null;
+
+  @Column({ name: 'valid_votes_form', type: 'int', nullable: true })
+  validVotesForm: number | null;
+
+  @Column({ name: 'tally_validation_status', type: 'varchar', length: 20, default: 'NOT_ENTERED' })
+  tallyValidationStatus: string;
+
   // ── Relations ─────────────────────────────────────────────
 
   @OneToMany(() => EvidenceImage, (i) => i.capsule)

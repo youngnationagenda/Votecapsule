@@ -68,9 +68,34 @@ export class Candidate {
   @Column({ type: 'varchar', length: 10, nullable: true })
   gender: string | null;
 
-  // ── Classification ─────────────────────────────────────────
+  // ── Sponsorship & Promotion ────────────────────────────────
+
+  /**
+   * How this candidate enters the election:
+   *   PARTY_SPONSORED   — Won a party nomination OR directly chosen by party
+   *   INDEPENDENT       — Self-sponsored, no party affiliation on ballot
+   *   SELF_SPONSORED    — Party member in a PARTY_NOMINATION election (pre-result)
+   *   COALITION         — Sponsored by a coalition of parties
+   */
+  @Column({ type: 'varchar', length: 20, name: 'sponsorship_type', default: 'PARTY_SPONSORED' })
+  sponsorshipType: string;
+
+  @Column({ type: 'uuid', name: 'nomination_election_id', nullable: true })
+  nominationElectionId: string | null;
+  // For PARTY_SPONSORED in GENERAL: which nomination election produced this candidate?
+
+  @Column({ type: 'uuid', name: 'promoted_from_candidate_id', nullable: true })
+  promotedFromCandidateId: string | null;
+  // The original nomination candidate record that won and was promoted here
+
+  @Column({ type: 'boolean', name: 'nomination_won', nullable: true })
+  nominationWon: boolean | null;
+  // For PARTY_NOMINATION elections: TRUE=won party ticket, FALSE=lost, NULL=undecided
+
+  // ── Classification (kept for backward compat) ──────────────
   @Column({ type: 'boolean', name: 'is_independent', default: false })
   isIndependent: boolean;
+  // Derived from sponsorshipType === 'INDEPENDENT' — kept for legacy queries
 
   @Column({ type: 'smallint', name: 'ballot_number', nullable: true })
   ballotNumber: number | null;

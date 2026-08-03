@@ -28,6 +28,8 @@ import {
 import { computeCompositeHash, verifyCompositeHash, hashBytes } from './utils/sha256.util';
 import type { SubmitCapsuleDto }  from './dto/submit-capsule.dto';
 import type { SyncStatusDto }     from './dto/sync-status.dto';
+import type { SubmitTallyDto }    from './dto/submit-tally.dto';
+import { EvidenceSearchService }  from './search/evidence-search.service';
 
 // Geography Service integration contract
 // The full Geography Service is in services/geography/
@@ -57,6 +59,7 @@ export class EvidenceService {
   private readonly geographyServiceUrl: string;
   private readonly aiServiceUrl: string;
   private readonly trustServiceUrl: string;
+  private readonly searchService: EvidenceSearchService | null = null;
 
   constructor(
     @InjectRepository(EvidenceCapsule)
@@ -74,6 +77,7 @@ export class EvidenceService {
     private readonly dataSource: DataSource,
     private readonly config: ConfigService,
     private readonly httpService: HttpService,
+    private readonly evidenceSearchService: EvidenceSearchService,
   ) {
     this.s3 = new S3Client({ region: config.get('AWS_REGION', 'us-east-1') });
     this.bucket = config.get('S3_EVIDENCE_BUCKET', 'votecapsule-evidence');
@@ -266,6 +270,11 @@ export class EvidenceService {
       this.logger.error(`AI trigger failed for capsule ${capsule.id}: ${err?.message}`)
     );
 
+    // Index in OpenSearch — best-effort, never blocks submission
+    this.evidenceSearchService.indexCapsule(capsule).catch((err) =>
+      this.logger.error(`OpenSearch index failed for capsule ${capsule.id}: ${err?.message}`)
+    );
+
     this.logger.log(`Capsule ${capsule.id} submitted — station ${dto.iebcStationCode}, position ${dto.positionCode}`);
 
     return capsule;
@@ -387,6 +396,13 @@ export class EvidenceService {
       );
     }
 
+    // Re-index with updated status — best-effort
+    this.getCapsule(capsuleId).then((updated) =>
+      this.evidenceSearchService.indexCapsule(updated).catch((err) =>
+        this.logger.error(`OpenSearch re-index failed after validation for ${capsuleId}: ${err?.message}`)
+      )
+    ).catch(() => { /* getCapsule error — ignore for search */ });
+
     this.logger.log(`Capsule ${capsuleId} ${decision} by validator ${validatorUserId}`);
 
     return this.getCapsule(capsuleId);
@@ -449,6 +465,14 @@ export class EvidenceService {
 
     // Apply S3 Object Lock now that evidence is immutably anchored
     await this.applyS3ObjectLock(c.s3ObjectKey!);
+
+    // Re-index with ANCHORED status — best-effort
+    this.getCapsule(capsuleId).then((anchored) =>
+      this.evidenceSearchService.indexCapsule(anchored).catch((err) =>
+        this.logger.error(`OpenSearch re-index failed after anchoring for ${capsuleId}: ${err?.message}`)
+      )
+    ).catch(() => { /* getCapsule error — ignore for search */ });
+
     this.logger.log(
       `Capsule ${capsuleId} trust-anchored: batch=${batchId} status=${anchorStatus}`,
     );
@@ -499,6 +523,76 @@ export class EvidenceService {
     if (tenantId) qb.andWhere('ec.tenantId = :t', { t: tenantId });
     const rows = await qb.getRawMany();
     return Object.fromEntries(rows.map((r) => [r.status, parseInt(r.count, 10)]));
+  }
+
+  // ── Tally submission (mobile Form A → server) ───────────
+
+  /**
+   * PATCH /evidence/capsules/:id/tally
+   * Field agent submits Form A tally data for an existing capsule.
+   * Validates IEBC mathematical rules and stores the structured data.
+   */
+  async submitTally(
+    capsuleId: string,
+    dto: SubmitTallyDto,
+    submittedBy: string,
+  ): Promise<EvidenceCapsule> {
+    const capsule = await this.getCapsule(capsuleId);
+
+    const allowedStatuses: string[] = [
+      'UPLOADED', 'AI_PROCESSING', 'AI_VERIFIED',
+      'PENDING_VALIDATION', 'APPROVED', 'ANCHORED',
+    ];
+    if (!allowedStatuses.includes(capsule.status)) {
+      throw new BadRequestException(
+        `Cannot submit tally for capsule in status ${capsule.status}. ` +
+        `Capsule must be in: ${allowedStatuses.join(', ')}`
+      );
+    }
+
+    const validationStatus = this.validateTallyMath(dto);
+
+    if (validationStatus !== 'VALID') {
+      this.logger.warn(
+        `Tally math validation failed for capsule ${capsuleId}: ${validationStatus} ` +
+        `(ballots_issued=${dto.ballotsIssued}, valid=${dto.validVotes}, ` +
+        `rejected=${dto.rejectedBallots}, spoilt=${dto.spoiltBallots}, ` +
+        `cand_sum=${dto.candidates.reduce((s, c) => s + c.votes, 0)})`
+      );
+    }
+
+    const updated = await this.capsuleRepo.save({
+      ...capsule,
+      formType:             dto.formType,
+      tallyData:            { ...dto, submittedBy, submittedAt: new Date().toISOString() },
+      registeredVotersForm: dto.registeredVoters,
+      ballotsIssued:        dto.ballotsIssued,
+      spoiltBallots:        dto.spoiltBallots,
+      rejectedBallotsForm:  dto.rejectedBallots,
+      validVotesForm:       dto.validVotes,
+      tallyValidationStatus: validationStatus,
+    });
+
+    this.logger.log(
+      `Tally submitted for capsule ${capsuleId} by ${submittedBy}: ` +
+      `formType=${dto.formType} validationStatus=${validationStatus}`
+    );
+
+    this.evidenceSearchService.indexCapsule(updated).catch((err) =>
+      this.logger.error(`OpenSearch re-index failed after tally submit for ${capsuleId}: ${err?.message}`)
+    );
+
+    return updated;
+  }
+
+  private validateTallyMath(dto: SubmitTallyDto): string {
+    const candSum = dto.candidates.reduce((s, c) => s + c.votes, 0);
+    const expectedIssued = dto.validVotes + dto.rejectedBallots + dto.spoiltBallots;
+
+    if (dto.ballotsIssued > dto.registeredVoters) return 'TURNOUT_EXCEEDED';
+    if (dto.ballotsIssued !== expectedIssued)       return 'INTERNAL_MISMATCH';
+    if (candSum !== dto.validVotes)                 return 'CANDIDATE_SUM_MISMATCH';
+    return 'VALID';
   }
 
   // ── Private helpers ───────────────────────────────────────

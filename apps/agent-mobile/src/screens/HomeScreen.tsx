@@ -2,17 +2,23 @@
 // VoteCapsule™ — Home / Dashboard Screen
 // apps/agent-mobile/src/screens/HomeScreen.tsx
 // ============================================================
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity,
-  ScrollView, RefreshControl,
+  View, Text, StyleSheet, ScrollView,
+  RefreshControl, TouchableOpacity, Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../types';
+import { useFocusEffect } from '@react-navigation/native';
+
+import { RootStackParamList, LocalCapsule } from '../types';
 import { useAuthStore } from '../store/authStore';
 import { useNetworkSync } from '../hooks/useNetworkSync';
 import { getAllCapsules } from '../utils/storage';
-import { LocalCapsule } from '../types';
+import { runSync } from '../services/syncEngine';
+import { StatCard }     from '../components/StatCard';
+import { ActionButton } from '../components/ActionButton';
+import { NetworkBadge } from '../components/NetworkBadge';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Home'>;
@@ -21,15 +27,22 @@ type Props = {
 export default function HomeScreen({ navigation }: Props) {
   const { user, logout } = useAuthStore();
   const { isOnline, isWifi } = useNetworkSync();
-  const [capsules, setCapsules]   = useState<LocalCapsule[]>([]);
+  const [capsules, setCapsules]     = useState<LocalCapsule[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const [syncing, setSyncing]       = useState(false);
+  const insets = useSafeAreaInsets();
 
-  const loadCapsules = async () => {
+  const loadCapsules = useCallback(async () => {
     const all = await getAllCapsules();
     setCapsules(all);
-  };
+  }, []);
 
-  useEffect(() => { loadCapsules(); }, []);
+  // Reload whenever screen comes into focus (after capture, queue changes, etc.)
+  useFocusEffect(
+    useCallback(() => {
+      loadCapsules();
+    }, [loadCapsules]),
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -37,138 +50,187 @@ export default function HomeScreen({ navigation }: Props) {
     setRefreshing(false);
   };
 
+  const handleSyncNow = async () => {
+    if (!isOnline) {
+      Alert.alert('Offline', 'You are currently offline. Sync will happen automatically when connectivity is restored.');
+      return;
+    }
+    setSyncing(true);
+    await runSync();
+    await loadCapsules();
+    setSyncing(false);
+  };
+
+  const handleLogout = () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out? Any unsynced evidence will remain on this device.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Sign Out', style: 'destructive', onPress: logout },
+      ],
+    );
+  };
+
   const pending   = capsules.filter((c) => c.status === 'QUEUED' || c.status === 'CAPTURED').length;
+  const uploading = capsules.filter((c) => c.status === 'UPLOADING').length;
   const uploaded  = capsules.filter((c) => c.status === 'UPLOADED').length;
   const failed    = capsules.filter((c) => c.status === 'FAILED').length;
+  const totalLocal = capsules.length;
 
   return (
     <ScrollView
       style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      contentContainerStyle={{ paddingTop: insets.top + 8, paddingBottom: insets.bottom + 24 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />}
     >
-      {/* Header */}
+      {/* ── Header ─────────────────────────────────────────── */}
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>Welcome,</Text>
           <Text style={styles.name}>{user?.fullName ?? 'Agent'}</Text>
+          <Text style={styles.tenant}>
+            {user?.tenantId ? `Tenant: ${user.tenantId.slice(0, 12)}…` : ''}
+          </Text>
         </View>
-        <View style={styles.networkBadge}>
-          <View style={[styles.dot, { backgroundColor: isOnline ? '#22c55e' : '#ef4444' }]} />
-          <Text style={styles.networkText}>{isOnline ? (isWifi ? 'WiFi' : 'Data') : 'Offline'}</Text>
-        </View>
+        <NetworkBadge isOnline={isOnline} isWifi={isWifi} />
       </View>
 
-      {/* Stats row */}
+      {/* ── Uploading indicator ─────────────────────────────── */}
+      {uploading > 0 && (
+        <View style={styles.uploadingBanner}>
+          <Text style={styles.uploadingText}>
+            ⬆️  Uploading {uploading} capsule{uploading > 1 ? 's' : ''}…
+          </Text>
+        </View>
+      )}
+
+      {/* ── Stats row ──────────────────────────────────────── */}
       <View style={styles.statsRow}>
-        <StatCard label="Queued"   value={pending}  color="#f59e0b" />
+        <StatCard label="Pending"  value={pending}  color="#f59e0b" />
         <StatCard label="Uploaded" value={uploaded} color="#22c55e" />
         <StatCard label="Failed"   value={failed}   color="#ef4444" />
       </View>
 
-      {/* Actions */}
-      <View style={styles.actions}>
-        <ActionButton
-          label="Capture Evidence"
-          icon="📷"
-          primary
-          onPress={() => navigation.navigate('Capture', {})}
-        />
-        <ActionButton
-          label="Sync Queue"
-          icon="⬆️"
-          onPress={() => navigation.navigate('Queue')}
-          badge={pending > 0 ? pending : undefined}
-        />
-        <ActionButton
-          label="Find Station"
-          icon="📍"
-          onPress={() => navigation.navigate('StationSearch')}
-        />
-        <ActionButton
-          label="Settings"
-          icon="⚙️"
-          onPress={() => navigation.navigate('Settings')}
-        />
+      {/* ── Primary actions ────────────────────────────────── */}
+      <View style={styles.actionsSection}>
+        <Text style={styles.actionsLabel}>ACTIONS</Text>
+        <View style={styles.actions}>
+          <ActionButton
+            label="Capture Evidence"
+            icon="📷"
+            primary
+            onPress={() => navigation.navigate('Capture', {})}
+          />
+          <ActionButton
+            label={syncing ? 'Syncing…' : 'Sync Queue'}
+            icon="⬆️"
+            onPress={handleSyncNow}
+            badge={pending}
+            disabled={syncing}
+          />
+          <ActionButton
+            label="View Sync Queue"
+            icon="📋"
+            onPress={() => navigation.navigate('Queue')}
+            badge={failed > 0 ? failed : undefined}
+          />
+          <ActionButton
+            label="Find Polling Station"
+            icon="📍"
+            onPress={() => navigation.navigate('StationSearch')}
+          />
+          <ActionButton
+            label="Settings"
+            icon="⚙️"
+            onPress={() => navigation.navigate('Settings')}
+          />
+        </View>
       </View>
 
-      {/* Tenant / device info */}
-      <View style={styles.infoBox}>
-        <InfoRow label="Tenant"    value={user?.tenantId?.slice(0, 8) + '...' ?? 'Unknown'} />
-        <InfoRow label="Device ID" value={user?.deviceId?.slice(0, 8) + '...' ?? 'Unknown'} />
-        <InfoRow label="Role"      value={user?.roles?.[0] ?? 'CAPSULE_AGENT'} />
+      {/* ── Device info card ───────────────────────────────── */}
+      <View style={styles.infoCard}>
+        <Text style={styles.infoCardTitle}>DEVICE</Text>
+        <InfoRow label="Role"       value={(user?.roles?.[0] ?? 'CAPSULE_AGENT')} />
+        <InfoRow label="Device ID"  value={(user?.deviceId?.slice(0, 12) ?? '—') + '…'} mono />
+        <InfoRow label="Total captured" value={String(totalLocal)} />
+        <InfoRow label="Election"   value="Kenya General 2027" />
       </View>
 
-      <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
+      {/* ── Sign out ───────────────────────────────────────── */}
+      <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
         <Text style={styles.logoutText}>Sign Out</Text>
       </TouchableOpacity>
     </ScrollView>
   );
 }
 
-function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <View style={[styles.statCard, { borderTopColor: color }]}>
-      <Text style={[styles.statValue, { color }]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function ActionButton({
-  label, icon, primary, onPress, badge,
-}: {
-  label: string; icon: string; primary?: boolean;
-  onPress: () => void; badge?: number;
-}) {
-  return (
-    <TouchableOpacity
-      style={[styles.actionBtn, primary && styles.actionBtnPrimary]}
-      onPress={onPress}
-    >
-      <Text style={styles.actionIcon}>{icon}</Text>
-      <Text style={[styles.actionLabel, primary && styles.actionLabelPrimary]}>{label}</Text>
-      {badge !== undefined && (
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{badge}</Text>
-        </View>
-      )}
-    </TouchableOpacity>
-  );
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
+function InfoRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <View style={styles.infoRow}>
       <Text style={styles.infoLabel}>{label}</Text>
-      <Text style={styles.infoValue}>{value}</Text>
+      <Text style={[styles.infoValue, mono && styles.monoValue]}>{value}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container:    { flex: 1, backgroundColor: '#0a1628' },
-  header:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 24, paddingTop: 56 },
-  greeting:     { color: '#64748b', fontSize: 13 },
-  name:         { color: '#f1f5f9', fontSize: 20, fontWeight: '700', marginTop: 2 },
-  networkBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1e293b', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
-  dot:          { width: 8, height: 8, borderRadius: 4, marginRight: 5 },
-  networkText:  { color: '#94a3b8', fontSize: 12 },
-  statsRow:     { flexDirection: 'row', paddingHorizontal: 24, gap: 12, marginBottom: 24 },
-  statCard:     { flex: 1, backgroundColor: '#1e293b', borderRadius: 10, padding: 16, alignItems: 'center', borderTopWidth: 3 },
-  statValue:    { fontSize: 24, fontWeight: '700' },
-  statLabel:    { color: '#64748b', fontSize: 12, marginTop: 4 },
-  actions:      { paddingHorizontal: 24, gap: 10 },
-  actionBtn:    { flexDirection: 'row', alignItems: 'center', backgroundColor: '#1e293b', borderRadius: 10, padding: 16, gap: 12 },
-  actionBtnPrimary: { backgroundColor: '#3b82f6' },
-  actionIcon:   { fontSize: 20 },
-  actionLabel:  { color: '#94a3b8', fontSize: 15, flex: 1 },
-  actionLabelPrimary: { color: '#fff', fontWeight: '600' },
-  badge:        { backgroundColor: '#ef4444', borderRadius: 10, paddingHorizontal: 7, paddingVertical: 2 },
-  badgeText:    { color: '#fff', fontSize: 11, fontWeight: '700' },
-  infoBox:      { margin: 24, backgroundColor: '#1e293b', borderRadius: 10, padding: 16 },
-  infoRow:      { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6 },
-  infoLabel:    { color: '#64748b', fontSize: 13 },
-  infoValue:    { color: '#cbd5e1', fontSize: 13 },
-  logoutBtn:    { marginHorizontal: 24, marginBottom: 40, padding: 14, alignItems: 'center' },
-  logoutText:   { color: '#ef4444', fontSize: 15 },
+  container:        { flex: 1, backgroundColor: '#0a1628' },
+
+  // Header
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+  },
+  greeting:         { color: '#64748b', fontSize: 13 },
+  name:             { color: '#f1f5f9', fontSize: 22, fontWeight: '700', marginTop: 2 },
+  tenant:           { color: '#475569', fontSize: 11, marginTop: 2 },
+
+  // Uploading
+  uploadingBanner: {
+    marginHorizontal: 24,
+    marginBottom: 12,
+    backgroundColor: '#312e81',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderLeftWidth: 3,
+    borderLeftColor: '#8b5cf6',
+  },
+  uploadingText:    { color: '#c4b5fd', fontSize: 13 },
+
+  // Stats
+  statsRow:         { flexDirection: 'row', paddingHorizontal: 24, gap: 10, marginBottom: 24 },
+
+  // Actions
+  actionsSection:   { paddingHorizontal: 24, marginBottom: 24 },
+  actionsLabel:     { color: '#334155', fontSize: 11, fontWeight: '600', letterSpacing: 0.8, marginBottom: 10 },
+  actions:          { gap: 8 },
+
+  // Device info
+  infoCard: {
+    marginHorizontal: 24,
+    marginBottom: 24,
+    backgroundColor: '#1e293b',
+    borderRadius: 10,
+    padding: 16,
+  },
+  infoCardTitle: {
+    color: '#334155',
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 0.8,
+    marginBottom: 8,
+  },
+  infoRow:          { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 },
+  infoLabel:        { color: '#64748b', fontSize: 13 },
+  infoValue:        { color: '#cbd5e1', fontSize: 13 },
+  monoValue:        { fontFamily: 'monospace', fontSize: 11, color: '#94a3b8' },
+
+  // Logout
+  logoutBtn:        { marginHorizontal: 24, marginBottom: 16, padding: 14, alignItems: 'center' },
+  logoutText:       { color: '#ef4444', fontSize: 15 },
 });

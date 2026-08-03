@@ -3,7 +3,7 @@
 // services/geography/src/geography.controller.ts
 // ============================================================
 import {
-  Controller, Get, Param, Query, HttpCode,
+  Controller, Get, Param, Query, HttpCode, BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { GeographyService, GeographyStats } from './geography.service';
@@ -166,6 +166,41 @@ export class GeographyController {
   @ApiParam({ name: 'code', example: '001001000100101' })
   getStation(@Param('code') code: string) {
     return this.geo.getPollingStationByCode(code);
+  }
+
+  // ── Voter Registration Area Lookup ──────────────────────────────────────────
+
+  /**
+   * GET /geography/voters/lookup
+   * Voter registration area lookup.
+   * Given a county (+ optionally constituency and ward), returns the polling
+   * stations in that area so a voter can find their assigned station.
+   *
+   * Does NOT expose individual voter data — only aggregate station info.
+   * Query params:
+   *   countyCode (required)
+   *   constituencyCode (optional)
+   *   wardCode (optional)
+   */
+  @Get('voters/lookup')
+  @ApiOperation({
+    summary: 'Voter registration area lookup — returns polling stations for the given area',
+    description:
+      'Voter finds their station based on registration area (county/constituency/ward) ' +
+      'as shown on their voter card. No individual voter data is exposed.',
+  })
+  @ApiQuery({ name: 'countyCode',       required: true,  description: '3-digit IEBC county code' })
+  @ApiQuery({ name: 'constituencyCode', required: false, description: '3-digit IEBC constituency code' })
+  @ApiQuery({ name: 'wardCode',         required: false, description: '4-digit IEBC ward code' })
+  async voterLookup(
+    @Query('countyCode')       countyCode: string,
+    @Query('constituencyCode') constituencyCode?: string,
+    @Query('wardCode')         wardCode?: string,
+  ) {
+    if (!countyCode) {
+      throw new BadRequestException('countyCode query parameter is required');
+    }
+    return this.geo.getVoterLookup(countyCode, constituencyCode, wardCode);
   }
 
   // ── Registered Voters ─────────────────────────────────────────────────────

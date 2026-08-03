@@ -11,7 +11,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#0a1628"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "ke.co.votecapsule.agent",
@@ -34,11 +36,17 @@
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE"
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "single",
+      "name": "VoteCapsule Agent"
     },
     "plugins": [
       [
@@ -57,10 +65,14 @@
       ]
     ],
     "extra": {
-      "apiGatewayUrl":    "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-      "cognitoDomain":    "https://vote-capsule.auth.us-east-1.amazoncognito.com",
-      "cognitoClientId":  "5qv2glumv6kd2652hqdrs6ufp",
-      "electionServiceUrl": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com"
-    }
+      "apiGatewayUrl": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
+      "cognitoDomain": "https://vote-capsule.auth.us-east-1.amazoncognito.com",
+      "cognitoClientId": "5qv2glumv6kd2652hqdrs6ufp",
+      "electionServiceUrl": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
+      "eas": {
+        "projectId": "969c7ec4-865c-41f2-b4b4-d01f1409d2a8"
+      }
+    },
+    "owner": "ynakenya"
   }
 }

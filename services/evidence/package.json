@@ -1,7 +1,7 @@
 {
   "name": "@vote-capsule/evidence-service",
   "version": "1.0.0",
-  "description": "Vote Capsule™ Evidence Capsule Service — Full lifecycle from capture to QLDB anchoring",
+  "description": "Vote Capsule\u2122 Evidence Capsule Service \u2014 Full lifecycle from capture to QLDB anchoring",
   "main": "dist/main.js",
   "scripts": {
     "build": "nest build",
@@ -29,7 +29,10 @@
     "multer": "^1.4.5-lts.1",
     "pg": "^8.13.1",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "@opensearch-project/opensearch": "^3.2.0",
+    "aws4": "^1.13.0",
+    "@aws-sdk/credential-provider-node": "^3.600.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.4.9",

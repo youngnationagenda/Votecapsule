@@ -13,9 +13,15 @@ import { ElectionPosition } from './election-position.entity';
 import { Candidate }        from './candidate.entity';
 
 export enum ElectionType {
-  GENERAL    = 'GENERAL',
-  BY_ELECTION = 'BY_ELECTION',
-  REPEAT     = 'REPEAT',
+  GENERAL           = 'GENERAL',           // IEBC-managed general election
+  BY_ELECTION       = 'BY_ELECTION',       // IEBC by-election for a vacated seat
+  REPEAT            = 'REPEAT',            // Court-ordered repeat election
+  PARTY_NOMINATION  = 'PARTY_NOMINATION',  // Political party internal nomination
+                                            // Uses the same IEBC form chain + evidence
+                                            // capture infrastructure for auditability.
+                                            // Tenant = the political party.
+                                            // Candidates = party members only.
+                                            // Winner promoted to GENERAL election.
 }
 
 export enum ElectionStatus {
@@ -91,6 +97,31 @@ export class Election {
 
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt: Date;
+
+  // ── Party Nomination fields ────────────────────────────────
+  // Only populated when electionType = PARTY_NOMINATION
+
+  @Column({ type: 'uuid', name: 'party_id', nullable: true })
+  @Index()
+  partyId: string | null;  // The political party running this nomination
+
+  @Column({ type: 'uuid', name: 'parent_election_id', nullable: true })
+  parentElectionId: string | null;
+  // FK → the GENERAL election this nomination feeds into.
+  // Winners get promoted to the parent election as PARTY_SPONSORED candidates.
+
+  @Column({ type: 'date', name: 'nomination_voting_date', nullable: true })
+  nominationVotingDate: Date | null;
+
+  @Column({ type: 'numeric', name: 'nomination_fee_kes', precision: 10, scale: 2, default: 0 })
+  nominationFeeKes: number;
+
+  @Column({ type: 'smallint', name: 'max_candidates_per_position', nullable: true })
+  maxCandidatesPerPosition: number | null;
+
+  @Column({ type: 'boolean', name: 'results_public', default: false })
+  resultsPublic: boolean;
+  // Whether nomination results are visible outside the party portal
 
   // ── Relations ─────────────────────────────────────────────
   @OneToMany(() => ElectionPosition, (p) => p.election, { cascade: false })

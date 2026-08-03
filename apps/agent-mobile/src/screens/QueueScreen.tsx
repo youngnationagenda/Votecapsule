@@ -3,34 +3,30 @@
 // apps/agent-mobile/src/screens/QueueScreen.tsx
 //
 // Shows the offline sync queue with per-capsule status.
-// Allows manual retry and deletion of failed items.
+// Allows manual retry (Sync Now) and deletion of failed items.
 // ============================================================
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   RefreshControl, Alert,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { LocalCapsule } from '../types';
 import { getAllCapsules, deleteCapsule } from '../utils/storage';
 import { runSync } from '../services/syncEngine';
-
-const STATUS_COLORS: Record<string, string> = {
-  CAPTURED:   '#f59e0b',
-  QUEUED:     '#3b82f6',
-  UPLOADING:  '#8b5cf6',
-  UPLOADED:   '#22c55e',
-  FAILED:     '#ef4444',
-  DRAFT:      '#64748b',
-};
+import { StatusBadge } from '../components/StatusBadge';
+import { EmptyState }  from '../components/EmptyState';
 
 export default function QueueScreen() {
   const [capsules, setCapsules]     = useState<LocalCapsule[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [syncing, setSyncing]       = useState(false);
+  const insets = useSafeAreaInsets();
 
   const load = useCallback(async () => {
     const all = await getAllCapsules();
-    // Show most recent first
+    // Most recent first
     setCapsules(all.sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
   }, []);
 
@@ -52,7 +48,7 @@ export default function QueueScreen() {
   const handleDelete = (capsule: LocalCapsule) => {
     Alert.alert(
       'Delete from Queue',
-      `Delete capsule ${capsule.localId.slice(0, 8)}…? This cannot be undone.`,
+      `Delete capsule ${capsule.localId.slice(0, 8)}…?\n\nThis cannot be undone. The server will never receive this evidence.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -67,29 +63,49 @@ export default function QueueScreen() {
     );
   };
 
+  const pending  = capsules.filter((c) => c.status === 'QUEUED' || c.status === 'CAPTURED').length;
+  const failed   = capsules.filter((c) => c.status === 'FAILED').length;
+  const uploaded = capsules.filter((c) => c.status === 'UPLOADED').length;
+
   const renderItem = ({ item }: { item: LocalCapsule }) => (
     <View style={styles.card}>
+      {/* Card header: status + timestamp */}
       <View style={styles.cardHeader}>
-        <View style={[styles.statusDot, { backgroundColor: STATUS_COLORS[item.status] ?? '#64748b' }]} />
-        <Text style={styles.statusText}>{item.status}</Text>
-        <Text style={styles.dateText}>{new Date(item.createdAt).toLocaleTimeString()}</Text>
+        <StatusBadge status={item.status} showDot />
+        <Text style={styles.dateText}>
+          {new Date(item.createdAt).toLocaleDateString()}{' '}
+          {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </Text>
       </View>
 
+      {/* Station + position */}
       <Text style={styles.stationCode}>{item.iebcStationCode}</Text>
-      <Text style={styles.position}>{item.positionCode} · {item.electionYear}</Text>
+      <Text style={styles.position}>
+        {item.positionCode} · Kenya General {item.electionYear}
+      </Text>
 
-      {item.lastSyncError && (
-        <Text style={styles.errorMsg}>{item.lastSyncError}</Text>
+      {/* Server ID on success */}
+      {item.serverId && (
+        <Text style={styles.serverId}>
+          Server: {item.serverId.slice(0, 16)}…
+        </Text>
       )}
 
+      {/* Error message */}
+      {item.lastSyncError && (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorText} numberOfLines={3}>{item.lastSyncError}</Text>
+        </View>
+      )}
+
+      {/* Footer: attempts + delete */}
       <View style={styles.cardFooter}>
-        <Text style={styles.attempts}>Attempts: {item.syncAttempts}</Text>
-        {item.serverId && (
-          <Text style={styles.serverId}>Server: {item.serverId.slice(0, 8)}…</Text>
-        )}
-        {(item.status === 'FAILED' || item.status === 'QUEUED') && (
-          <TouchableOpacity onPress={() => handleDelete(item)}>
-            <Text style={styles.deleteBtn}>Delete</Text>
+        <Text style={styles.attempts}>
+          {item.syncAttempts} attempt{item.syncAttempts !== 1 ? 's' : ''}
+        </Text>
+        {(item.status === 'FAILED' || item.status === 'QUEUED' || item.status === 'CAPTURED') && (
+          <TouchableOpacity onPress={() => handleDelete(item)} style={styles.deleteBtn}>
+            <Text style={styles.deleteBtnText}>Delete</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -97,8 +113,15 @@ export default function QueueScreen() {
   );
 
   return (
-    <View style={styles.container}>
-      {/* Sync button */}
+    <View style={[styles.container, { paddingTop: insets.top }]}>
+      {/* ── Summary row ──────────────────────────────────── */}
+      <View style={styles.summary}>
+        <SummaryChip label="Pending"  count={pending}  color="#f59e0b" />
+        <SummaryChip label="Uploaded" count={uploaded} color="#22c55e" />
+        <SummaryChip label="Failed"   count={failed}   color="#ef4444" />
+      </View>
+
+      {/* ── Sync button ──────────────────────────────────── */}
       <TouchableOpacity
         style={[styles.syncBtn, syncing && styles.syncBtnDisabled]}
         onPress={handleSyncNow}
@@ -109,39 +132,85 @@ export default function QueueScreen() {
         </Text>
       </TouchableOpacity>
 
+      {/* ── List ─────────────────────────────────────────── */}
       <FlatList
         data={capsules}
         keyExtractor={(c) => c.localId}
         renderItem={renderItem}
-        contentContainerStyle={{ padding: 16 }}
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: insets.bottom + 24 },
+        ]}
         ListEmptyComponent={
-          <View style={styles.empty}>
-            <Text style={styles.emptyText}>No capsules in queue</Text>
-          </View>
+          <EmptyState
+            icon="📭"
+            title="No capsules in queue"
+            subtitle="Captured evidence will appear here once you photograph a Form 35A."
+          />
         }
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#3b82f6"
+          />
+        }
       />
     </View>
   );
 }
 
+function SummaryChip({ label, count, color }: { label: string; count: number; color: string }) {
+  return (
+    <View style={styles.chip}>
+      <Text style={[styles.chipCount, { color }]}>{count}</Text>
+      <Text style={styles.chipLabel}>{label}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  container:        { flex: 1, backgroundColor: '#0a1628' },
-  syncBtn:          { margin: 16, backgroundColor: '#3b82f6', borderRadius: 10, padding: 14, alignItems: 'center' },
-  syncBtnDisabled:  { opacity: 0.5 },
-  syncBtnText:      { color: '#fff', fontSize: 15, fontWeight: '600' },
-  card:             { backgroundColor: '#1e293b', borderRadius: 10, padding: 14, marginBottom: 10 },
-  cardHeader:       { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  statusDot:        { width: 8, height: 8, borderRadius: 4, marginRight: 6 },
-  statusText:       { color: '#94a3b8', fontSize: 12, fontWeight: '600', flex: 1 },
-  dateText:         { color: '#475569', fontSize: 11 },
-  stationCode:      { color: '#cbd5e1', fontSize: 14, fontFamily: 'monospace', marginBottom: 2 },
-  position:         { color: '#64748b', fontSize: 12 },
-  errorMsg:         { color: '#f87171', fontSize: 11, marginTop: 6, backgroundColor: '#1a0a0a', borderRadius: 4, padding: 6 },
-  cardFooter:       { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 8 },
-  attempts:         { color: '#475569', fontSize: 11 },
-  serverId:         { color: '#22c55e', fontSize: 11, fontFamily: 'monospace', flex: 1 },
-  deleteBtn:        { color: '#ef4444', fontSize: 12 },
-  empty:            { flex: 1, alignItems: 'center', paddingTop: 80 },
-  emptyText:        { color: '#475569', fontSize: 15 },
+  container:    { flex: 1, backgroundColor: '#0a1628' },
+
+  // Summary
+  summary:      { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 12, gap: 10 },
+  chip:         { flex: 1, backgroundColor: '#1e293b', borderRadius: 8, padding: 10, alignItems: 'center' },
+  chipCount:    { fontSize: 20, fontWeight: '700' },
+  chipLabel:    { color: '#64748b', fontSize: 11, marginTop: 2 },
+
+  // Sync button
+  syncBtn: {
+    margin: 16,
+    marginTop: 12,
+    backgroundColor: '#3b82f6',
+    borderRadius: 10,
+    padding: 14,
+    alignItems: 'center',
+  },
+  syncBtnDisabled: { opacity: 0.5 },
+  syncBtnText:     { color: '#fff', fontSize: 15, fontWeight: '600' },
+
+  // List
+  listContent:  { paddingHorizontal: 16 },
+
+  // Cards
+  card:         { backgroundColor: '#1e293b', borderRadius: 10, padding: 14, marginBottom: 10 },
+  cardHeader:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  dateText:     { color: '#475569', fontSize: 11 },
+  stationCode:  { color: '#cbd5e1', fontSize: 14, fontFamily: 'monospace', marginBottom: 2 },
+  position:     { color: '#64748b', fontSize: 12, marginBottom: 4 },
+  serverId:     { color: '#22c55e', fontSize: 11, fontFamily: 'monospace', marginBottom: 4 },
+  errorBox: {
+    backgroundColor: '#1a0808',
+    borderRadius: 6,
+    padding: 8,
+    marginVertical: 6,
+    borderLeftWidth: 2,
+    borderLeftColor: '#ef4444',
+  },
+  errorText:    { color: '#f87171', fontSize: 11, lineHeight: 16 },
+  cardFooter:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 6 },
+  attempts:     { color: '#475569', fontSize: 11 },
+  deleteBtn:    { paddingVertical: 4, paddingHorizontal: 8 },
+  deleteBtnText:{ color: '#ef4444', fontSize: 12, fontWeight: '500' },
 });

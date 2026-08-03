@@ -2,7 +2,8 @@ import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Vote, Users, MapPin, BarChart3, CheckSquare,
-  Brain, BookOpen, Eye, FileText, ChevronLeft, Menu, LogOut, Bell
+  Brain, BookOpen, Eye, FileText, ChevronLeft, Menu, LogOut, Bell,
+  FileEdit, Award,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { toggleSidebar } from '../store/slices/uiSlice';
@@ -19,6 +20,8 @@ const navItems = [
   { to: '/publication', icon: BookOpen, label: 'Publication Control' },
   { to: '/observers', icon: Eye, label: 'Observer Coordination' },
   { to: '/reports', icon: FileText, label: 'Official Reports' },
+  { to: '/form-b-entry', icon: FileEdit, label: 'Enter Form B Tally' },
+  { to: '/form-c-declaration', icon: Award, label: 'Form C Declaration' },
 ];
 
 export function AuthorityLayout(): React.JSX.Element {

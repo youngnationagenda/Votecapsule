@@ -9,6 +9,7 @@ import { ConfigModule }  from '@nestjs/config';
 import { ReportingController }       from './reporting.controller';
 import { PublicReportingController } from './public-reporting.controller';
 import { ReportingService }          from './reporting.service';
+import { ReportingSearchService }    from './search/reporting-search.service';
 import { ResultSnapshot }       from './entities/result-snapshot.entity';
 import { Publication }          from './entities/publication.entity';
 import { ExportLog }            from './entities/export-log.entity';
@@ -29,7 +30,7 @@ import { AiJobView }            from './readers/ai-job.reader';
     ]),
   ],
   controllers: [ReportingController, PublicReportingController],
-  providers:   [ReportingService],
-  exports:     [ReportingService],
+  providers:   [ReportingService, ReportingSearchService],
+  exports:     [ReportingService, ReportingSearchService],
 })
 export class ReportingModule {}

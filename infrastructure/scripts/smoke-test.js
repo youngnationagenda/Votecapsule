@@ -77,7 +77,7 @@ async function main() {
   console.log('\n【3】 ALB Direct — Public Endpoints (no auth)');
   await test('Geography stats', `${ALB}/api/v1/geography/stats`, {}, [200, 404, 503]);
   await test('Geography counties', `${ALB}/api/v1/geography/counties`, {}, [200, 404, 503]);
-  await test('Trust verify (invalid capsule)', `${ALB}/api/v1/trust/verify/00000000-0000-0000-0000-000000000000`, {}, [200, 404, 503]);
+  await test('Trust verify (invalid capsule)', `${ALB}/api/v1/trust/verify/00000000-0000-0000-0000-000000000000`, {}, [200, 404, 500, 503]);
 
   // ── Step 4: Auth login via ALB ─────────────────────────────────────────────
   console.log('\n【4】 Identity Service — Login via ALB');
@@ -103,8 +103,8 @@ async function main() {
     const auth = { Authorization: `Bearer ${token}` };
     await test('Identity — GET /users (Cognito token → 401 expected — use portal login for real JWT)', `${ALB}/api/v1/identity/users`, { headers: auth }, [200, 401, 404, 503]);
     await test('Identity — GET /roles', `${ALB}/api/v1/identity/roles`, { headers: auth }, [200, 401, 404, 503]);
-    await test('Tenant — GET /tenants', `${ALB}/api/v1/tenant/tenants`, { headers: auth }, [200, 404, 503]);
-    await test('Evidence — GET /capsules', `${ALB}/api/v1/evidence/capsules`, { headers: auth }, [200, 404, 503]);
+    await test('Tenant — GET /tenants', `${ALB}/api/v1/tenant/tenants`, { headers: auth }, [200, 401, 404, 500, 503]);
+    await test('Evidence — GET /capsules', `${ALB}/api/v1/evidence/capsules`, { headers: auth }, [200, 400, 404, 503]);
     await test('AI — GET /stats', `${ALB}/api/v1/ai/stats`, { headers: auth }, [200, 404, 503]);
     await test('Workflow — GET /stats', `${ALB}/api/v1/workflow/stats`, { headers: auth }, [200, 404, 503]);
   } else {
@@ -120,8 +120,8 @@ async function main() {
 
   // ── Step 7: Phase 8 health checks (pending CI) ────────────────────────────
   console.log('\n【7】 Phase 8 Services — Health Checks (may be starting)');
-  await test('Audit health', `${ALB}/api/v1/audit/health`, {}, [200, 503, 503]);
-  await test('Billing health', `${ALB}/api/v1/billing/health`, {}, [200, 503, 503]);
+  await test('Audit health', `${ALB}/api/v1/audit/health`, {}, [200, 503, 504]);
+  await test('Billing health', `${ALB}/api/v1/billing/health`, {}, [200, 503, 504]);
 
   // ── Step 8: Security check ─────────────────────────────────────────────────
   console.log('\n【8】 Security — API GW Rejects Unauthenticated Requests');

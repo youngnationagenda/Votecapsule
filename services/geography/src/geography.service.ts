@@ -307,6 +307,33 @@ export class GeographyService {
     }));
   }
 
+  // ── Voter Registration Area Lookup ──────────────────────────────────────────
+
+  /**
+   * GET /geography/voters/lookup
+   * Returns polling stations for the given registration area.
+   * Does NOT expose individual voter data — only aggregate station info.
+   * A voter can find their assigned polling station based on the
+   * registration area shown on their voter card.
+   *
+   * Params:
+   *   countyCode (required)       — 3-digit IEBC county code
+   *   constituencyCode (optional) — 3-digit IEBC constituency code
+   *   wardCode (optional)         — 4-digit IEBC ward code
+   */
+  async getVoterLookup(
+    countyCode: string,
+    constituencyCode?: string,
+    wardCode?: string,
+  ): Promise<PollingStation[]> {
+    return this.getPollingStations({
+      countyCode,
+      constituencyCode,
+      wardCode,
+      activeOnly: true,
+    });
+  }
+
   // ── Platform Stats ────────────────────────────────────────────────────────
 
   async getStats(): Promise<GeographyStats> {

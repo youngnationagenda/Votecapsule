@@ -1,0 +1,112 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ECRAuth",
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*"
+    },
+    {
+      "Sid": "ECRPush",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload",
+        "ecr:PutImage",
+        "ecr:DescribeImages",
+        "ecr:ListImages",
+        "ecr:CreateRepository"
+      ],
+      "Resource": "arn:aws:ecr:us-east-1:683541453923:repository/vote-capsule/*"
+    },
+    {
+      "Sid": "ECS",
+      "Effect": "Allow",
+      "Action": [
+        "ecs:UpdateService",
+        "ecs:DescribeServices",
+        "ecs:DescribeTaskDefinition",
+        "ecs:RegisterTaskDefinition",
+        "ecs:ListTaskDefinitions",
+        "ecs:DeregisterTaskDefinition"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "IAMPassRole",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role"
+    },
+    {
+      "Sid": "CodeBuild",
+      "Effect": "Allow",
+      "Action": [
+        "codebuild:StartBuild",
+        "codebuild:BatchGetBuilds",
+        "codebuild:ListBuildsForProject",
+        "codebuild:StopBuild"
+      ],
+      "Resource": "arn:aws:codebuild:us-east-1:683541453923:project/vote-capsule-*"
+    },
+    {
+      "Sid": "CDKRoles",
+      "Effect": "Allow",
+      "Action": "sts:AssumeRole",
+      "Resource": [
+        "arn:aws:iam::683541453923:role/cdk-hnb659fds-deploy-role-683541453923-us-east-1",
+        "arn:aws:iam::683541453923:role/cdk-hnb659fds-file-publishing-role-683541453923-us-east-1",
+        "arn:aws:iam::683541453923:role/cdk-hnb659fds-image-publishing-role-683541453923-us-east-1",
+        "arn:aws:iam::683541453923:role/cdk-hnb659fds-lookup-role-683541453923-us-east-1"
+      ]
+    },
+    {
+      "Sid": "S3Portals",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject",
+        "s3:ListBucket",
+        "s3:GetBucketLocation",
+        "s3:CreateBucket",
+        "s3:PutBucketWebsite",
+        "s3:PutBucketPolicy",
+        "s3:PutPublicAccessBlock",
+        "s3:GetBucketWebsite"
+      ],
+      "Resource": [
+        "arn:aws:s3:::vote-capsule-public-web-683541453923",
+        "arn:aws:s3:::vote-capsule-public-web-683541453923/*",
+        "arn:aws:s3:::vote-capsule-transparency-portal-683541453923",
+        "arn:aws:s3:::vote-capsule-transparency-portal-683541453923/*",
+        "arn:aws:s3:::vote-capsule-authority-portal-683541453923",
+        "arn:aws:s3:::vote-capsule-authority-portal-683541453923/*",
+        "arn:aws:s3:::vote-capsule-party-portal-683541453923",
+        "arn:aws:s3:::vote-capsule-party-portal-683541453923/*",
+        "arn:aws:s3:::vote-capsule-candidate-portal-683541453923",
+        "arn:aws:s3:::vote-capsule-candidate-portal-683541453923/*",
+        "arn:aws:s3:::vote-capsule-observer-portal-683541453923",
+        "arn:aws:s3:::vote-capsule-observer-portal-683541453923/*"
+      ]
+    },
+    {
+      "Sid": "CloudFront",
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:CreateInvalidation",
+        "cloudfront:GetInvalidation",
+        "cloudfront:ListInvalidations",
+        "cloudfront:GetDistribution",
+        "cloudfront:GetDistributionConfig",
+        "cloudfront:UpdateDistribution"
+      ],
+      "Resource": "*"
+    }
+  ]
+}

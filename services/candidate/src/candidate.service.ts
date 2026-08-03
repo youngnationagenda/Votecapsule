@@ -239,6 +239,295 @@ export class CandidateService {
   }
 
   // ══════════════════════════════════════════════════════════
+  //  PARTY NOMINATION ELECTIONS
+  //
+  //  VALUE PROPOSITION: Political parties can use VoteCapsule™
+  //  to run their internal nominations using the same rigorous
+  //  evidence capture + reconciliation as the General Election.
+  //  Nominations become auditable, transparent, and tamper-proof.
+  //
+  //  Flow:
+  //    1. Party creates PARTY_NOMINATION election linked to GENERAL
+  //    2. Party members register as candidates (sponsorshipType=SELF_SPONSORED)
+  //    3. Nomination election runs through full lifecycle
+  //    4. Results declared → winner marked nominationWon=TRUE
+  //    5. Party promotes winner to GENERAL election (PARTY_SPONSORED)
+  //    6. IEBC approves promoted candidate in GENERAL election
+  // ══════════════════════════════════════════════════════════
+
+  /**
+   * Create a Party Nomination election linked to a General Election.
+   * Only PARTY_NOMINATION type — GENERAL elections are created separately.
+   */
+  async createPartyNomination(
+    dto: {
+      tenantId:                string;
+      partyId:                 string;
+      parentElectionId:        string;  // The GENERAL election this feeds
+      name:                    string;
+      electionYear:            number;
+      nominationOpenDate?:     string;
+      nominationVotingDate?:   string;
+      nominationDeadline?:     string;
+      nominationFeeKes?:       number;
+      maxCandidatesPerPosition?: number;
+      description?:            string;
+    },
+    createdByUserId: string,
+  ): Promise<Election> {
+    // Verify parent election exists and is GENERAL type
+    const parent = await this.getElection(dto.parentElectionId);
+    if (parent.electionType !== ElectionType.GENERAL) {
+      throw new BadRequestException(
+        'Party nominations must be linked to a GENERAL election as parent.'
+      );
+    }
+
+    const nomination = this.electionRepo.create({
+      tenantId:                  dto.tenantId,
+      name:                      dto.name,
+      electionType:              ElectionType.PARTY_NOMINATION,
+      electionYear:              dto.electionYear,
+      nominationDeadline:        dto.nominationDeadline ? new Date(dto.nominationDeadline) : null,
+      nominationVotingDate:      dto.nominationVotingDate ? new Date(dto.nominationVotingDate) : null,
+      partyId:                   dto.partyId,
+      parentElectionId:          dto.parentElectionId,
+      nominationFeeKes:          dto.nominationFeeKes ?? 0,
+      maxCandidatesPerPosition:  dto.maxCandidatesPerPosition ?? null,
+      description:               dto.description ?? null,
+      status:                    ElectionStatus.PLANNING,
+      isActive:                  false,
+      resultsPublic:             false,
+      createdBy:                 createdByUserId,
+    });
+
+    const saved = await this.electionRepo.save(nomination);
+    this.logger.log(
+      `Party Nomination created: ${saved.id} — "${dto.name}" by party ${dto.partyId} ` +
+      `linked to General Election ${dto.parentElectionId}`
+    );
+    return saved;
+  }
+
+  /**
+   * List all party nomination elections for a given general election.
+   * Used by admin portal to see all parties' nominations.
+   */
+  async listPartyNominations(parentElectionId: string): Promise<Election[]> {
+    return this.electionRepo.find({
+      where: {
+        parentElectionId,
+        electionType: ElectionType.PARTY_NOMINATION,
+      },
+      order: { createdAt: 'ASC' },
+    });
+  }
+
+  /**
+   * List party nominations for a specific party tenant.
+   * Used by party portal to manage their own nominations.
+   */
+  async listPartyNominationsForTenant(tenantId: string): Promise<Election[]> {
+    return this.electionRepo.find({
+      where: {
+        tenantId,
+        electionType: ElectionType.PARTY_NOMINATION,
+      },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  /**
+   * Declare a nomination winner for a specific position in a
+   * PARTY_NOMINATION election. Sets nominationWon=TRUE on winner,
+   * nominationWon=FALSE on all other candidates for that position.
+   *
+   * This does NOT auto-promote — call promoteNominationWinner() next.
+   */
+  async declareNominationWinner(
+    nominationElectionId: string,
+    winnerId:             string,
+    declaredBy:           string,
+  ): Promise<{ winner: Candidate; losers: Candidate[] }> {
+    const election = await this.getElection(nominationElectionId);
+    if (election.electionType !== ElectionType.PARTY_NOMINATION) {
+      throw new BadRequestException('declareNominationWinner only works on PARTY_NOMINATION elections');
+    }
+    if (!['RESULTS_PUBLISHED', 'TALLYING', 'CLOSED'].includes(election.status)) {
+      throw new BadRequestException(
+        `Cannot declare winner — election status is ${election.status}. ` +
+        `Must be in TALLYING, RESULTS_PUBLISHED, or CLOSED state.`
+      );
+    }
+
+    const winner = await this.getCandidate(winnerId);
+    if (winner.electionId !== nominationElectionId) {
+      throw new BadRequestException('Candidate does not belong to this nomination election');
+    }
+
+    // Get all candidates for the same position
+    const siblings = await this.candidateRepo.find({
+      where: { electionId: nominationElectionId, positionId: winner.positionId },
+    });
+
+    return this.dataSource.transaction(async (manager) => {
+      const updatedWinner = await manager.save(Candidate, {
+        ...winner,
+        nominationWon: true,
+        status: CandidateStatus.ELECTED,
+      });
+
+      await manager.save(CandidateStatusLog, {
+        candidateId: winner.id,
+        fromStatus:  winner.status,
+        toStatus:    CandidateStatus.ELECTED,
+        changedBy:   declaredBy,
+        reason:      `Declared winner of party nomination for ${winner.positionCode ?? 'position'}`,
+      });
+
+      const losers: Candidate[] = [];
+      for (const sibling of siblings) {
+        if (sibling.id === winner.id) continue;
+        if (sibling.status === CandidateStatus.WITHDRAWN || sibling.status === CandidateStatus.DISQUALIFIED) continue;
+
+        const updated = await manager.save(Candidate, {
+          ...sibling,
+          nominationWon: false,
+          status: CandidateStatus.NOT_ELECTED,
+        });
+        losers.push(updated);
+      }
+
+      this.logger.log(
+        `Nomination winner declared: ${winner.fullName} (${winner.id}) ` +
+        `in election ${nominationElectionId}. Losers: ${losers.length}`
+      );
+      return { winner: updatedWinner, losers };
+    });
+  }
+
+  /**
+   * Promote a nomination winner to the parent GENERAL election
+   * as a PARTY_SPONSORED candidate.
+   *
+   * Creates a new Candidate record in the GENERAL election with:
+   *   - sponsorshipType = PARTY_SPONSORED
+   *   - nominationElectionId → source nomination
+   *   - promotedFromCandidateId → original nomination candidate
+   *   - status = PENDING_NOMINATION (still needs IEBC approval)
+   *
+   * Enforces: max 1 party-sponsored candidate per party per position per election.
+   */
+  async promoteNominationWinner(
+    nominationCandidateId: string,
+    promotedBy:            string,
+  ): Promise<Candidate> {
+    const nomCandidate = await this.getCandidate(nominationCandidateId);
+    if (!nomCandidate.nominationWon) {
+      throw new BadRequestException('Only nomination winners can be promoted to the General Election');
+    }
+
+    const nominationElection = await this.getElection(nomCandidate.electionId);
+    if (nominationElection.electionType !== ElectionType.PARTY_NOMINATION) {
+      throw new BadRequestException('Source election must be a PARTY_NOMINATION');
+    }
+    if (!nominationElection.parentElectionId) {
+      throw new BadRequestException('Nomination election has no parent General Election configured');
+    }
+
+    const generalElection = await this.getElection(nominationElection.parentElectionId);
+
+    // Enforce uniqueness: check no other PARTY_SPONSORED candidate from same party + position
+    const existingPromotion = await this.candidateRepo.findOne({
+      where: {
+        electionId:       generalElection.id,
+        positionId:       nomCandidate.positionId,
+        partyId:          nomCandidate.partyId ?? undefined,
+        sponsorshipType:  'PARTY_SPONSORED',
+      },
+    });
+    if (existingPromotion) {
+      throw new BadRequestException(
+        `Party already has a sponsored candidate for this position in the General Election. ` +
+        `Candidate: ${existingPromotion.fullName} (${existingPromotion.id})`
+      );
+    }
+
+    // Find matching position in the general election
+    const generalPosition = await this.positionRepo.findOne({
+      where: {
+        electionId:   generalElection.id,
+        positionCode: nomCandidate.positionCode ?? undefined,
+        countyCode:   nomCandidate.countyCode   ?? undefined,
+        constituencyCode: nomCandidate.constituencyCode ?? undefined,
+        wardCode:     nomCandidate.wardCode     ?? undefined,
+      },
+    });
+    if (!generalPosition) {
+      throw new BadRequestException(
+        `No matching position found in the General Election for ${nomCandidate.positionCode} ` +
+        `in constituency ${nomCandidate.constituencyCode ?? nomCandidate.countyCode}. ` +
+        `Ensure the General Election has positions seeded (run migration 021).`
+      );
+    }
+
+    // Create promoted candidate in general election
+    return this.dataSource.transaction(async (manager) => {
+      const promoted = manager.create(Candidate, {
+        electionId:              generalElection.id,
+        positionId:              generalPosition.id,
+        partyId:                 nomCandidate.partyId,
+        tenantId:                generalElection.tenantId, // IEBC tenant
+        fullName:                nomCandidate.fullName,
+        shortName:               nomCandidate.shortName,
+        nationalId:              nomCandidate.nationalId,
+        dateOfBirth:             nomCandidate.dateOfBirth,
+        gender:                  nomCandidate.gender,
+        positionCode:            nomCandidate.positionCode,
+        positionLevel:           nomCandidate.positionLevel,
+        countyCode:              nomCandidate.countyCode,
+        constituencyCode:        nomCandidate.constituencyCode,
+        wardCode:                nomCandidate.wardCode,
+        runningMateName:         nomCandidate.runningMateName,
+        runningMateNationalId:   nomCandidate.runningMateNationalId,
+        gazetteReference:        nomCandidate.gazetteReference,
+        description:             nomCandidate.description,
+        photoUrl:                nomCandidate.photoUrl,
+        // Promotion metadata
+        sponsorshipType:         'PARTY_SPONSORED',
+        nominationElectionId:    nominationElection.id,
+        promotedFromCandidateId: nomCandidate.id,
+        isIndependent:           false,
+        status:                  CandidateStatus.PENDING_NOMINATION,
+        createdBy:               promotedBy,
+      });
+
+      const saved = await manager.save(Candidate, promoted);
+
+      // Status log
+      await manager.save(CandidateStatusLog, {
+        candidateId: saved.id,
+        fromStatus:  null,
+        toStatus:    CandidateStatus.PENDING_NOMINATION,
+        changedBy:   promotedBy,
+        reason:      `Promoted from party nomination election ${nominationElection.id} — ${nominationElection.name}`,
+      });
+
+      // Mark the nomination candidate as promoted
+      await manager.update(Candidate, nomCandidate.id, {
+        description: `[PROMOTED to General Election ${generalElection.id}] ${nomCandidate.description ?? ''}`.trim(),
+      });
+
+      this.logger.log(
+        `Nomination winner promoted: ${nomCandidate.fullName} → General Election ${generalElection.id}. ` +
+        `New candidate ID: ${saved.id}`
+      );
+
+      return saved;
+    });
+  }
+
+  // ══════════════════════════════════════════════════════════
   //  POSITIONS
   // ══════════════════════════════════════════════════════════
 

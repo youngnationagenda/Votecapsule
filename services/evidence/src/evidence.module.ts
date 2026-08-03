@@ -14,6 +14,10 @@ import { EvidenceCapsule }           from './entities/evidence-capsule.entity';
 import { EvidenceImage }             from './entities/evidence-image.entity';
 import { EvidenceHash }              from './entities/evidence-hash.entity';
 import { EvidenceChainOfCustody }    from './entities/evidence-chain-of-custody.entity';
+import { OpenSearchClientService }   from './search/opensearch.client';
+import { EvidenceSearchService }     from './search/evidence-search.service';
+import { ReconciliationService }     from './reconciliation/reconciliation.service';
+import { ReconciliationController }  from './reconciliation/reconciliation.controller';
 
 @Module({
   imports: [
@@ -30,8 +34,8 @@ import { EvidenceChainOfCustody }    from './entities/evidence-chain-of-custody.
       EvidenceChainOfCustody,
     ]),
   ],
-  controllers: [EvidenceController],
-  providers:   [EvidenceService],
-  exports:     [EvidenceService],
+  controllers: [EvidenceController, ReconciliationController],
+  providers:   [EvidenceService, OpenSearchClientService, EvidenceSearchService, ReconciliationService],
+  exports:     [EvidenceService, ReconciliationService],
 })
 export class EvidenceModule {}

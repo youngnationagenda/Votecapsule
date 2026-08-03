@@ -1,21 +1,26 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Users, UserCheck, MapPin, BarChart3, TrendingUp, CreditCard, Mail, FileText, Settings, LogOut, Bell, ChevronLeft, Menu, Flag } from 'lucide-react';
+import { LayoutDashboard, Users, UserCheck, MapPin, BarChart3, TrendingUp, CreditCard, Mail, FileText, Settings, LogOut, Bell, ChevronLeft, Menu, Flag, Vote, Trophy } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { toggleSidebar } from '../store/slices/uiSlice';
 import { logout } from '../store/slices/authSlice';
 
 const navItems = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'Party Dashboard' },
-  { to: '/candidates', icon: Users, label: 'Candidate Management' },
-  { to: '/coordinators', icon: UserCheck, label: 'Campaign Coordinators' },
-  { to: '/agents', icon: MapPin, label: 'Agent Assignments' },
-  { to: '/live-results', icon: BarChart3, label: 'Live Results' },
-  { to: '/analytics', icon: TrendingUp, label: 'Performance Analytics' },
-  { to: '/invitations', icon: Mail, label: 'User Invitations' },
-  { to: '/reports', icon: FileText, label: 'Reports' },
-  { to: '/subscription', icon: Settings, label: 'Subscription' },
-  { to: '/billing', icon: CreditCard, label: 'Billing' },
+  { to: '/dashboard',    icon: LayoutDashboard, label: 'Party Dashboard' },
+  // ── Nominations (signature VoteCapsule feature for parties) ──
+  { to: '/nominations',  icon: Trophy,          label: 'Party Nominations', highlight: true },
+  // ── Candidate management ──────────────────────────────────────
+  { to: '/candidates',   icon: Users,           label: 'Candidate Management' },
+  { to: '/coordinators', icon: UserCheck,       label: 'Campaign Coordinators' },
+  { to: '/agents',       icon: MapPin,          label: 'Agent Assignments' },
+  // ── Results & analytics ───────────────────────────────────────
+  { to: '/live-results', icon: BarChart3,       label: 'Live Results' },
+  { to: '/analytics',    icon: TrendingUp,      label: 'Performance Analytics' },
+  // ── Admin ─────────────────────────────────────────────────────
+  { to: '/invitations',  icon: Mail,            label: 'User Invitations' },
+  { to: '/reports',      icon: FileText,        label: 'Reports' },
+  { to: '/subscription', icon: Settings,        label: 'Subscription' },
+  { to: '/billing',      icon: CreditCard,      label: 'Billing' },
 ];
 
 export function PartyLayout(): React.JSX.Element {
@@ -40,10 +45,20 @@ export function PartyLayout(): React.JSX.Element {
           )}
         </div>
         <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-          {navItems.map(({ to, icon: Icon, label }) => (
-            <NavLink key={to} to={to} className={({ isActive }) => `sidebar-item ${isActive ? 'sidebar-item-active' : 'sidebar-item-inactive'}`} title={collapsed ? label : undefined}>
+          {navItems.map(({ to, icon: Icon, label, highlight }: { to: string; icon: any; label: string; highlight?: boolean }) => (
+            <NavLink
+              key={to}
+              to={to}
+              title={collapsed ? label : undefined}
+              className={({ isActive }) =>
+                highlight
+                  ? `sidebar-item ${isActive ? 'sidebar-item-active' : ''} ${!isActive ? 'bg-violet-50 border border-violet-200 text-violet-700 hover:bg-violet-100' : ''}`
+                  : `sidebar-item ${isActive ? 'sidebar-item-active' : 'sidebar-item-inactive'}`
+              }
+            >
               <Icon className="w-4 h-4 flex-shrink-0" />
               {!collapsed && <span className="truncate">{label}</span>}
+              {!collapsed && highlight && <span className="ml-auto text-xs bg-violet-200 text-violet-800 px-1.5 py-0.5 rounded-full font-semibold">NEW</span>}
             </NavLink>
           ))}
         </nav>

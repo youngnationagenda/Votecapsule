@@ -297,6 +297,161 @@ export function ElectionsPage(): React.JSX.Element {
           <strong>Lifecycle changes are irreversible.</strong> Advancing an election to the next stage cannot be undone automatically. Only proceed when all prerequisite steps are complete.
         </div>
       </div>
+
+      {/* Party Nominations Overview */}
+      <PartyNominationsOverview elections={Array.isArray(elections) ? elections : []} />
+    </div>
+  );
+}
+
+// ── Party Nominations Overview ─────────────────────────────────
+// Shows all party nomination elections linked to each general election.
+// Allows IEBC admin to monitor which parties are running nominations
+// and track candidates being promoted.
+
+function PartyNominationsOverview({ elections }: { elections: Election[] }) {
+  const generalElections = elections.filter(e => !e.electionType || e.electionType === 'GENERAL');
+
+  // For each general election, fetch its party nominations
+  const firstGeneral = generalElections[0];
+  const [selectedElection, setSelectedElection] = React.useState<string>(firstGeneral?.id ?? '');
+
+  const { data: nominations, isLoading } = useQuery({
+    queryKey: ['admin-nominations', selectedElection],
+    queryFn: () =>
+      electionClient.get(`/candidates/nominations?parentElectionId=${selectedElection}`)
+        .then(r => r.data?.data ?? r.data ?? []),
+    enabled: !!selectedElection,
+    staleTime: 60_000,
+  });
+
+  if (generalElections.length === 0) return null;
+
+  const nomList = Array.isArray(nominations) ? nominations : [];
+  const byStatus = nomList.reduce((acc: Record<string, number>, n: any) => {
+    acc[n.status] = (acc[n.status] ?? 0) + 1;
+    return acc;
+  }, {});
+
+  return (
+    <div className="bg-white rounded-xl border border-violet-200 shadow-sm overflow-hidden">
+      {/* Header */}
+      <div className="p-5 border-b border-gray-100 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center">
+            <Vote className="w-4 h-4 text-violet-600" />
+          </div>
+          <div>
+            <h2 className="text-base font-semibold text-gray-900">Party Nominations Monitor</h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Political parties running internal nominations via VoteCapsule™
+            </p>
+          </div>
+        </div>
+        {generalElections.length > 1 && (
+          <select
+            className="vc-input py-1.5 text-sm w-auto"
+            value={selectedElection}
+            onChange={e => setSelectedElection(e.target.value)}
+          >
+            {generalElections.map(e => (
+              <option key={e.id} value={e.id}>{e.name}</option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      {/* Stats */}
+      {nomList.length > 0 && (
+        <div className="px-5 py-3 border-b border-gray-100 flex gap-4 flex-wrap">
+          <span className="text-xs text-gray-500">
+            <strong className="text-gray-900 text-sm">{nomList.length}</strong> party nominations
+          </span>
+          {Object.entries(byStatus).map(([status, count]) => (
+            <span key={status} className={clsx(
+              'text-xs px-2 py-0.5 rounded-full font-medium',
+              STATUS_CONFIG[status]?.color ?? 'text-gray-600 bg-gray-100'
+            )}>
+              {count as number} {status}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Nominations list */}
+      {isLoading ? (
+        <div className="p-8 text-center text-gray-400 text-sm">Loading party nominations…</div>
+      ) : nomList.length === 0 ? (
+        <div className="p-8 text-center">
+          <Flag className="w-10 h-10 text-gray-200 mx-auto mb-2" />
+          <p className="text-sm text-gray-500">No party nominations yet</p>
+          <p className="text-xs text-gray-400 mt-1">
+            Political parties can create nomination elections from their Party Portal.
+            Winners are automatically promoted as party-sponsored candidates in this election.
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="vc-table text-sm">
+            <thead>
+              <tr>
+                <th>Nomination Election</th>
+                <th>Party</th>
+                <th>Year</th>
+                <th>Status</th>
+                <th>Voting Day</th>
+                <th>Candidates</th>
+                <th>Winners Promoted</th>
+              </tr>
+            </thead>
+            <tbody>
+              {nomList.map((nom: any) => {
+                const cfg = STATUS_CONFIG[nom.status] ?? STATUS_CONFIG.PLANNING;
+                const CfgIcon = cfg.icon;
+                return (
+                  <tr key={nom.id}>
+                    <td className="font-medium">{nom.name}</td>
+                    <td className="text-xs text-gray-500 font-mono">{nom.partyId?.slice(0, 8)}…</td>
+                    <td>{nom.electionYear}</td>
+                    <td>
+                      <span className={clsx('vc-badge flex items-center gap-1 w-fit text-xs', cfg.color)}>
+                        <CfgIcon className="w-3 h-3" />
+                        {cfg.label}
+                      </span>
+                    </td>
+                    <td className="text-sm">
+                      {nom.nominationVotingDate
+                        ? new Date(nom.nominationVotingDate).toLocaleDateString('en-KE')
+                        : '—'}
+                    </td>
+                    <td>{nom.candidateCount ?? '—'}</td>
+                    <td>
+                      {nom.promotedCount > 0 ? (
+                        <span className="text-xs text-emerald-700 font-semibold flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          {nom.promotedCount} promoted
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-400">Pending</span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Info box */}
+      <div className="p-4 border-t border-gray-100 bg-violet-50">
+        <p className="text-xs text-violet-800">
+          <strong>How it works:</strong> Each political party creates their nomination election in the Party Portal,
+          linked to this General Election. When a party declares a nomination winner, they can promote the winner
+          here as a PARTY_SPONSORED candidate. IEBC then vets and approves all candidates (party-sponsored + independent)
+          through the standard approval workflow before they appear on the ballot.
+        </p>
+      </div>
     </div>
   );
 }

@@ -7,7 +7,7 @@
 // camera open → photo taken → hash computed → queued.
 // ============================================================
 import { create } from 'zustand';
-import { PollingStation, PositionCode, LocalCapsule, GpsCoords } from '../types';
+import { PollingStation, PositionCode, LocalCapsule, GpsCoords, FormTallyData } from '../types';
 import { saveCapsule } from '../utils/storage';
 import { computeCapsuleHash, sha256Bytes } from '../utils/crypto';
 import { enqueueAndSync } from '../services/syncEngine';
@@ -22,6 +22,7 @@ interface CaptureSession {
   capturedAt:    string | null;
   gps:           GpsCoords | null;
   partyOrg:      string | null;
+  tallyData:     FormTallyData | null;
 }
 
 interface CaptureState {
@@ -35,6 +36,7 @@ interface CaptureState {
   setElectionYear: (year: number) => void;
   setGps:          (coords: GpsCoords | null) => void;
   setPartyOrg:     (org: string | null) => void;
+  setTallyData:    (data: FormTallyData) => void;
   captureImage:    (imageUri: string, tenantId: string, userId: string) => Promise<string | null>;
   resetSession:    () => void;
   clearError:      () => void;
@@ -49,6 +51,7 @@ const defaultSession: CaptureSession = {
   capturedAt:   null,
   gps:          null,
   partyOrg:     null,
+  tallyData:    null,
 };
 
 export const useCaptureStore = create<CaptureState>((set, get) => ({
@@ -61,6 +64,7 @@ export const useCaptureStore = create<CaptureState>((set, get) => ({
   setElectionYear: (electionYear) => set((s) => ({ session: { ...s.session, electionYear } })),
   setGps:          (gps)          => set((s) => ({ session: { ...s.session, gps } })),
   setPartyOrg:     (partyOrg)     => set((s) => ({ session: { ...s.session, partyOrg } })),
+  setTallyData:    (tallyData)    => set((s) => ({ session: { ...s.session, tallyData } })),
   clearError:      ()             => set({ error: null }),
 
   /**
@@ -122,6 +126,7 @@ export const useCaptureStore = create<CaptureState>((set, get) => ({
         imageSizeBytes:  (fileInfo as any).size ?? 0,
         partyOrg:        session.partyOrg,
         gps:             session.gps,
+        tallyData:       session.tallyData ?? undefined,
         status:          'CAPTURED',
         syncAttempts:    0,
         lastSyncError:   null,

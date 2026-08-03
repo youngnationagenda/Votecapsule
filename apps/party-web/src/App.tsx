@@ -16,6 +16,7 @@ import { InvitationsPage } from './pages/InvitationsPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { SubscriptionPage } from './pages/SubscriptionPage';
 import { BillingPage } from './pages/BillingPage';
+import { NominationsPage } from './pages/NominationsPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { useAppSelector } from './store/hooks';
 
@@ -35,6 +36,7 @@ export default function App(): React.JSX.Element {
           <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/invitations" element={<InvitationsPage />} />
           <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/nominations" element={<NominationsPage />} />
           <Route path="/subscription" element={<SubscriptionPage />} />
           <Route path="/billing" element={<BillingPage />} />
         </Route>

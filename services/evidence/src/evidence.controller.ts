@@ -18,6 +18,7 @@ import { SyncStatusDto }         from './dto/sync-status.dto';
 import { ValidateDecisionDto }   from './dto/validate-decision.dto';
 import { AnchorCallbackDto }     from './dto/anchor-callback.dto';
 import { AiResultDto }           from './dto/ai-result.dto';
+import { SubmitTallyDto }       from './dto/submit-tally.dto';
 import { CapsuleStatus }         from './entities/evidence-capsule.entity';
 
 @Controller()
@@ -196,6 +197,26 @@ export class EvidenceController {
     @Body() dto: AiResultDto,
   ): Promise<void> {
     await this.evidenceService.recordAiResult(id, dto.routingDecision);
+  }
+
+  // ── Tally submission (Form A data from mobile agent) ───────────────────────
+
+  /**
+   * PATCH /evidence/capsules/:id/tally
+   * Field agent submits Form A tally data (registered voters, ballots, candidate votes).
+   * Validates IEBC mathematical rules (Elections Regulations 2012).
+   *
+   * Header required:
+   *   X-Agent-User-Id: UUID of the authenticated agent
+   */
+  @Patch('capsules/:id/tally')
+  @HttpCode(HttpStatus.OK)
+  async submitTally(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: SubmitTallyDto,
+    @Headers('x-agent-user-id') agentUserId: string,
+  ) {
+    return this.evidenceService.submitTally(id, dto, agentUserId ?? 'unknown');
   }
 
   // ── Stats ─────────────────────────────────────────────────────
