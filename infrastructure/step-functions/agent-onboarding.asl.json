@@ -1,0 +1,287 @@
+{
+  "Comment": "VoteCapsule Agent Onboarding — Creates user, assigns role, verifies identity, assigns polling station, issues credentials, and sends welcome notification.",
+  "StartAt": "CreateUser",
+  "States": {
+    "CreateUser": {
+      "Type": "Task",
+      "Comment": "Create user account via Identity Service (port 3001): POST /api/v1/users",
+      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Parameters": {
+        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
+        "Method": "POST",
+        "Stage": "prod",
+        "Path": "/api/v1/users",
+        "RequestBody": {
+          "email.$": "$.email",
+          "fullName.$": "$.fullName",
+          "phoneNumber.$": "$.phoneNumber",
+          "nationalId.$": "$.nationalId",
+          "tenantId.$": "$.tenantId"
+        },
+        "Headers": {
+          "Content-Type": ["application/json"],
+          "X-Service-Auth": ["step-functions-internal"]
+        },
+        "AuthType": "IAM_ROLE"
+      },
+      "ResultPath": "$.user",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "OnboardingError"
+        }
+      ],
+      "Next": "AssignRole"
+    },
+
+    "AssignRole": {
+      "Type": "Task",
+      "Comment": "Assign AGENT role via Identity Service (port 3001): POST /api/v1/roles/assign",
+      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Parameters": {
+        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
+        "Method": "POST",
+        "Stage": "prod",
+        "Path": "/api/v1/roles/assign",
+        "RequestBody": {
+          "userId.$": "$.user.ResponseBody.userId",
+          "roleCode": "AGENT",
+          "tenantId.$": "$.tenantId"
+        },
+        "Headers": {
+          "Content-Type": ["application/json"],
+          "X-Service-Auth": ["step-functions-internal"]
+        },
+        "AuthType": "IAM_ROLE"
+      },
+      "ResultPath": "$.role",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "OnboardingError"
+        }
+      ],
+      "Next": "VerifyIdentity"
+    },
+
+    "VerifyIdentity": {
+      "Type": "Task",
+      "Comment": "Verify agent national ID against IEBC voter register via Geography Service (port 3004).",
+      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Parameters": {
+        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
+        "Method": "POST",
+        "Stage": "prod",
+        "Path": "/api/v1/geography/voters/verify",
+        "RequestBody": {
+          "nationalId.$": "$.nationalId",
+          "fullName.$": "$.fullName",
+          "userId.$": "$.user.ResponseBody.userId"
+        },
+        "Headers": {
+          "Content-Type": ["application/json"],
+          "X-Service-Auth": ["step-functions-internal"]
+        },
+        "AuthType": "IAM_ROLE"
+      },
+      "ResultPath": "$.identity",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 3,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "OnboardingError"
+        }
+      ],
+      "Next": "AssignStation"
+    },
+
+    "AssignStation": {
+      "Type": "Task",
+      "Comment": "Assign agent to a polling station via Geography Service (port 3004). Uses the station from the voter register or the requested station.",
+      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Parameters": {
+        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
+        "Method": "POST",
+        "Stage": "prod",
+        "Path": "/api/v1/geography/stations/assign-agent",
+        "RequestBody": {
+          "userId.$": "$.user.ResponseBody.userId",
+          "stationId.$": "$.stationId",
+          "electionId.$": "$.electionId",
+          "tenantId.$": "$.tenantId"
+        },
+        "Headers": {
+          "Content-Type": ["application/json"],
+          "X-Service-Auth": ["step-functions-internal"]
+        },
+        "AuthType": "IAM_ROLE"
+      },
+      "ResultPath": "$.station",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "OnboardingError"
+        }
+      ],
+      "Next": "IssueCredentials"
+    },
+
+    "IssueCredentials": {
+      "Type": "Task",
+      "Comment": "Generate temporary password and API credentials for the agent mobile app. Issues JWT refresh token pair.",
+      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Parameters": {
+        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
+        "Method": "POST",
+        "Stage": "prod",
+        "Path": "/api/v1/auth/credentials/issue",
+        "RequestBody": {
+          "userId.$": "$.user.ResponseBody.userId",
+          "tenantId.$": "$.tenantId",
+          "deviceType": "MOBILE"
+        },
+        "Headers": {
+          "Content-Type": ["application/json"],
+          "X-Service-Auth": ["step-functions-internal"]
+        },
+        "AuthType": "IAM_ROLE"
+      },
+      "ResultPath": "$.credentials",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "OnboardingError"
+        }
+      ],
+      "Next": "SendWelcome"
+    },
+
+    "SendWelcome": {
+      "Type": "Task",
+      "Comment": "Send welcome notification with setup instructions via Notification Service (port 3008). Sends both push and email.",
+      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Parameters": {
+        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
+        "Method": "POST",
+        "Stage": "prod",
+        "Path": "/api/v1/notifications",
+        "RequestBody": {
+          "userId.$": "$.user.ResponseBody.userId",
+          "channel": "EMAIL",
+          "title": "Welcome to VoteCapsule — Agent Onboarding Complete",
+          "body.$": "States.Format('Welcome {}! You have been assigned to station {}. Download the VoteCapsule Agent app and sign in with your credentials.', $.fullName, $.stationId)",
+          "data": {
+            "type": "AGENT_ONBOARDED",
+            "stationId.$": "$.stationId"
+          }
+        },
+        "Headers": {
+          "Content-Type": ["application/json"],
+          "X-Service-Auth": ["step-functions-internal"]
+        },
+        "AuthType": "IAM_ROLE"
+      },
+      "ResultPath": "$.welcome",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "Complete"
+        }
+      ],
+      "Next": "Complete"
+    },
+
+    "OnboardingError": {
+      "Type": "Task",
+      "Comment": "Log onboarding failure and notify admin.",
+      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Parameters": {
+        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
+        "Method": "POST",
+        "Stage": "prod",
+        "Path": "/api/v1/notifications",
+        "RequestBody": {
+          "userId": "SUPER_ADMIN",
+          "channel": "PUSH",
+          "title": "Agent Onboarding Failed",
+          "body.$": "States.Format('Onboarding failed for {} ({}). Manual intervention required.', $.fullName, $.email)",
+          "data": {
+            "type": "ONBOARDING_FAILED",
+            "email.$": "$.email"
+          }
+        },
+        "Headers": {
+          "Content-Type": ["application/json"],
+          "X-Service-Auth": ["step-functions-internal"]
+        },
+        "AuthType": "IAM_ROLE"
+      },
+      "ResultPath": "$.errorNotification",
+      "Next": "Failed"
+    },
+
+    "Complete": {
+      "Type": "Succeed",
+      "Comment": "Agent onboarding completed successfully."
+    },
+
+    "Failed": {
+      "Type": "Fail",
+      "Cause": "Agent onboarding failed — see error details.",
+      "Error": "AgentOnboardingError"
+    }
+  }
+}

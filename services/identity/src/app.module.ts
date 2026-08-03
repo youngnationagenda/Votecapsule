@@ -12,6 +12,7 @@ import { RolesModule } from './roles/roles.module';
 import { InvitationsModule } from './invitations/invitations.module';
 import { DevicesModule } from './devices/devices.module';
 import { DatabaseModule } from './database/database.module';
+import { CacheModule } from './cache/cache.module';
 
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { AuditInterceptor } from './common/audit.interceptor';
@@ -45,6 +46,9 @@ import { AuditInterceptor } from './common/audit.interceptor';
 
     // Database connection
     DatabaseModule,
+
+    // Redis session/cache (global)
+    CacheModule,
 
     // Feature modules
     AuthModule,

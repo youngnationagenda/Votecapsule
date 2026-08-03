@@ -1,0 +1,789 @@
+{
+  "Comment": "VoteCapsule Evidence Pipeline — Flagship Orchestration. Receives agent mobile capsule uploads, validates integrity, stores to S3 WORM vault, runs AI verification, anchors to Hedera+RFC3161, and notifies the agent.",
+  "StartAt": "ReceiveUpload",
+  "States": {
+    "ReceiveUpload": {
+      "Type": "Task",
+      "Comment": "Receive capsule upload from agent mobile app. Extracts capsuleId, agentUserId, sha256Hash, metadata, captureTimestamp from the event payload.",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:us-east-1:683541453923:function:vote-capsule-receive-upload",
+        "Payload": {
+          "capsuleId.$": "$.capsuleId",
+          "agentUserId.$": "$.agentUserId",
+          "tenantId.$": "$.tenantId",
+          "electionId.$": "$.electionId",
+          "stationId.$": "$.stationId",
+          "imageSHA256.$": "$.imageSHA256",
+          "metadata.$": "$.metadata",
+          "captureTimestamp.$": "$.captureTimestamp",
+          "fileKey.$": "$.fileKey",
+          "fileSize.$": "$.fileSize"
+        }
+      },
+      "ResultPath": "$.upload",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException", "Lambda.TooManyRequestsException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "ErrorHandler"
+        }
+      ],
+      "Next": "ValidateIntegrity"
+    },
+
+    "ValidateIntegrity": {
+      "Type": "Task",
+      "Comment": "Verify SHA-256 composite hash: SHA-256(imageSHA256 + sortedMetadataJSON + captureTimestamp). Rejects tampered capsules immediately.",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:us-east-1:683541453923:function:vote-capsule-validate-integrity",
+        "Payload": {
+          "capsuleId.$": "$.capsuleId",
+          "imageSHA256.$": "$.imageSHA256",
+          "metadata.$": "$.metadata",
+          "captureTimestamp.$": "$.captureTimestamp",
+          "declaredHash.$": "$.upload.Payload.compositeHash"
+        }
+      },
+      "ResultPath": "$.integrity",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["IntegrityValidationFailed"],
+          "ResultPath": "$.error",
+          "Next": "NotifyRejection"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "ErrorHandler"
+        }
+      ],
+      "Next": "StoreToS3"
+    },
+
+    "StoreToS3": {
+      "Type": "Task",
+      "Comment": "Store evidence capsule to S3 vault with Object Lock COMPLIANCE mode. Bucket: vote-capsule-evidence-vault-v2-683541453923. Versioning enabled, SSE-S3 encryption.",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:us-east-1:683541453923:function:vote-capsule-store-evidence",
+        "Payload": {
+          "capsuleId.$": "$.capsuleId",
+          "fileKey.$": "$.fileKey",
+          "bucket": "vote-capsule-evidence-vault-v2-683541453923",
+          "compositeHash.$": "$.integrity.Payload.verifiedHash",
+          "metadata": {
+            "tenantId.$": "$.tenantId",
+            "electionId.$": "$.electionId",
+            "stationId.$": "$.stationId",
+            "agentUserId.$": "$.agentUserId",
+            "captureTimestamp.$": "$.captureTimestamp"
+          }
+        }
+      },
+      "ResultPath": "$.storage",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException", "Lambda.SdkClientException"],
+          "IntervalSeconds": 3,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "ErrorHandler"
+        }
+      ],
+      "Next": "TriggerAIVerification"
+    },
+
+    "TriggerAIVerification": {
+      "Type": "Task",
+      "Comment": "Call AI Service (port 3006): POST /api/v1/ai/verify with capsuleId. AI performs image analysis, metadata consistency checks, and anomaly detection.",
+      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Parameters": {
+        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
+        "Method": "POST",
+        "Stage": "prod",
+        "Path": "/api/v1/ai/verify",
+        "RequestBody": {
+          "capsuleId.$": "$.capsuleId",
+          "tenantId.$": "$.tenantId",
+          "electionId.$": "$.electionId",
+          "stationId.$": "$.stationId",
+          "s3Key.$": "$.storage.Payload.s3Key",
+          "s3VersionId.$": "$.storage.Payload.s3VersionId"
+        },
+        "Headers": {
+          "Content-Type": ["application/json"],
+          "X-Service-Auth": ["step-functions-internal"]
+        },
+        "AuthType": "IAM_ROLE"
+      },
+      "ResultPath": "$.aiTrigger",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "ErrorHandler"
+        }
+      ],
+      "Next": "WaitForAIResult"
+    },
+
+    "WaitForAIResult": {
+      "Type": "Wait",
+      "Comment": "Wait 30 seconds for AI verification to complete. The AI service processes asynchronously — image analysis, GPS validation, timestamp cross-check.",
+      "Seconds": 30,
+      "Next": "PollAIResult"
+    },
+
+    "PollAIResult": {
+      "Type": "Task",
+      "Comment": "Poll AI Service for job result: GET /api/v1/ai/jobs/capsule/:capsuleId",
+      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Parameters": {
+        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
+        "Method": "GET",
+        "Stage": "prod",
+        "Path.$": "States.Format('/api/v1/ai/jobs/capsule/{}', $.capsuleId)",
+        "Headers": {
+          "Content-Type": ["application/json"],
+          "X-Service-Auth": ["step-functions-internal"]
+        },
+        "AuthType": "IAM_ROLE"
+      },
+      "ResultPath": "$.aiResult",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "ErrorHandler"
+        }
+      ],
+      "Next": "CheckAIStatus"
+    },
+
+    "CheckAIStatus": {
+      "Type": "Choice",
+      "Comment": "Check if AI job is still processing. If PENDING/PROCESSING, wait and poll again (max 3 cycles = 90s total).",
+      "Choices": [
+        {
+          "Variable": "$.aiResult.ResponseBody.status",
+          "StringEquals": "COMPLETED",
+          "Next": "CheckAIDecision"
+        },
+        {
+          "Variable": "$.aiResult.ResponseBody.status",
+          "StringEquals": "FAILED",
+          "Next": "ErrorHandler"
+        }
+      ],
+      "Default": "WaitForAIRetry"
+    },
+
+    "WaitForAIRetry": {
+      "Type": "Wait",
+      "Comment": "AI still processing — wait 15 more seconds before polling again.",
+      "Seconds": 15,
+      "Next": "PollAIResult"
+    },
+
+    "CheckAIDecision": {
+      "Type": "Choice",
+      "Comment": "Route based on AI verification decision. APPROVED: proceed to Trust Anchor. REJECTED: notify agent. NEEDS_REVIEW: escalate to human validator.",
+      "Choices": [
+        {
+          "Variable": "$.aiResult.ResponseBody.routingDecision",
+          "StringEquals": "APPROVED",
+          "Next": "TrustAnchor"
+        },
+        {
+          "Variable": "$.aiResult.ResponseBody.routingDecision",
+          "StringEquals": "REJECTED",
+          "Next": "NotifyRejection"
+        },
+        {
+          "Variable": "$.aiResult.ResponseBody.routingDecision",
+          "StringEquals": "NEEDS_REVIEW",
+          "Next": "HumanReview"
+        }
+      ],
+      "Default": "HumanReview"
+    },
+
+    "HumanReview": {
+      "Type": "Task",
+      "Comment": "Activity task — a human validator on the Validator Mobile app reviews the capsule. The validator approves or rejects via PATCH /ai/anomalies/:anomalyId/review. Timeout: 24 hours.",
+      "Resource": "arn:aws:states:us-east-1:683541453923:activity:vote-capsule-human-review",
+      "TimeoutSeconds": 86400,
+      "HeartbeatSeconds": 3600,
+      "ResultPath": "$.humanReview",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.Timeout"],
+          "IntervalSeconds": 0,
+          "MaxAttempts": 0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.Timeout"],
+          "ResultPath": "$.error",
+          "Next": "EscalateTimeout"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "ErrorHandler"
+        }
+      ],
+      "Next": "CheckHumanDecision"
+    },
+
+    "CheckHumanDecision": {
+      "Type": "Choice",
+      "Comment": "Route based on human validator decision.",
+      "Choices": [
+        {
+          "Variable": "$.humanReview.decision",
+          "StringEquals": "APPROVED",
+          "Next": "TrustAnchor"
+        },
+        {
+          "Variable": "$.humanReview.decision",
+          "StringEquals": "REJECTED",
+          "Next": "NotifyRejection"
+        }
+      ],
+      "Default": "NotifyRejection"
+    },
+
+    "EscalateTimeout": {
+      "Type": "Task",
+      "Comment": "Human review timed out (24h). Escalate to super-admin via Notification service.",
+      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Parameters": {
+        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
+        "Method": "POST",
+        "Stage": "prod",
+        "Path": "/api/v1/notifications",
+        "RequestBody": {
+          "userId": "SUPER_ADMIN",
+          "channel": "PUSH",
+          "title": "Evidence Review Timeout",
+          "body.$": "States.Format('Capsule {} has not been reviewed within 24 hours. Escalating.', $.capsuleId)",
+          "data": {
+            "type": "REVIEW_TIMEOUT",
+            "capsuleId.$": "$.capsuleId"
+          }
+        },
+        "Headers": {
+          "Content-Type": ["application/json"],
+          "X-Service-Auth": ["step-functions-internal"]
+        },
+        "AuthType": "IAM_ROLE"
+      },
+      "ResultPath": "$.escalation",
+      "Next": "HumanReview"
+    },
+
+    "TrustAnchor": {
+      "Type": "Task",
+      "Comment": "Call Trust Service (port 3003): POST /api/v1/trust/anchor. Queues the capsule SHA-256 hash for Merkle batch anchoring to Hedera Consensus Service + RFC 3161 TSA dual-anchor.",
+      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Parameters": {
+        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
+        "Method": "POST",
+        "Stage": "prod",
+        "Path": "/api/v1/trust/anchor",
+        "RequestBody": {
+          "capsuleId.$": "$.capsuleId",
+          "sha256Hash.$": "$.integrity.Payload.verifiedHash",
+          "tenantId.$": "$.tenantId",
+          "electionId.$": "$.electionId"
+        },
+        "Headers": {
+          "Content-Type": ["application/json"],
+          "X-Service-Auth": ["step-functions-internal"]
+        },
+        "AuthType": "IAM_ROLE"
+      },
+      "ResultPath": "$.anchor",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "ErrorHandler"
+        }
+      ],
+      "Next": "WaitForAnchor"
+    },
+
+    "WaitForAnchor": {
+      "Type": "Wait",
+      "Comment": "Wait 60 seconds for Hedera Consensus Service submission + RFC 3161 TSA response. The Trust Service batches hashes into a Merkle tree every 60s.",
+      "Seconds": 60,
+      "Next": "PollAnchorStatus"
+    },
+
+    "PollAnchorStatus": {
+      "Type": "Task",
+      "Comment": "Poll Trust Service for dual-anchor confirmation: GET /api/v1/trust/verify/:capsuleId",
+      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Parameters": {
+        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
+        "Method": "GET",
+        "Stage": "prod",
+        "Path.$": "States.Format('/api/v1/trust/verify/{}', $.capsuleId)",
+        "Headers": {
+          "Content-Type": ["application/json"],
+          "X-Service-Auth": ["step-functions-internal"]
+        },
+        "AuthType": "IAM_ROLE"
+      },
+      "ResultPath": "$.anchorStatus",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 10,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "ErrorHandler"
+        }
+      ],
+      "Next": "CheckAnchorConfirmation"
+    },
+
+    "CheckAnchorConfirmation": {
+      "Type": "Choice",
+      "Comment": "Verify both Hedera and RFC 3161 anchors are confirmed. Both must succeed for full trust.",
+      "Choices": [
+        {
+          "And": [
+            {
+              "Variable": "$.anchorStatus.ResponseBody.hederaStatus",
+              "StringEquals": "CONFIRMED"
+            },
+            {
+              "Variable": "$.anchorStatus.ResponseBody.rfc3161Status",
+              "StringEquals": "CONFIRMED"
+            }
+          ],
+          "Next": "ApplyObjectLock"
+        },
+        {
+          "Or": [
+            {
+              "Variable": "$.anchorStatus.ResponseBody.hederaStatus",
+              "StringEquals": "PENDING"
+            },
+            {
+              "Variable": "$.anchorStatus.ResponseBody.rfc3161Status",
+              "StringEquals": "PENDING"
+            }
+          ],
+          "Next": "WaitForAnchorRetry"
+        }
+      ],
+      "Default": "ErrorHandler"
+    },
+
+    "WaitForAnchorRetry": {
+      "Type": "Wait",
+      "Comment": "Anchor not yet confirmed — wait 30s and poll again.",
+      "Seconds": 30,
+      "Next": "PollAnchorStatus"
+    },
+
+    "ApplyObjectLock": {
+      "Type": "Task",
+      "Comment": "Apply S3 Object Lock COMPLIANCE mode with 10-year retention to the anchored evidence capsule. Once applied, the object cannot be deleted or overwritten by anyone including root.",
+      "Resource": "arn:aws:states:::aws-sdk:S3:putObjectRetention",
+      "Parameters": {
+        "Bucket": "vote-capsule-evidence-vault-v2-683541453923",
+        "Key.$": "$.storage.Payload.s3Key",
+        "VersionId.$": "$.storage.Payload.s3VersionId",
+        "Retention": {
+          "Mode": "COMPLIANCE",
+          "RetainUntilDate.$": "$.storage.Payload.retainUntilDate"
+        }
+      },
+      "ResultPath": "$.objectLock",
+      "Retry": [
+        {
+          "ErrorEquals": ["S3.S3Exception", "S3.SdkClientException"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "ErrorHandler"
+        }
+      ],
+      "Next": "UpdateStatus"
+    },
+
+    "UpdateStatus": {
+      "Type": "Task",
+      "Comment": "Update evidence_capsules.status = 'ANCHORED' in PostgreSQL via Evidence Service (port 3005). Also stores Hedera txId and RFC 3161 token reference.",
+      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Parameters": {
+        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
+        "Method": "PATCH",
+        "Stage": "prod",
+        "Path.$": "States.Format('/api/v1/evidence/capsules/{}/status', $.capsuleId)",
+        "RequestBody": {
+          "status": "ANCHORED",
+          "hederaTransactionId.$": "$.anchorStatus.ResponseBody.hederaTransactionId",
+          "rfc3161TokenRef.$": "$.anchorStatus.ResponseBody.rfc3161TokenRef",
+          "merkleRoot.$": "$.anchorStatus.ResponseBody.merkleRoot",
+          "objectLockApplied": true,
+          "objectLockRetainUntil.$": "$.storage.Payload.retainUntilDate"
+        },
+        "Headers": {
+          "Content-Type": ["application/json"],
+          "X-Service-Auth": ["step-functions-internal"]
+        },
+        "AuthType": "IAM_ROLE"
+      },
+      "ResultPath": "$.statusUpdate",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 3,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "ErrorHandler"
+        }
+      ],
+      "Next": "LogAuditEvent"
+    },
+
+    "LogAuditEvent": {
+      "Type": "Task",
+      "Comment": "Log the complete evidence anchoring event to Audit Service (port 3012) for compliance trail.",
+      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Parameters": {
+        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
+        "Method": "POST",
+        "Stage": "prod",
+        "Path": "/api/v1/audit/events",
+        "RequestBody": {
+          "eventType": "EVIDENCE_ANCHORED",
+          "actorId": "system:step-functions",
+          "resourceType": "evidence_capsule",
+          "resourceId.$": "$.capsuleId",
+          "tenantId.$": "$.tenantId",
+          "metadata": {
+            "electionId.$": "$.electionId",
+            "stationId.$": "$.stationId",
+            "agentUserId.$": "$.agentUserId",
+            "hederaTransactionId.$": "$.anchorStatus.ResponseBody.hederaTransactionId",
+            "rfc3161TokenRef.$": "$.anchorStatus.ResponseBody.rfc3161TokenRef",
+            "s3Key.$": "$.storage.Payload.s3Key",
+            "objectLockMode": "COMPLIANCE"
+          }
+        },
+        "Headers": {
+          "Content-Type": ["application/json"],
+          "X-Service-Auth": ["step-functions-internal"]
+        },
+        "AuthType": "IAM_ROLE"
+      },
+      "ResultPath": "$.auditLog",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "NotifyAgent"
+        }
+      ],
+      "Next": "NotifyAgent"
+    },
+
+    "NotifyAgent": {
+      "Type": "Task",
+      "Comment": "Call Notification Service (port 3008): POST /api/v1/notifications. Push notification to agent mobile confirming capsule is anchored and tamper-proof.",
+      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Parameters": {
+        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
+        "Method": "POST",
+        "Stage": "prod",
+        "Path": "/api/v1/notifications",
+        "RequestBody": {
+          "userId.$": "$.agentUserId",
+          "channel": "PUSH",
+          "title": "Evidence Capsule Anchored",
+          "body.$": "States.Format('Your evidence capsule {} has been verified by AI, anchored to Hedera + RFC 3161, and locked with 10-year COMPLIANCE retention. It is now tamper-proof.', $.capsuleId)",
+          "data": {
+            "type": "CAPSULE_ANCHORED",
+            "capsuleId.$": "$.capsuleId",
+            "hederaTransactionId.$": "$.anchorStatus.ResponseBody.hederaTransactionId"
+          }
+        },
+        "Headers": {
+          "Content-Type": ["application/json"],
+          "X-Service-Auth": ["step-functions-internal"]
+        },
+        "AuthType": "IAM_ROLE"
+      },
+      "ResultPath": "$.notification",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "Complete"
+        }
+      ],
+      "Next": "Complete"
+    },
+
+    "NotifyRejection": {
+      "Type": "Task",
+      "Comment": "Notify agent that their capsule was rejected (integrity failure or AI/human rejection). Includes reason for rejection.",
+      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Parameters": {
+        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
+        "Method": "POST",
+        "Stage": "prod",
+        "Path": "/api/v1/notifications",
+        "RequestBody": {
+          "userId.$": "$.agentUserId",
+          "channel": "PUSH",
+          "title": "Evidence Capsule Rejected",
+          "body.$": "States.Format('Your evidence capsule {} was rejected. Please re-capture the evidence following the guidelines.', $.capsuleId)",
+          "data": {
+            "type": "CAPSULE_REJECTED",
+            "capsuleId.$": "$.capsuleId"
+          }
+        },
+        "Headers": {
+          "Content-Type": ["application/json"],
+          "X-Service-Auth": ["step-functions-internal"]
+        },
+        "AuthType": "IAM_ROLE"
+      },
+      "ResultPath": "$.rejectionNotification",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "UpdateRejectedStatus"
+        }
+      ],
+      "Next": "UpdateRejectedStatus"
+    },
+
+    "UpdateRejectedStatus": {
+      "Type": "Task",
+      "Comment": "Update evidence_capsules.status = 'REJECTED' via Evidence Service.",
+      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Parameters": {
+        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
+        "Method": "PATCH",
+        "Stage": "prod",
+        "Path.$": "States.Format('/api/v1/evidence/capsules/{}/status', $.capsuleId)",
+        "RequestBody": {
+          "status": "REJECTED"
+        },
+        "Headers": {
+          "Content-Type": ["application/json"],
+          "X-Service-Auth": ["step-functions-internal"]
+        },
+        "AuthType": "IAM_ROLE"
+      },
+      "ResultPath": "$.rejectedStatusUpdate",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 2,
+          "MaxAttempts": 3,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "Failed"
+        }
+      ],
+      "Next": "Failed"
+    },
+
+    "ErrorHandler": {
+      "Type": "Task",
+      "Comment": "Central error handler. Logs full error context to CloudWatch via Audit Service and sends alert to super-admin via Notification Service.",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:us-east-1:683541453923:function:vote-capsule-pipeline-error-handler",
+        "Payload": {
+          "capsuleId.$": "$.capsuleId",
+          "agentUserId.$": "$.agentUserId",
+          "tenantId.$": "$.tenantId",
+          "error.$": "$.error",
+          "stateMachineId": "evidence-pipeline",
+          "timestamp.$": "$$.State.EnteredTime"
+        }
+      },
+      "ResultPath": "$.errorHandling",
+      "Retry": [
+        {
+          "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.fatalError",
+          "Next": "Failed"
+        }
+      ],
+      "Next": "NotifyErrorAlert"
+    },
+
+    "NotifyErrorAlert": {
+      "Type": "Task",
+      "Comment": "Send critical error alert to super-admin and operations team.",
+      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Parameters": {
+        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
+        "Method": "POST",
+        "Stage": "prod",
+        "Path": "/api/v1/notifications/bulk",
+        "RequestBody": {
+          "userIds": ["SUPER_ADMIN", "OPS_TEAM"],
+          "channel": "PUSH",
+          "title": "Evidence Pipeline Error",
+          "body.$": "States.Format('Pipeline error for capsule {}. Manual intervention required.', $.capsuleId)",
+          "data": {
+            "type": "PIPELINE_ERROR",
+            "capsuleId.$": "$.capsuleId",
+            "severity": "CRITICAL"
+          }
+        },
+        "Headers": {
+          "Content-Type": ["application/json"],
+          "X-Service-Auth": ["step-functions-internal"]
+        },
+        "AuthType": "IAM_ROLE"
+      },
+      "ResultPath": "$.errorAlert",
+      "Retry": [
+        {
+          "ErrorEquals": ["States.TaskFailed"],
+          "IntervalSeconds": 5,
+          "MaxAttempts": 2,
+          "BackoffRate": 2.0
+        }
+      ],
+      "Catch": [
+        {
+          "ErrorEquals": ["States.ALL"],
+          "Next": "Failed"
+        }
+      ],
+      "Next": "Failed"
+    },
+
+    "Complete": {
+      "Type": "Succeed",
+      "Comment": "Evidence pipeline completed successfully. Capsule is verified, anchored, locked, and agent notified."
+    },
+
+    "Failed": {
+      "Type": "Fail",
+      "Comment": "Evidence pipeline failed after error handling.",
+      "Cause": "Pipeline execution failed — see error details in execution history and CloudWatch logs.",
+      "Error": "EvidencePipelineError"
+    }
+  }
+}

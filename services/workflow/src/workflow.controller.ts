@@ -133,7 +133,10 @@ export class WorkflowController {
   }
 
   /**
-   * POST /workflow/sla-check
+   * POST /workflow/sla-check  (dash variant — legacy)
+   * POST /workflow/sla/check  (slash variant — EventBridge API destination target)
+   *
+   * Both routes call the same SLA deadline scan.
    * Called by EventBridge Scheduler every 15 minutes.
    * Scans for overdue workflows and creates escalations.
    */
@@ -141,6 +144,14 @@ export class WorkflowController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Run SLA deadline check (EventBridge Scheduler, every 15 min)' })
   async slaCheck() {
+    const escalated = await this.workflowService.checkSlaDeadlines();
+    return { escalated, checkedAt: new Date().toISOString() };
+  }
+
+  @Post('sla/check')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Run SLA deadline check — slash path (EventBridge HTTP target)' })
+  async slaCheckSlash() {
     const escalated = await this.workflowService.checkSlaDeadlines();
     return { escalated, checkedAt: new Date().toISOString() };
   }

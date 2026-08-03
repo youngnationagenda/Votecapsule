@@ -37,6 +37,7 @@
     "uuid": "^11.0.3",
     "aws-sdk": "^2.1692.0",
     "@aws-sdk/client-cognito-identity-provider": "^3.750.0",
+    "ioredis": "^5.4.2",
     "helmet": "^8.0.0",
     "compression": "^1.7.4",
     "@vote-capsule/types": "workspace:*",

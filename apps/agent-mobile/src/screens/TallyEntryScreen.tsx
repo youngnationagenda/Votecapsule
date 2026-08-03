@@ -36,6 +36,7 @@ import { getCapsule } from '../utils/storage';
 import { updateCapsule } from '../utils/storage';
 import { useCaptureStore } from '../store/captureStore';
 import { useFocusEffect } from '@react-navigation/native';
+import { submitTallyData } from '../services/api';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'TallyEntry'>;
@@ -287,6 +288,35 @@ export default function TallyEntryScreen({ navigation, route }: Props) {
 
     // Persist validated tally data to the capsule in AsyncStorage
     await updateCapsule(route.params.localId, { tallyData });
+
+    // If the capsule is already uploaded (has a serverId), send tally data to server now.
+    // If not yet uploaded, the syncEngine will include tallyData in the upload FormData.
+    const latestCapsule = await getCapsule(route.params.localId);
+    if (latestCapsule?.serverId) {
+      try {
+        await submitTallyData(latestCapsule.serverId, {
+          formType:             tallyData.formType,
+          registeredVoters:     tallyData.registeredVoters,
+          ballotsIssued:        tallyData.ballotsIssued,
+          spoiltBallots:        tallyData.spoiltBallots,
+          rejectedBallots:      tallyData.rejectedBallots,
+          validVotes:           tallyData.validVotes,
+          candidates:           tallyData.candidates.map((c) => ({
+            ballotNumber:      c.ballotNumber,
+            candidateName:     c.candidateName,
+            runningMateName:   c.runningMateName,
+            deputyName:        c.deputyName,
+            partyAbbreviation: c.partyAbbreviation,
+            votes:             c.votes,
+          })),
+          presidingOfficerName: tallyData.presidingOfficerName,
+          declaredAt:           tallyData.declaredAt,
+        });
+      } catch (err: unknown) {
+        // Non-fatal — tally is saved locally, sync will retry
+        console.warn('Failed to send tally to server (will retry on next sync):', err);
+      }
+    }
 
     // Reset capture session and navigate to queue
     resetSession();

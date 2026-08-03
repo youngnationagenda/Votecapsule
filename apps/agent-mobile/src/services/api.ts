@@ -175,6 +175,48 @@ export async function updateSyncStatus(
   await api.patch(`/api/v1/evidence/capsules/${serverId}/sync`, { syncStatus });
 }
 
+/**
+ * Submit Form A tally data for an already-uploaded capsule.
+ *
+ * Called by TallyEntryScreen after the agent enters tally figures.
+ * If the capsule has already been uploaded (serverId is known),
+ * this sends the structured Form A data to the Evidence Service.
+ *
+ * The server validates:
+ *   - ballotsIssued = validVotes + rejectedBallots + spoiltBallots
+ *   - sum(candidate votes) = validVotes
+ *   - validVotes <= registeredVoters
+ *
+ * Returns the updated capsule record with tallyValidationStatus.
+ */
+export async function submitTallyData(
+  serverId: string,
+  tallyData: {
+    formType: string;
+    registeredVoters: number;
+    ballotsIssued: number;
+    spoiltBallots: number;
+    rejectedBallots: number;
+    validVotes: number;
+    candidates: Array<{
+      ballotNumber: number;
+      candidateName: string;
+      runningMateName?: string;
+      deputyName?: string;
+      partyAbbreviation: string;
+      votes: number;
+    }>;
+    presidingOfficerName: string;
+    declaredAt?: string;
+  },
+): Promise<{ id: string; tallyValidationStatus: string }> {
+  const res = await api.patch<{ id: string; tallyValidationStatus: string }>(
+    `/api/v1/evidence/capsules/${serverId}/tally`,
+    tallyData,
+  );
+  return res.data;
+}
+
 // ── Election Service endpoints ─────────────────────────────────
 
 /**
