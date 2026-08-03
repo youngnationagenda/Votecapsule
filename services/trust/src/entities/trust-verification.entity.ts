@@ -33,7 +33,7 @@ export class TrustVerification {
   @Column({ name: 'requester_type', type: 'varchar', length: 50, enum: RequesterType })
   requesterType: RequesterType;
 
-  @Column({ name: 'requester_id', length: 255, nullable: true })
+  @Column({ name: 'requester_id', type: 'varchar', length: 255, nullable: true })
   requesterId: string | null;
 
   /** TRUE = Merkle proof recomputes to the anchored root */

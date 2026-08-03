@@ -44,7 +44,7 @@ export class AiVerificationJob {
   @Column({ name: 'iebc_station_code', type: 'char', length: 15 })
   iebcStationCode: string;
 
-  @Column({ name: 'position_code', length: 50 })
+  @Column({ name: 'position_code', type: 'varchar', length: 50 })
   positionCode: string;
 
   @Column({ name: 'election_year', type: 'smallint' })
@@ -65,19 +65,19 @@ export class AiVerificationJob {
   @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })
   completedAt: Date | null;
 
-  @Column({ name: 'duration_ms', nullable: true })
+  @Column({ name: 'duration_ms', type: 'integer', nullable: true })
   durationMs: number | null;
 
-  @Column({ name: 'textract_job_id', length: 255, nullable: true })
+  @Column({ name: 'textract_job_id', type: 'varchar', length: 255, nullable: true })
   textractJobId: string | null;
 
   @Column({ name: 'textract_status', type: 'varchar', length: 30, nullable: true, enum: TextractStatus })
   textractStatus: TextractStatus | null;
 
-  @Column({ name: 's3_bucket', length: 255, nullable: true })
+  @Column({ name: 's3_bucket', type: 'varchar', length: 255, nullable: true })
   s3Bucket: string | null;
 
-  @Column({ name: 's3_key', length: 500, nullable: true })
+  @Column({ name: 's3_key', type: 'varchar', length: 500, nullable: true })
   s3Key: string | null;
 
   @Column({ name: 'ocr_confidence', type: 'numeric', precision: 5, scale: 4, nullable: true })
@@ -116,25 +116,25 @@ export class AiVerificationJob {
   @Column({ name: 'extracted_station_code', type: 'char', length: 15, nullable: true })
   extractedStationCode: string | null;
 
-  @Column({ name: 'extracted_station_name', length: 250, nullable: true })
+  @Column({ name: 'extracted_station_name', type: 'varchar', length: 250, nullable: true })
   extractedStationName: string | null;
 
-  @Column({ name: 'extracted_position', length: 100, nullable: true })
+  @Column({ name: 'extracted_position', type: 'varchar', length: 100, nullable: true })
   extractedPosition: string | null;
 
   @Column({ name: 'extracted_stream_number', type: 'smallint', nullable: true })
   extractedStreamNumber: number | null;
 
-  @Column({ name: 'extracted_registered_voters', nullable: true })
+  @Column({ name: 'extracted_registered_voters', type: 'integer', nullable: true })
   extractedRegisteredVoters: number | null;
 
-  @Column({ name: 'extracted_votes_cast', nullable: true })
+  @Column({ name: 'extracted_votes_cast', type: 'integer', nullable: true })
   extractedVotesCast: number | null;
 
-  @Column({ name: 'extracted_valid_votes', nullable: true })
+  @Column({ name: 'extracted_valid_votes', type: 'integer', nullable: true })
   extractedValidVotes: number | null;
 
-  @Column({ name: 'extracted_rejected_votes', nullable: true })
+  @Column({ name: 'extracted_rejected_votes', type: 'integer', nullable: true })
   extractedRejectedVotes: number | null;
 
   @Column({ name: 'raw_ocr_text', type: 'text', nullable: true })
@@ -143,19 +143,19 @@ export class AiVerificationJob {
   @Column({ name: 'ocr_blocks', type: 'jsonb', nullable: true })
   ocrBlocks: Record<string, unknown>[] | null;
 
-  @Column({ name: 'station_code_verified', nullable: true })
+  @Column({ name: 'station_code_verified', type: 'boolean', nullable: true })
   stationCodeVerified: boolean | null;
 
-  @Column({ name: 'station_name_verified', nullable: true })
+  @Column({ name: 'station_name_verified', type: 'boolean', nullable: true })
   stationNameVerified: boolean | null;
 
-  @Column({ name: 'position_verified', nullable: true })
+  @Column({ name: 'position_verified', type: 'boolean', nullable: true })
   positionVerified: boolean | null;
 
-  @Column({ name: 'voter_limit_respected', nullable: true })
+  @Column({ name: 'voter_limit_respected', type: 'boolean', nullable: true })
   voterLimitRespected: boolean | null;
 
-  @Column({ name: 'arithmetic_valid', nullable: true })
+  @Column({ name: 'arithmetic_valid', type: 'boolean', nullable: true })
   arithmeticValid: boolean | null;
 
   @Column({ name: 'attempt_count', type: 'smallint', default: 1 })
