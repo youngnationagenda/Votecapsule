@@ -8,6 +8,8 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { TrustModule }       from './trust.module';
 import { TrustAnchor }       from './entities/trust-anchor.entity';
+import { TrustAnchorBatch }  from './entities/trust-anchor-batch.entity';
+import { TrustAnchorLeaf }   from './entities/trust-anchor-leaf.entity';
 import { TrustVerification } from './entities/trust-verification.entity';
 
 import { APP_INTERCEPTOR } from '@nestjs/core';
@@ -28,8 +30,9 @@ import { AuditInterceptor } from './common/audit.interceptor';
         password:    config.get('DB_PASSWORD', ''),
         database:    config.get('DB_NAME',     'votecapsule'),
         schema:      config.get('DB_SCHEMA',   'public'),
-        entities:    [TrustAnchor, TrustVerification],
+        entities:    [TrustAnchor, TrustAnchorBatch, TrustAnchorLeaf, TrustVerification],
         synchronize: false,
+        autoLoadEntities: true,
         ssl:         config.get('DB_SSL') === 'true'
                        ? { rejectUnauthorized: false }
                        : false,
