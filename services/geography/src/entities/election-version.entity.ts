@@ -23,7 +23,7 @@ export class ElectionVersion {
   @Column({ name: 'total_voters', default: 0 })
   totalVoters: number;
 
-  @Column({ name: 'seeded_at', nullable: true })
+  @Column({ name: 'seeded_at', type: 'timestamptz', nullable: true })
   seededAt: Date | null;
 
   @CreateDateColumn({ name: 'created_at' })

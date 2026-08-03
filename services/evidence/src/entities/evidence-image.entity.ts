@@ -30,7 +30,7 @@ export class EvidenceImage {
   })
   imageType: ImageType;
 
-  @Column({ name: 'original_filename', length: 255, nullable: true })
+  @Column({ name: 'original_filename', type: 'varchar', length: 255, nullable: true })
   originalFilename: string | null;
 
   @Column({ name: 'mime_type', length: 100, default: 'image/jpeg' })
@@ -39,10 +39,10 @@ export class EvidenceImage {
   @Column({ name: 'file_size_bytes' })
   fileSizeBytes: number;
 
-  @Column({ name: 'width_px', nullable: true })
+  @Column({ name: 'width_px', type: 'integer', nullable: true })
   widthPx: number | null;
 
-  @Column({ name: 'height_px', nullable: true })
+  @Column({ name: 'height_px', type: 'integer', nullable: true })
   heightPx: number | null;
 
   /** SHA-256 computed on device at capture time (offline-capable) */
@@ -71,20 +71,20 @@ export class EvidenceImage {
   @Column({ name: 's3_object_locked_at', type: 'timestamptz', nullable: true })
   s3ObjectLockedAt: Date | null;
 
-  @Column({ name: 's3_etag', length: 255, nullable: true })
+  @Column({ name: 's3_etag', type: 'varchar', length: 255, nullable: true })
   s3Etag: string | null;
 
   /** Image quality (set by AI service after upload) */
   @Column({ name: 'quality_score', type: 'numeric', precision: 5, scale: 4, nullable: true })
   qualityScore: number | null;
 
-  @Column({ name: 'is_blurry', nullable: true })
+  @Column({ name: 'is_blurry', type: 'boolean', nullable: true })
   isBlurry: boolean | null;
 
-  @Column({ name: 'is_overexposed', nullable: true })
+  @Column({ name: 'is_overexposed', type: 'boolean', nullable: true })
   isOverexposed: boolean | null;
 
-  @Column({ name: 'is_too_dark', nullable: true })
+  @Column({ name: 'is_too_dark', type: 'boolean', nullable: true })
   isTooDark: boolean | null;
 
   @Column({ name: 'quality_notes', type: 'text', nullable: true })

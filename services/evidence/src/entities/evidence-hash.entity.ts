@@ -21,10 +21,10 @@ export class EvidenceHash {
   @Column({ name: 'image_id', type: 'uuid', nullable: true })
   imageId: string | null;
 
-  @Column({ name: 'hash_type', length: 30, default: 'CAPSULE_COMPOSITE' })
+  @Column({ name: 'hash_type', type: 'varchar', length: 30, default: 'CAPSULE_COMPOSITE' })
   hashType: string;
 
-  @Column({ name: 'algorithm', length: 10, default: 'SHA-256' })
+  @Column({ name: 'algorithm', type: 'varchar', length: 10, default: 'SHA-256' })
   algorithm: string;
 
   /** The actual hash value — 64 hex chars for SHA-256 */
@@ -38,20 +38,20 @@ export class EvidenceHash {
   @Column({ name: 'hashed_components', type: 'jsonb' })
   hashedComponents: Record<string, unknown>;
 
-  @Column({ name: 'computed_on_device', default: true })
+  @Column({ name: 'computed_on_device', type: 'boolean', default: true })
   computedOnDevice: boolean;
 
   @Column({ name: 'device_id', type: 'uuid', nullable: true })
   deviceId: string | null;
 
-  @Column({ name: 'server_verified', default: false })
+  @Column({ name: 'server_verified', type: 'boolean', default: false })
   serverVerified: boolean;
 
   @Column({ name: 'server_verified_at', type: 'timestamptz', nullable: true })
   serverVerifiedAt: Date | null;
 
   /** NULL = not yet verified. TRUE = match. FALSE = tampered. */
-  @Column({ name: 'verification_match', nullable: true })
+  @Column({ name: 'verification_match', type: 'boolean', nullable: true })
   verificationMatch: boolean | null;
 
   /** Filled by Trust Service after Merkle batch is dual-anchored */
@@ -61,7 +61,7 @@ export class EvidenceHash {
   @Column({ name: 'anchored_at', type: 'timestamptz', nullable: true })
   anchoredAt: Date | null;
 
-  @Column({ name: 'anchor_status', length: 30, nullable: true })
+  @Column({ name: 'anchor_status', type: 'varchar', length: 30, nullable: true })
   anchorStatus: string | null;   // PENDING | HEDERA_ONLY | TSA_ONLY | DUAL_ANCHORED | FAILED
 
   @CreateDateColumn({ name: 'created_at' })
