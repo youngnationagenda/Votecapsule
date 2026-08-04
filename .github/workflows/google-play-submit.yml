@@ -1,0 +1,84 @@
+name: Google Play — Submit Agent App to Internal Testing
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'EAS build profile'
+        required: false
+        default: 'production'
+        type: choice
+        options:
+          - production
+          - preview
+      submit:
+        description: 'Submit to Google Play after build?'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  build-and-submit:
+    name: EAS Build + Google Play Submit
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@latest
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::683541453923:role/vote-capsule-github-actions-role
+          role-session-name: GitHubActions-google-play-${{ github.run_id }}
+          aws-region: us-east-1
+          audience: sts.amazonaws.com
+
+      - name: Fetch Google Play service account from Secrets Manager
+        run: |
+          aws secretsmanager get-secret-value \
+            --secret-id vote-capsule/google-play/service-account \
+            --region us-east-1 \
+            --query SecretString \
+            --output text > apps/agent-mobile/google-play-service-account.json
+          echo "✅ Google Play service account key retrieved"
+
+      - name: Set Expo token
+        run: echo "EXPO_TOKEN=${{ secrets.EXPO_TOKEN }}" >> $GITHUB_ENV
+
+      - name: Build Android AAB
+        working-directory: apps/agent-mobile
+        run: |
+          eas build \
+            --platform android \
+            --profile ${{ github.event.inputs.profile || 'production' }} \
+            --non-interactive \
+            --no-wait
+          echo "✅ EAS build triggered — check https://expo.dev/accounts/ynakenya/projects/votecapsule-agent/builds"
+
+      - name: Submit to Google Play (internal testing)
+        if: github.event.inputs.submit == 'true'
+        working-directory: apps/agent-mobile
+        run: |
+          eas submit \
+            --platform android \
+            --profile production \
+            --non-interactive
+          echo "✅ Submitted to Google Play internal testing track"
+
+      - name: Cleanup service account key
+        if: always()
+        run: rm -f apps/agent-mobile/google-play-service-account.json

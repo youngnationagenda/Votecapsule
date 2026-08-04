@@ -41,8 +41,8 @@ jobs:
           repo_url:           ${{ github.server_url }}/${{ github.repository }}
           repo_access_token:  ${{ secrets.RUNNER_REGISTRATION_TOKEN }}
           aws_default_region: us-east-1
-          # Use existing VoteCapsule VPC
-          aws_vpc_id:         vpc-0f3c0a5a1c2b7d8e9
+          # Use existing VPC (us-east-1 default VPC — same as ECS cluster)
+          aws_vpc_id:         vpc-0ae6f8630af9fbfdc
           # Deploy in us-east-1a (ALB-enabled subnet)
           aws_vpc_subnet_id:  subnet-0171d821c5d5ae868
           ec2_instance_type:  ${{ github.event.inputs.instance_type || 't3.medium' }}

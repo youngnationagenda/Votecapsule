@@ -38,5 +38,5 @@ jobs:
       - name: Run CodeGuru Reviewer
         uses: aws-actions/codeguru-reviewer@v1.1
         with:
-          s3_bucket:   vote-capsule-public-web-683541453923
+          s3_bucket:   vote-capsule-codeguru-reviews-683541453923
           source_path: .
