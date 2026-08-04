@@ -18,7 +18,7 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom, timeout, catchError, of } from 'rxjs';
 
-import { Election, ElectionStatus }             from './entities/election.entity';
+import { Election, ElectionStatus, ElectionType } from './entities/election.entity';
 import { ElectionPosition }                     from './entities/election-position.entity';
 import { PoliticalParty }                       from './entities/political-party.entity';
 import { Candidate, CandidateStatus }           from './entities/candidate.entity';

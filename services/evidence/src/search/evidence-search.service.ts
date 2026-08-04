@@ -151,7 +151,7 @@ export class EvidenceSearchService {
     }
 
     try {
-      const response = await client.search({
+      const response = await (client as any).search({
         index: this.index,
         body: {
           query: {

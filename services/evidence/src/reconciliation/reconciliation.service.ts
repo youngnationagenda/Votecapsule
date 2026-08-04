@@ -12,6 +12,7 @@
 import { Injectable, NotFoundException, ConflictException, Logger } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { FormBSubmitDto } from './dto/form-b-submit.dto';
+import { FormCSubmitDto } from './dto/form-c-submit.dto';
 
 // ── Result types ──────────────────────────────────────────────
 
@@ -1113,11 +1114,11 @@ interface FormBRow {
   created_at: Date;
 }
 
-interface FormBSummary extends FormBRow {
+export interface FormBSummary extends FormBRow {
   open_alert_count: number;
 }
 
-interface FormBDetail extends FormBRow {
+export interface FormBDetail extends FormBRow {
   candidates: Array<{ ballot_number: number; candidate_name: string; party_abbreviation: string; votes: number }>;
   alerts: AlertRow[];
 }
@@ -1150,7 +1151,7 @@ interface NecStation {
   registered_voters: number;
 }
 
-interface AlertRow {
+export interface AlertRow {
   id: string;
   alert_type: string;
   severity: string;
