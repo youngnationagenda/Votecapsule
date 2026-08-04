@@ -1,318 +1,90 @@
 {
-  "Comment": "VoteCapsule Election Lifecycle — Full lifecycle from creation through results publication. Orchestrates Election Service (port 3011) and Candidate Service (port 3009).",
-  "StartAt": "CreateElection",
+  "Comment": "VoteCapsule Election Lifecycle — Publishes election state transition events to EventBridge.",
+  "StartAt": "ValidateTransition",
   "States": {
-    "CreateElection": {
+    "ValidateTransition": {
+      "Type": "Choice",
+      "Comment": "Route based on target election state",
+      "Choices": [
+        {"Variable": "$.targetState", "StringEquals": "NOMINATION", "Next": "PublishNominationOpened"},
+        {"Variable": "$.targetState", "StringEquals": "CAMPAIGN", "Next": "PublishCampaignStarted"},
+        {"Variable": "$.targetState", "StringEquals": "ACTIVE", "Next": "PublishElectionActivated"},
+        {"Variable": "$.targetState", "StringEquals": "TALLYING", "Next": "PublishTallyingStarted"},
+        {"Variable": "$.targetState", "StringEquals": "RESULTS_PUBLISHED", "Next": "PublishResultsPublished"},
+        {"Variable": "$.targetState", "StringEquals": "CLOSED", "Next": "PublishElectionClosed"}
+      ],
+      "Default": "InvalidTransition"
+    },
+
+    "PublishNominationOpened": {
       "Type": "Task",
-      "Comment": "Create election record via Election Service (port 3011): POST /api/v1/elections",
-      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Resource": "arn:aws:states:::events:putEvents",
       "Parameters": {
-        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-        "Method": "POST",
-        "Stage": "prod",
-        "Path": "/api/v1/elections",
-        "RequestBody": {
-          "name.$": "$.name",
-          "type.$": "$.type",
-          "tenantId.$": "$.tenantId",
-          "scheduledDate.$": "$.scheduledDate",
-          "countryCode": "KE"
-        },
-        "Headers": {
-          "Content-Type": ["application/json"],
-          "X-Service-Auth": ["step-functions-internal"]
-        },
-        "AuthType": "IAM_ROLE"
+        "Entries": [{"EventBusName": "votecapsule-events", "Source": "vote-capsule.step-functions", "DetailType": "ElectionNominationOpened", "Detail": {"electionId.$": "$.electionId", "tenantId.$": "$.tenantId", "triggeredBy.$": "$.triggeredBy"}}]
       },
-      "ResultPath": "$.election",
-      "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 3, "MaxAttempts": 3, "BackoffRate": 2.0 }],
-      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "LifecycleError" }],
-      "Next": "SeedPositions"
+      "ResultPath": "$.event",
+      "Next": "TransitionComplete"
     },
 
-    "SeedPositions": {
+    "PublishCampaignStarted": {
       "Type": "Task",
-      "Comment": "Seed elective positions (President, Governor, Senator, MP, MCA, Woman Rep) for this election.",
-      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Resource": "arn:aws:states:::events:putEvents",
       "Parameters": {
-        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-        "Method": "POST",
-        "Stage": "prod",
-        "Path.$": "States.Format('/api/v1/elections/{}/positions/seed', $.election.ResponseBody.electionId)",
-        "RequestBody": {
-          "positionTypes.$": "$.positionTypes"
-        },
-        "Headers": {
-          "Content-Type": ["application/json"],
-          "X-Service-Auth": ["step-functions-internal"]
-        },
-        "AuthType": "IAM_ROLE"
+        "Entries": [{"EventBusName": "votecapsule-events", "Source": "vote-capsule.step-functions", "DetailType": "ElectionCampaignStarted", "Detail": {"electionId.$": "$.electionId", "tenantId.$": "$.tenantId", "triggeredBy.$": "$.triggeredBy"}}]
       },
-      "ResultPath": "$.positions",
-      "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 3, "MaxAttempts": 3, "BackoffRate": 2.0 }],
-      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "LifecycleError" }],
-      "Next": "OpenNominations"
+      "ResultPath": "$.event",
+      "Next": "TransitionComplete"
     },
 
-    "OpenNominations": {
+    "PublishElectionActivated": {
       "Type": "Task",
-      "Comment": "Transition election status to NOMINATIONS_OPEN. Candidates can now register via Candidate Service (port 3009).",
-      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Resource": "arn:aws:states:::events:putEvents",
       "Parameters": {
-        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-        "Method": "PATCH",
-        "Stage": "prod",
-        "Path.$": "States.Format('/api/v1/elections/{}/status', $.election.ResponseBody.electionId)",
-        "RequestBody": {
-          "status": "NOMINATIONS_OPEN"
-        },
-        "Headers": {
-          "Content-Type": ["application/json"],
-          "X-Service-Auth": ["step-functions-internal"]
-        },
-        "AuthType": "IAM_ROLE"
+        "Entries": [{"EventBusName": "votecapsule-events", "Source": "vote-capsule.step-functions", "DetailType": "ElectionActivated", "Detail": {"electionId.$": "$.electionId", "tenantId.$": "$.tenantId", "triggeredBy.$": "$.triggeredBy"}}]
       },
-      "ResultPath": "$.nominationsOpen",
-      "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 2, "MaxAttempts": 3, "BackoffRate": 2.0 }],
-      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "LifecycleError" }],
-      "Next": "WaitForNominationsPeriod"
+      "ResultPath": "$.event",
+      "Next": "TransitionComplete"
     },
 
-    "WaitForNominationsPeriod": {
-      "Type": "Wait",
-      "Comment": "Wait until nominations close date.",
-      "TimestampPath": "$.nominationsCloseDate",
-      "Next": "CloseNominations"
-    },
-
-    "CloseNominations": {
+    "PublishTallyingStarted": {
       "Type": "Task",
-      "Comment": "Close nominations — no more candidate registrations accepted.",
-      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Resource": "arn:aws:states:::events:putEvents",
       "Parameters": {
-        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-        "Method": "PATCH",
-        "Stage": "prod",
-        "Path.$": "States.Format('/api/v1/elections/{}/status', $.election.ResponseBody.electionId)",
-        "RequestBody": {
-          "status": "NOMINATIONS_CLOSED"
-        },
-        "Headers": {
-          "Content-Type": ["application/json"],
-          "X-Service-Auth": ["step-functions-internal"]
-        },
-        "AuthType": "IAM_ROLE"
+        "Entries": [{"EventBusName": "votecapsule-events", "Source": "vote-capsule.step-functions", "DetailType": "ElectionTallyingStarted", "Detail": {"electionId.$": "$.electionId", "tenantId.$": "$.tenantId", "triggeredBy.$": "$.triggeredBy"}}]
       },
-      "ResultPath": "$.nominationsClosed",
-      "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 2, "MaxAttempts": 3, "BackoffRate": 2.0 }],
-      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "LifecycleError" }],
-      "Next": "ApproveCandidate"
+      "ResultPath": "$.event",
+      "Next": "TransitionComplete"
     },
 
-    "ApproveCandidate": {
+    "PublishResultsPublished": {
       "Type": "Task",
-      "Comment": "Batch-approve all candidates that passed vetting via Candidate Service (port 3009).",
-      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Resource": "arn:aws:states:::events:putEvents",
       "Parameters": {
-        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-        "Method": "POST",
-        "Stage": "prod",
-        "Path.$": "States.Format('/api/v1/candidates/elections/{}/approve-batch', $.election.ResponseBody.electionId)",
-        "RequestBody": {
-          "approvedBy": "system:election-lifecycle"
-        },
-        "Headers": {
-          "Content-Type": ["application/json"],
-          "X-Service-Auth": ["step-functions-internal"]
-        },
-        "AuthType": "IAM_ROLE"
+        "Entries": [{"EventBusName": "votecapsule-events", "Source": "vote-capsule.step-functions", "DetailType": "ElectionResultsPublished", "Detail": {"electionId.$": "$.electionId", "tenantId.$": "$.tenantId", "triggeredBy.$": "$.triggeredBy"}}]
       },
-      "ResultPath": "$.approvals",
-      "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 3, "MaxAttempts": 3, "BackoffRate": 2.0 }],
-      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "LifecycleError" }],
-      "Next": "OpenCampaign"
+      "ResultPath": "$.event",
+      "Next": "TransitionComplete"
     },
 
-    "OpenCampaign": {
+    "PublishElectionClosed": {
       "Type": "Task",
-      "Comment": "Transition to CAMPAIGN_PERIOD — approved candidates can campaign.",
-      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Resource": "arn:aws:states:::events:putEvents",
       "Parameters": {
-        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-        "Method": "PATCH",
-        "Stage": "prod",
-        "Path.$": "States.Format('/api/v1/elections/{}/status', $.election.ResponseBody.electionId)",
-        "RequestBody": {
-          "status": "CAMPAIGN_PERIOD"
-        },
-        "Headers": {
-          "Content-Type": ["application/json"],
-          "X-Service-Auth": ["step-functions-internal"]
-        },
-        "AuthType": "IAM_ROLE"
+        "Entries": [{"EventBusName": "votecapsule-events", "Source": "vote-capsule.step-functions", "DetailType": "ElectionClosed", "Detail": {"electionId.$": "$.electionId", "tenantId.$": "$.tenantId", "triggeredBy.$": "$.triggeredBy"}}]
       },
-      "ResultPath": "$.campaign",
-      "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 2, "MaxAttempts": 3, "BackoffRate": 2.0 }],
-      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "LifecycleError" }],
-      "Next": "WaitForElectionDay"
+      "ResultPath": "$.event",
+      "Next": "TransitionComplete"
     },
 
-    "WaitForElectionDay": {
-      "Type": "Wait",
-      "Comment": "Wait until election day.",
-      "TimestampPath": "$.scheduledDate",
-      "Next": "ActivateElection"
-    },
-
-    "ActivateElection": {
-      "Type": "Task",
-      "Comment": "Activate election — agents can now capture evidence. Status: ACTIVE.",
-      "Resource": "arn:aws:states:::apigateway:invoke",
-      "Parameters": {
-        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-        "Method": "PATCH",
-        "Stage": "prod",
-        "Path.$": "States.Format('/api/v1/elections/{}/status', $.election.ResponseBody.electionId)",
-        "RequestBody": {
-          "status": "ACTIVE"
-        },
-        "Headers": {
-          "Content-Type": ["application/json"],
-          "X-Service-Auth": ["step-functions-internal"]
-        },
-        "AuthType": "IAM_ROLE"
-      },
-      "ResultPath": "$.activation",
-      "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 2, "MaxAttempts": 3, "BackoffRate": 2.0 }],
-      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "LifecycleError" }],
-      "Next": "WaitForTallyPeriod"
-    },
-
-    "WaitForTallyPeriod": {
-      "Type": "Wait",
-      "Comment": "Wait until tally period opens (usually same day after polls close).",
-      "TimestampPath": "$.tallyOpenDate",
-      "Next": "OpenTallying"
-    },
-
-    "OpenTallying": {
-      "Type": "Task",
-      "Comment": "Open tallying period — agents submit Form 34A/B/C tally data.",
-      "Resource": "arn:aws:states:::apigateway:invoke",
-      "Parameters": {
-        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-        "Method": "PATCH",
-        "Stage": "prod",
-        "Path.$": "States.Format('/api/v1/elections/{}/status', $.election.ResponseBody.electionId)",
-        "RequestBody": {
-          "status": "TALLYING"
-        },
-        "Headers": {
-          "Content-Type": ["application/json"],
-          "X-Service-Auth": ["step-functions-internal"]
-        },
-        "AuthType": "IAM_ROLE"
-      },
-      "ResultPath": "$.tallying",
-      "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 2, "MaxAttempts": 3, "BackoffRate": 2.0 }],
-      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "LifecycleError" }],
-      "Next": "WaitForResultsDeclaration"
-    },
-
-    "WaitForResultsDeclaration": {
-      "Type": "Wait",
-      "Comment": "Wait until results declaration date.",
-      "TimestampPath": "$.resultsDate",
-      "Next": "PublishResults"
-    },
-
-    "PublishResults": {
-      "Type": "Task",
-      "Comment": "Publish results via Reporting Service (port 3010). Makes results available on Public Portal.",
-      "Resource": "arn:aws:states:::apigateway:invoke",
-      "Parameters": {
-        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-        "Method": "POST",
-        "Stage": "prod",
-        "Path.$": "States.Format('/api/v1/reporting/elections/{}/publish', $.election.ResponseBody.electionId)",
-        "RequestBody": {
-          "publishedBy": "system:election-lifecycle",
-          "publishToPortal": true
-        },
-        "Headers": {
-          "Content-Type": ["application/json"],
-          "X-Service-Auth": ["step-functions-internal"]
-        },
-        "AuthType": "IAM_ROLE"
-      },
-      "ResultPath": "$.results",
-      "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 5, "MaxAttempts": 3, "BackoffRate": 2.0 }],
-      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "LifecycleError" }],
-      "Next": "Close"
-    },
-
-    "Close": {
-      "Type": "Task",
-      "Comment": "Close election — final status. No further evidence capture or tallying allowed.",
-      "Resource": "arn:aws:states:::apigateway:invoke",
-      "Parameters": {
-        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-        "Method": "PATCH",
-        "Stage": "prod",
-        "Path.$": "States.Format('/api/v1/elections/{}/status', $.election.ResponseBody.electionId)",
-        "RequestBody": {
-          "status": "CLOSED"
-        },
-        "Headers": {
-          "Content-Type": ["application/json"],
-          "X-Service-Auth": ["step-functions-internal"]
-        },
-        "AuthType": "IAM_ROLE"
-      },
-      "ResultPath": "$.closed",
-      "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 2, "MaxAttempts": 3, "BackoffRate": 2.0 }],
-      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "LifecycleError" }],
-      "Next": "Complete"
-    },
-
-    "LifecycleError": {
-      "Type": "Task",
-      "Comment": "Log election lifecycle error and alert administrators.",
-      "Resource": "arn:aws:states:::apigateway:invoke",
-      "Parameters": {
-        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-        "Method": "POST",
-        "Stage": "prod",
-        "Path": "/api/v1/notifications/bulk",
-        "RequestBody": {
-          "userIds": ["SUPER_ADMIN", "ELECTION_OFFICER"],
-          "channel": "PUSH",
-          "title": "Election Lifecycle Error",
-          "body.$": "States.Format('Election lifecycle state machine error for election {}. Review required.', $.election.ResponseBody.electionId)",
-          "data": {
-            "type": "ELECTION_LIFECYCLE_ERROR",
-            "severity": "HIGH"
-          }
-        },
-        "Headers": {
-          "Content-Type": ["application/json"],
-          "X-Service-Auth": ["step-functions-internal"]
-        },
-        "AuthType": "IAM_ROLE"
-      },
-      "ResultPath": "$.errorNotification",
-      "Next": "Failed"
-    },
-
-    "Complete": {
+    "TransitionComplete": {
       "Type": "Succeed",
-      "Comment": "Election lifecycle completed — from creation through results publication."
+      "Comment": "Election lifecycle transition event published successfully."
     },
 
-    "Failed": {
+    "InvalidTransition": {
       "Type": "Fail",
-      "Cause": "Election lifecycle failed.",
-      "Error": "ElectionLifecycleError"
+      "Cause": "Invalid target state provided",
+      "Error": "InvalidElectionTransition"
     }
   }
 }

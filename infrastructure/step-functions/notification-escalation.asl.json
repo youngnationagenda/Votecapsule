@@ -1,327 +1,143 @@
 {
-  "Comment": "VoteCapsule Notification Escalation — Classifies alert severity and routes to appropriate channels. LOW: log only. MEDIUM: admin push. HIGH: super-admin + SMS. CRITICAL: all channels + PagerDuty.",
-  "StartAt": "ReceiveAlert",
+  "Comment": "VoteCapsule Notification Escalation — Routes alerts by severity via SQS and EventBridge.",
+  "StartAt": "CheckSeverity",
   "States": {
-    "ReceiveAlert": {
-      "Type": "Pass",
-      "Comment": "Receive and normalize the incoming alert payload. Expected input: { alertType, severity, message, resourceType, resourceId, tenantId, metadata }",
-      "Parameters": {
-        "alertId.$": "$$.Execution.Name",
-        "alertType.$": "$.alertType",
-        "severity.$": "$.severity",
-        "message.$": "$.message",
-        "resourceType.$": "$.resourceType",
-        "resourceId.$": "$.resourceId",
-        "tenantId.$": "$.tenantId",
-        "metadata.$": "$.metadata",
-        "receivedAt.$": "$$.State.EnteredTime"
-      },
-      "Next": "ClassifySeverity"
-    },
-
-    "ClassifySeverity": {
+    "CheckSeverity": {
       "Type": "Choice",
-      "Comment": "Route alert based on severity level: LOW, MEDIUM, HIGH, CRITICAL.",
+      "Comment": "Route based on alert severity level",
       "Choices": [
-        {
-          "Variable": "$.severity",
-          "StringEquals": "LOW",
-          "Next": "LogOnly"
-        },
-        {
-          "Variable": "$.severity",
-          "StringEquals": "MEDIUM",
-          "Next": "NotifyAdmin"
-        },
-        {
-          "Variable": "$.severity",
-          "StringEquals": "HIGH",
-          "Next": "NotifySuperAdminSMS"
-        },
-        {
-          "Variable": "$.severity",
-          "StringEquals": "CRITICAL",
-          "Next": "NotifyAllPagerDuty"
-        }
+        {"Variable": "$.severity", "StringEquals": "CRITICAL", "Next": "PublishCriticalAlert"},
+        {"Variable": "$.severity", "StringEquals": "HIGH", "Next": "PublishHighAlert"},
+        {"Variable": "$.severity", "StringEquals": "MEDIUM", "Next": "PublishMediumAlert"}
       ],
-      "Default": "LogOnly"
+      "Default": "PublishLowAlert"
     },
 
-    "LogOnly": {
+    "PublishCriticalAlert": {
       "Type": "Task",
-      "Comment": "LOW severity — log to Audit Service (port 3012) only. No human notification.",
-      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Resource": "arn:aws:states:::events:putEvents",
       "Parameters": {
-        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-        "Method": "POST",
-        "Stage": "prod",
-        "Path": "/api/v1/audit/events",
-        "RequestBody": {
-          "eventType.$": "$.alertType",
-          "actorId": "system:escalation-engine",
-          "resourceType.$": "$.resourceType",
-          "resourceId.$": "$.resourceId",
+        "Entries": [
+          {
+            "EventBusName": "votecapsule-events",
+            "Source": "vote-capsule.step-functions",
+            "DetailType": "CriticalAlert",
+            "Detail": {
+              "alertType.$": "$.alertType",
+              "message.$": "$.message",
+              "resourceId.$": "$.resourceId",
+              "tenantId.$": "$.tenantId",
+              "severity": "CRITICAL",
+              "channels": ["PUSH", "EMAIL", "SMS"],
+              "recipients": ["SUPER_ADMIN", "OPS_TEAM", "IEBC_ADMIN"]
+            }
+          }
+        ]
+      },
+      "ResultPath": "$.alertEvent",
+      "Next": "WaitForAcknowledgement"
+    },
+
+    "PublishHighAlert": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Parameters": {
+        "Entries": [
+          {
+            "EventBusName": "votecapsule-events",
+            "Source": "vote-capsule.step-functions",
+            "DetailType": "HighAlert",
+            "Detail": {
+              "alertType.$": "$.alertType",
+              "message.$": "$.message",
+              "resourceId.$": "$.resourceId",
+              "tenantId.$": "$.tenantId",
+              "severity": "HIGH",
+              "channels": ["PUSH", "EMAIL"],
+              "recipients": ["SUPER_ADMIN", "OPS_TEAM"]
+            }
+          }
+        ]
+      },
+      "ResultPath": "$.alertEvent",
+      "Next": "EscalationComplete"
+    },
+
+    "PublishMediumAlert": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Parameters": {
+        "Entries": [
+          {
+            "EventBusName": "votecapsule-events",
+            "Source": "vote-capsule.step-functions",
+            "DetailType": "MediumAlert",
+            "Detail": {
+              "alertType.$": "$.alertType",
+              "message.$": "$.message",
+              "resourceId.$": "$.resourceId",
+              "tenantId.$": "$.tenantId",
+              "severity": "MEDIUM",
+              "channels": ["PUSH"],
+              "recipients": ["TENANT_ADMIN"]
+            }
+          }
+        ]
+      },
+      "ResultPath": "$.alertEvent",
+      "Next": "EscalationComplete"
+    },
+
+    "PublishLowAlert": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::sqs:sendMessage",
+      "Parameters": {
+        "QueueUrl": "https://sqs.us-east-1.amazonaws.com/683541453923/votecapsule-validation",
+        "MessageBody": {
+          "action": "LOW_PRIORITY_ALERT",
+          "alertType.$": "$.alertType",
+          "message.$": "$.message",
           "tenantId.$": "$.tenantId",
-          "metadata": {
-            "severity": "LOW",
-            "message.$": "$.message",
-            "alertId.$": "$.alertId"
-          }
-        },
-        "Headers": {
-          "Content-Type": ["application/json"],
-          "X-Service-Auth": ["step-functions-internal"]
-        },
-        "AuthType": "IAM_ROLE"
-      },
-      "ResultPath": "$.auditLog",
-      "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 2, "MaxAttempts": 3, "BackoffRate": 2.0 }],
-      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "Complete" }],
-      "Next": "Complete"
-    },
-
-    "NotifyAdmin": {
-      "Type": "Task",
-      "Comment": "MEDIUM severity — push notification to tenant admin via Notification Service (port 3008).",
-      "Resource": "arn:aws:states:::apigateway:invoke",
-      "Parameters": {
-        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-        "Method": "POST",
-        "Stage": "prod",
-        "Path": "/api/v1/notifications",
-        "RequestBody": {
-          "userId": "TENANT_ADMIN",
-          "channel": "PUSH",
-          "title.$": "States.Format('[MEDIUM] {}', $.alertType)",
-          "body.$": "$.message",
-          "data": {
-            "type": "ALERT_MEDIUM",
-            "alertId.$": "$.alertId",
-            "resourceType.$": "$.resourceType",
-            "resourceId.$": "$.resourceId"
-          }
-        },
-        "Headers": {
-          "Content-Type": ["application/json"],
-          "X-Service-Auth": ["step-functions-internal"]
-        },
-        "AuthType": "IAM_ROLE"
-      },
-      "ResultPath": "$.adminNotification",
-      "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 2, "MaxAttempts": 3, "BackoffRate": 2.0 }],
-      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "LogEscalation" }],
-      "Next": "LogEscalation"
-    },
-
-    "NotifySuperAdminSMS": {
-      "Type": "Parallel",
-      "Comment": "HIGH severity — notify super-admin via push AND SMS simultaneously.",
-      "Branches": [
-        {
-          "StartAt": "HighPushNotification",
-          "States": {
-            "HighPushNotification": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::apigateway:invoke",
-              "Parameters": {
-                "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-                "Method": "POST",
-                "Stage": "prod",
-                "Path": "/api/v1/notifications",
-                "RequestBody": {
-                  "userId": "SUPER_ADMIN",
-                  "channel": "PUSH",
-                  "title.$": "States.Format('[HIGH] {}', $.alertType)",
-                  "body.$": "$.message",
-                  "data": {
-                    "type": "ALERT_HIGH",
-                    "alertId.$": "$.alertId",
-                    "resourceType.$": "$.resourceType",
-                    "resourceId.$": "$.resourceId"
-                  }
-                },
-                "Headers": {
-                  "Content-Type": ["application/json"],
-                  "X-Service-Auth": ["step-functions-internal"]
-                },
-                "AuthType": "IAM_ROLE"
-              },
-              "End": true,
-              "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 2, "MaxAttempts": 3, "BackoffRate": 2.0 }]
-            }
-          }
-        },
-        {
-          "StartAt": "HighSMSNotification",
-          "States": {
-            "HighSMSNotification": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::apigateway:invoke",
-              "Parameters": {
-                "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-                "Method": "POST",
-                "Stage": "prod",
-                "Path": "/api/v1/notifications",
-                "RequestBody": {
-                  "userId": "SUPER_ADMIN",
-                  "channel": "SMS",
-                  "title.$": "States.Format('[HIGH] {}', $.alertType)",
-                  "body.$": "States.Format('HIGH ALERT: {} — {}', $.alertType, $.message)"
-                },
-                "Headers": {
-                  "Content-Type": ["application/json"],
-                  "X-Service-Auth": ["step-functions-internal"]
-                },
-                "AuthType": "IAM_ROLE"
-              },
-              "End": true,
-              "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 2, "MaxAttempts": 3, "BackoffRate": 2.0 }]
-            }
-          }
+          "severity": "LOW"
         }
-      ],
-      "ResultPath": "$.highNotifications",
-      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "LogEscalation" }],
-      "Next": "LogEscalation"
-    },
-
-    "NotifyAllPagerDuty": {
-      "Type": "Parallel",
-      "Comment": "CRITICAL severity — notify ALL admins via push + SMS + email + trigger PagerDuty.",
-      "Branches": [
-        {
-          "StartAt": "CriticalBulkNotification",
-          "States": {
-            "CriticalBulkNotification": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::apigateway:invoke",
-              "Parameters": {
-                "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-                "Method": "POST",
-                "Stage": "prod",
-                "Path": "/api/v1/notifications/bulk",
-                "RequestBody": {
-                  "userIds": ["SUPER_ADMIN", "TENANT_ADMIN", "OPS_TEAM"],
-                  "channel": "PUSH",
-                  "title.$": "States.Format('[CRITICAL] {}', $.alertType)",
-                  "body.$": "$.message",
-                  "data": {
-                    "type": "ALERT_CRITICAL",
-                    "alertId.$": "$.alertId",
-                    "resourceType.$": "$.resourceType",
-                    "resourceId.$": "$.resourceId"
-                  }
-                },
-                "Headers": {
-                  "Content-Type": ["application/json"],
-                  "X-Service-Auth": ["step-functions-internal"]
-                },
-                "AuthType": "IAM_ROLE"
-              },
-              "End": true,
-              "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 2, "MaxAttempts": 3, "BackoffRate": 2.0 }]
-            }
-          }
-        },
-        {
-          "StartAt": "CriticalSMSNotification",
-          "States": {
-            "CriticalSMSNotification": {
-              "Type": "Task",
-              "Resource": "arn:aws:states:::apigateway:invoke",
-              "Parameters": {
-                "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-                "Method": "POST",
-                "Stage": "prod",
-                "Path": "/api/v1/notifications",
-                "RequestBody": {
-                  "userId": "SUPER_ADMIN",
-                  "channel": "SMS",
-                  "title": "CRITICAL ALERT",
-                  "body.$": "States.Format('CRITICAL: {} — {} [Resource: {}:{}]', $.alertType, $.message, $.resourceType, $.resourceId)"
-                },
-                "Headers": {
-                  "Content-Type": ["application/json"],
-                  "X-Service-Auth": ["step-functions-internal"]
-                },
-                "AuthType": "IAM_ROLE"
-              },
-              "End": true,
-              "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 2, "MaxAttempts": 3, "BackoffRate": 2.0 }]
-            }
-          }
-        },
-        {
-          "StartAt": "CriticalPagerDuty",
-          "States": {
-            "CriticalPagerDuty": {
-              "Type": "Task",
-              "Comment": "Trigger PagerDuty incident via Events API v2.",
-              "Resource": "arn:aws:states:::lambda:invoke",
-              "Parameters": {
-                "FunctionName": "arn:aws:lambda:us-east-1:683541453923:function:vote-capsule-pagerduty-trigger",
-                "Payload": {
-                  "routingKey": "${PagerDutyRoutingKey}",
-                  "eventAction": "trigger",
-                  "summary.$": "States.Format('CRITICAL: {} — {}', $.alertType, $.message)",
-                  "severity": "critical",
-                  "source": "vote-capsule-step-functions",
-                  "component.$": "$.resourceType",
-                  "customDetails": {
-                    "alertId.$": "$.alertId",
-                    "tenantId.$": "$.tenantId",
-                    "resourceId.$": "$.resourceId"
-                  }
-                }
-              },
-              "End": true,
-              "Retry": [{ "ErrorEquals": ["States.TaskFailed", "Lambda.ServiceException"], "IntervalSeconds": 5, "MaxAttempts": 3, "BackoffRate": 2.0 }]
-            }
-          }
-        }
-      ],
-      "ResultPath": "$.criticalNotifications",
-      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "LogEscalation" }],
-      "Next": "LogEscalation"
-    },
-
-    "LogEscalation": {
-      "Type": "Task",
-      "Comment": "Log the escalation event to Audit Service for compliance tracking.",
-      "Resource": "arn:aws:states:::apigateway:invoke",
-      "Parameters": {
-        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-        "Method": "POST",
-        "Stage": "prod",
-        "Path": "/api/v1/audit/events",
-        "RequestBody": {
-          "eventType": "ALERT_ESCALATED",
-          "actorId": "system:escalation-engine",
-          "resourceType.$": "$.resourceType",
-          "resourceId.$": "$.resourceId",
-          "tenantId.$": "$.tenantId",
-          "metadata": {
-            "severity.$": "$.severity",
-            "alertType.$": "$.alertType",
-            "message.$": "$.message",
-            "alertId.$": "$.alertId"
-          }
-        },
-        "Headers": {
-          "Content-Type": ["application/json"],
-          "X-Service-Auth": ["step-functions-internal"]
-        },
-        "AuthType": "IAM_ROLE"
       },
-      "ResultPath": "$.auditLog",
-      "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 2, "MaxAttempts": 3, "BackoffRate": 2.0 }],
-      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "Complete" }],
-      "Next": "Complete"
+      "ResultPath": "$.sqsResult",
+      "Next": "EscalationComplete"
     },
 
-    "Complete": {
+    "WaitForAcknowledgement": {
+      "Type": "Wait",
+      "Comment": "Wait 30 minutes for critical alert acknowledgement",
+      "Seconds": 1800,
+      "Next": "PublishEscalationReminder"
+    },
+
+    "PublishEscalationReminder": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::events:putEvents",
+      "Parameters": {
+        "Entries": [
+          {
+            "EventBusName": "votecapsule-events",
+            "Source": "vote-capsule.step-functions",
+            "DetailType": "UnacknowledgedCriticalAlert",
+            "Detail": {
+              "alertType.$": "$.alertType",
+              "message.$": "$.message",
+              "resourceId.$": "$.resourceId",
+              "tenantId.$": "$.tenantId",
+              "minutesUnacknowledged": 30
+            }
+          }
+        ]
+      },
+      "ResultPath": "$.reminderEvent",
+      "Next": "EscalationComplete"
+    },
+
+    "EscalationComplete": {
       "Type": "Succeed",
-      "Comment": "Escalation processed and logged."
+      "Comment": "Notification escalation events published successfully."
     }
   }
 }

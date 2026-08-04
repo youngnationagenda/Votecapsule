@@ -1,306 +1,90 @@
 {
-  "Comment": "VoteCapsule Billing Cycle — Subscription check, usage calculation, invoice generation, payment processing, and license updates. Orchestrates Billing Service (port 3013) and Tenant Service (port 3002).",
-  "StartAt": "CheckSubscription",
+  "Comment": "VoteCapsule Billing Cycle — Monthly subscription renewal and invoice generation via EventBridge.",
+  "StartAt": "PublishBillingCycleStarted",
   "States": {
-    "CheckSubscription": {
+    "PublishBillingCycleStarted": {
       "Type": "Task",
-      "Comment": "Check tenant subscription status via Billing Service (port 3013): GET /api/v1/subscriptions/:tenantId",
-      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Resource": "arn:aws:states:::events:putEvents",
       "Parameters": {
-        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-        "Method": "GET",
-        "Stage": "prod",
-        "Path.$": "States.Format('/api/v1/subscriptions/tenant/{}', $.tenantId)",
-        "Headers": {
-          "Content-Type": ["application/json"],
-          "X-Service-Auth": ["step-functions-internal"]
-        },
-        "AuthType": "IAM_ROLE"
+        "Entries": [
+          {
+            "EventBusName": "votecapsule-events",
+            "Source": "vote-capsule.step-functions",
+            "DetailType": "BillingCycleStarted",
+            "Detail": {
+              "tenantId.$": "$.tenantId",
+              "subscriptionId.$": "$.subscriptionId",
+              "billingPeriod.$": "$.billingPeriod",
+              "amount.$": "$.amount",
+              "currency.$": "$.currency"
+            }
+          }
+        ]
       },
-      "ResultPath": "$.subscription",
-      "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 2, "MaxAttempts": 3, "BackoffRate": 2.0 }],
-      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "BillingError" }],
-      "Next": "CheckSubscriptionActive"
+      "ResultPath": "$.billingEvent",
+      "Next": "WaitForInvoiceGeneration"
     },
 
-    "CheckSubscriptionActive": {
-      "Type": "Choice",
-      "Comment": "Verify subscription is active before proceeding with billing.",
-      "Choices": [
-        {
-          "Variable": "$.subscription.ResponseBody.status",
-          "StringEquals": "ACTIVE",
-          "Next": "CalculateUsage"
-        },
-        {
-          "Variable": "$.subscription.ResponseBody.status",
-          "StringEquals": "SUSPENDED",
-          "Next": "AlreadySuspended"
-        }
-      ],
-      "Default": "CalculateUsage"
+    "WaitForInvoiceGeneration": {
+      "Type": "Wait",
+      "Comment": "Wait 5 seconds for Billing Service to generate invoice",
+      "Seconds": 5,
+      "Next": "PublishPaymentRequired"
     },
 
-    "CalculateUsage": {
+    "PublishPaymentRequired": {
       "Type": "Task",
-      "Comment": "Calculate usage metrics for the billing period: capsules uploaded, agents active, storage consumed.",
-      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Resource": "arn:aws:states:::events:putEvents",
       "Parameters": {
-        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-        "Method": "POST",
-        "Stage": "prod",
-        "Path": "/api/v1/invoices/calculate-usage",
-        "RequestBody": {
-          "tenantId.$": "$.tenantId",
-          "billingPeriodStart.$": "$.billingPeriodStart",
-          "billingPeriodEnd.$": "$.billingPeriodEnd",
-          "planId.$": "$.subscription.ResponseBody.planId"
-        },
-        "Headers": {
-          "Content-Type": ["application/json"],
-          "X-Service-Auth": ["step-functions-internal"]
-        },
-        "AuthType": "IAM_ROLE"
+        "Entries": [
+          {
+            "EventBusName": "votecapsule-events",
+            "Source": "vote-capsule.step-functions",
+            "DetailType": "PaymentRequired",
+            "Detail": {
+              "tenantId.$": "$.tenantId",
+              "subscriptionId.$": "$.subscriptionId",
+              "billingPeriod.$": "$.billingPeriod",
+              "amount.$": "$.amount"
+            }
+          }
+        ]
       },
-      "ResultPath": "$.usage",
-      "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 3, "MaxAttempts": 3, "BackoffRate": 2.0 }],
-      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "BillingError" }],
-      "Next": "GenerateInvoice"
-    },
-
-    "GenerateInvoice": {
-      "Type": "Task",
-      "Comment": "Generate invoice via Billing Service (port 3013): POST /api/v1/invoices",
-      "Resource": "arn:aws:states:::apigateway:invoke",
-      "Parameters": {
-        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-        "Method": "POST",
-        "Stage": "prod",
-        "Path": "/api/v1/invoices",
-        "RequestBody": {
-          "tenantId.$": "$.tenantId",
-          "subscriptionId.$": "$.subscription.ResponseBody.subscriptionId",
-          "billingPeriodStart.$": "$.billingPeriodStart",
-          "billingPeriodEnd.$": "$.billingPeriodEnd",
-          "usageSummary.$": "$.usage.ResponseBody",
-          "currency": "KES"
-        },
-        "Headers": {
-          "Content-Type": ["application/json"],
-          "X-Service-Auth": ["step-functions-internal"]
-        },
-        "AuthType": "IAM_ROLE"
-      },
-      "ResultPath": "$.invoice",
-      "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 3, "MaxAttempts": 3, "BackoffRate": 2.0 }],
-      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "BillingError" }],
-      "Next": "SendInvoice"
-    },
-
-    "SendInvoice": {
-      "Type": "Task",
-      "Comment": "Send invoice to tenant admin via Notification Service (port 3008): email with PDF attachment.",
-      "Resource": "arn:aws:states:::apigateway:invoke",
-      "Parameters": {
-        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-        "Method": "POST",
-        "Stage": "prod",
-        "Path": "/api/v1/notifications/email",
-        "RequestBody": {
-          "to.$": "$.subscription.ResponseBody.billingEmail",
-          "subject.$": "States.Format('VoteCapsule Invoice #{} — Payment Due', $.invoice.ResponseBody.invoiceNumber)",
-          "textBody.$": "States.Format('Invoice {} for {} KES is due by {}. Pay via M-PESA or bank transfer.', $.invoice.ResponseBody.invoiceNumber, $.invoice.ResponseBody.totalAmount, $.invoice.ResponseBody.dueDate)"
-        },
-        "Headers": {
-          "Content-Type": ["application/json"],
-          "X-Service-Auth": ["step-functions-internal"]
-        },
-        "AuthType": "IAM_ROLE"
-      },
-      "ResultPath": "$.invoiceSent",
-      "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 2, "MaxAttempts": 3, "BackoffRate": 2.0 }],
-      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "WaitForPayment" }],
+      "ResultPath": "$.paymentEvent",
       "Next": "WaitForPayment"
     },
 
     "WaitForPayment": {
-      "Type": "Task",
-      "Comment": "Wait for payment callback. Activity task — payment gateway (M-PESA/Stripe) sends callback when payment received. Timeout: 30 days.",
-      "Resource": "arn:aws:states:us-east-1:683541453923:activity:vote-capsule-await-payment",
-      "TimeoutSeconds": 2592000,
-      "HeartbeatSeconds": 86400,
-      "ResultPath": "$.payment",
-      "Catch": [
-        {
-          "ErrorEquals": ["States.Timeout"],
-          "ResultPath": "$.error",
-          "Next": "CheckOverdue"
-        },
-        {
-          "ErrorEquals": ["States.ALL"],
-          "ResultPath": "$.error",
-          "Next": "BillingError"
-        }
-      ],
-      "Next": "RecordPayment"
-    },
-
-    "CheckOverdue": {
-      "Type": "Task",
-      "Comment": "Payment not received within 30 days. Send overdue notice.",
-      "Resource": "arn:aws:states:::apigateway:invoke",
-      "Parameters": {
-        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-        "Method": "POST",
-        "Stage": "prod",
-        "Path": "/api/v1/notifications/email",
-        "RequestBody": {
-          "to.$": "$.subscription.ResponseBody.billingEmail",
-          "subject.$": "States.Format('OVERDUE: VoteCapsule Invoice #{} — Service Suspension Imminent', $.invoice.ResponseBody.invoiceNumber)",
-          "textBody.$": "States.Format('Invoice {} for {} KES is overdue. Your account will be suspended in 7 days if payment is not received.', $.invoice.ResponseBody.invoiceNumber, $.invoice.ResponseBody.totalAmount)"
-        },
-        "Headers": {
-          "Content-Type": ["application/json"],
-          "X-Service-Auth": ["step-functions-internal"]
-        },
-        "AuthType": "IAM_ROLE"
-      },
-      "ResultPath": "$.overdueNotice",
-      "Next": "WaitGracePeriod"
-    },
-
-    "WaitGracePeriod": {
       "Type": "Wait",
-      "Comment": "7-day grace period after overdue notice.",
-      "Seconds": 604800,
-      "Next": "SuspendTenant"
+      "Comment": "Wait 3 days for payment processing (259200 seconds)",
+      "Seconds": 259200,
+      "Next": "PublishPaymentReminder"
     },
 
-    "SuspendTenant": {
+    "PublishPaymentReminder": {
       "Type": "Task",
-      "Comment": "Suspend tenant account via Tenant Service (port 3002). Agents can no longer upload evidence.",
-      "Resource": "arn:aws:states:::apigateway:invoke",
+      "Resource": "arn:aws:states:::events:putEvents",
       "Parameters": {
-        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-        "Method": "PATCH",
-        "Stage": "prod",
-        "Path.$": "States.Format('/api/v1/tenants/{}/status', $.tenantId)",
-        "RequestBody": {
-          "status": "SUSPENDED",
-          "reason": "PAYMENT_OVERDUE",
-          "invoiceId.$": "$.invoice.ResponseBody.invoiceId"
-        },
-        "Headers": {
-          "Content-Type": ["application/json"],
-          "X-Service-Auth": ["step-functions-internal"]
-        },
-        "AuthType": "IAM_ROLE"
-      },
-      "ResultPath": "$.suspension",
-      "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 3, "MaxAttempts": 3, "BackoffRate": 2.0 }],
-      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "BillingError" }],
-      "Next": "Failed"
-    },
-
-    "RecordPayment": {
-      "Type": "Task",
-      "Comment": "Record payment via Billing Service (port 3013): POST /api/v1/payments",
-      "Resource": "arn:aws:states:::apigateway:invoke",
-      "Parameters": {
-        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-        "Method": "POST",
-        "Stage": "prod",
-        "Path": "/api/v1/payments",
-        "RequestBody": {
-          "invoiceId.$": "$.invoice.ResponseBody.invoiceId",
-          "tenantId.$": "$.tenantId",
-          "amount.$": "$.payment.amount",
-          "currency": "KES",
-          "paymentMethod.$": "$.payment.method",
-          "transactionRef.$": "$.payment.transactionRef"
-        },
-        "Headers": {
-          "Content-Type": ["application/json"],
-          "X-Service-Auth": ["step-functions-internal"]
-        },
-        "AuthType": "IAM_ROLE"
-      },
-      "ResultPath": "$.paymentRecord",
-      "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 2, "MaxAttempts": 3, "BackoffRate": 2.0 }],
-      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "BillingError" }],
-      "Next": "UpdateLicense"
-    },
-
-    "UpdateLicense": {
-      "Type": "Task",
-      "Comment": "Update/extend license validity via Billing Service (port 3013): PATCH /api/v1/licenses/:tenantId",
-      "Resource": "arn:aws:states:::apigateway:invoke",
-      "Parameters": {
-        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-        "Method": "PATCH",
-        "Stage": "prod",
-        "Path.$": "States.Format('/api/v1/licenses/tenant/{}', $.tenantId)",
-        "RequestBody": {
-          "subscriptionId.$": "$.subscription.ResponseBody.subscriptionId",
-          "validUntil.$": "$.billingPeriodEnd",
-          "paymentId.$": "$.paymentRecord.ResponseBody.paymentId"
-        },
-        "Headers": {
-          "Content-Type": ["application/json"],
-          "X-Service-Auth": ["step-functions-internal"]
-        },
-        "AuthType": "IAM_ROLE"
-      },
-      "ResultPath": "$.license",
-      "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 2, "MaxAttempts": 3, "BackoffRate": 2.0 }],
-      "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "BillingError" }],
-      "Next": "Complete"
-    },
-
-    "AlreadySuspended": {
-      "Type": "Fail",
-      "Cause": "Tenant subscription is already suspended. Cannot process billing cycle.",
-      "Error": "SubscriptionSuspended"
-    },
-
-    "BillingError": {
-      "Type": "Task",
-      "Comment": "Log billing error and notify finance team.",
-      "Resource": "arn:aws:states:::apigateway:invoke",
-      "Parameters": {
-        "ApiEndpoint": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-        "Method": "POST",
-        "Stage": "prod",
-        "Path": "/api/v1/notifications",
-        "RequestBody": {
-          "userId": "SUPER_ADMIN",
-          "channel": "PUSH",
-          "title": "Billing Cycle Error",
-          "body.$": "States.Format('Billing cycle error for tenant {}. Manual review required.', $.tenantId)",
-          "data": {
-            "type": "BILLING_ERROR",
-            "tenantId.$": "$.tenantId"
+        "Entries": [
+          {
+            "EventBusName": "votecapsule-events",
+            "Source": "vote-capsule.step-functions",
+            "DetailType": "PaymentReminder",
+            "Detail": {
+              "tenantId.$": "$.tenantId",
+              "subscriptionId.$": "$.subscriptionId",
+              "daysOverdue": 3
+            }
           }
-        },
-        "Headers": {
-          "Content-Type": ["application/json"],
-          "X-Service-Auth": ["step-functions-internal"]
-        },
-        "AuthType": "IAM_ROLE"
+        ]
       },
-      "ResultPath": "$.errorNotification",
-      "Next": "Failed"
+      "ResultPath": "$.reminderEvent",
+      "Next": "BillingCycleComplete"
     },
 
-    "Complete": {
+    "BillingCycleComplete": {
       "Type": "Succeed",
-      "Comment": "Billing cycle completed — invoice paid, license updated."
-    },
-
-    "Failed": {
-      "Type": "Fail",
-      "Cause": "Billing cycle failed.",
-      "Error": "BillingCycleError"
+      "Comment": "Billing cycle events dispatched. Billing Service processes payment asynchronously."
     }
   }
 }

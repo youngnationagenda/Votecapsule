@@ -1,0 +1,50 @@
+{
+  "Comment": "SES domain verification + DKIM records for votecapsule.yna.co.ke",
+  "Changes": [
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "_amazonses.votecapsule.yna.co.ke",
+        "Type": "TXT",
+        "TTL": 300,
+        "ResourceRecords": [{"Value": "\"eFfFBNu8Fwc5kYm3DTBJ4Gw2fRjYSDvmax4ph7Z9QFM=\""}]
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "fdpurh62oony7imvuz262rcswli2kyye._domainkey.votecapsule.yna.co.ke",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [{"Value": "fdpurh62oony7imvuz262rcswli2kyye.dkim.amazonses.com"}]
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "dn56mbfenvreptogmxj5b6tjx5ibqykj._domainkey.votecapsule.yna.co.ke",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [{"Value": "dn56mbfenvreptogmxj5b6tjx5ibqykj.dkim.amazonses.com"}]
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "tyvwy4eo6q7ot2yt7mdjlwl5brh5cs4e._domainkey.votecapsule.yna.co.ke",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [{"Value": "tyvwy4eo6q7ot2yt7mdjlwl5brh5cs4e.dkim.amazonses.com"}]
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "votecapsule.yna.co.ke",
+        "Type": "TXT",
+        "TTL": 300,
+        "ResourceRecords": [{"Value": "\"v=spf1 include:amazonses.com ~all\""}]
+      }
+    }
+  ]
+}
