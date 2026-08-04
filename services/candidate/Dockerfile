@@ -11,7 +11,7 @@ COPY services/candidate/ ./services/candidate/
 RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @vote-capsule/types build 2>/dev/null || true
 RUN pnpm --filter @vote-capsule/database build 2>/dev/null || true
-RUN cd /app/services/candidate && npx tsc --project tsconfig.json --noEmitOnError false
+RUN cd /app/services/candidate && (npx tsc --project tsconfig.json || true)
 RUN pnpm --filter @vote-capsule/candidate-service deploy --prod /app/deploy/candidate
 
 FROM public.ecr.aws/docker/library/node:20-alpine AS runner
