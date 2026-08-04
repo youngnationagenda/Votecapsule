@@ -1,0 +1,4 @@
+- name: AWS CLI
+  # You may pin to the exact commit or the version.
+  # uses: ItsKarma/aws-cli@820b0dff33bbd9c699e98194864788bbc69f8a58
+  uses: ItsKarma/aws-cli@v1.70.0
