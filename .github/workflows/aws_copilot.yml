@@ -1,0 +1,21 @@
+- name: AWS Copilot
+  # You may pin to the exact commit or the version.
+  # uses: ksivamuthu/aws-copilot-github-action@f70538d3ea90bb82747a473eaafd57bb9a456301
+  uses: ksivamuthu/aws-copilot-github-action@v0.0.8
+  with:
+    # command
+    command: # default is install
+    # application name
+    app: # optional
+    # environment name
+    env: # optional
+    # run force
+    force: # optional, default is false
+    # service name
+    name: # optional
+    # ecr tag name
+    tag: # optional
+    # resource tags, comma separated key=value pairs
+    resource-tags: # optional
+    # path name
+    path: # optional
