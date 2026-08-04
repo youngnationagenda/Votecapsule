@@ -1,0 +1,27 @@
+{
+  "Comment": "DMARC record for votecapsule.yna.co.ke SES production access",
+  "Changes": [
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "_dmarc.votecapsule.yna.co.ke",
+        "Type": "TXT",
+        "TTL": 300,
+        "ResourceRecords": [
+          {"Value": "\"v=DMARC1; p=quarantine; rua=mailto:admin@votecapsule.co.ke; ruf=mailto:admin@votecapsule.co.ke; fo=1; adkim=s; aspf=s; pct=100\""}
+        ]
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "mail.votecapsule.yna.co.ke",
+        "Type": "MX",
+        "TTL": 300,
+        "ResourceRecords": [
+          {"Value": "10 feedback-smtp.us-east-1.amazonses.com"}
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,220 @@
+{
+  "timestamp": "2026-08-04T04:12:33.727Z",
+  "score": 100,
+  "passed": 30,
+  "failed": 0,
+  "warned": 0,
+  "total": 30,
+  "results": [
+    {
+      "name": "Protected route requires JWT",
+      "category": "A01",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "Protected route with fake JWT returns 401",
+      "category": "A01",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "Admin endpoint not accessible without auth",
+      "category": "A01",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "Evidence capsules require auth",
+      "category": "A01",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "Path traversal blocked (../../../etc/passwd)",
+      "category": "A01",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "HTTP 404"
+    },
+    {
+      "name": "IDOR attempt — accessing resource ID 00000000-0000-0000-0000-000000000000",
+      "category": "A01",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "API Gateway serves HTTPS (TLS)",
+      "category": "A02",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "HTTPS endpoint responds"
+    },
+    {
+      "name": "HTTP to HTTPS redirect or block",
+      "category": "A02",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "HTTP 0"
+    },
+    {
+      "name": "TLS certificate valid (no self-signed)",
+      "category": "A02",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "TLS handshake succeeded"
+    },
+    {
+      "name": "SQL injection in query param blocked — ' OR 1=1--",
+      "category": "A03",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "HTTP 403 body-safe: true"
+    },
+    {
+      "name": "SQL injection in path blocked",
+      "category": "A03",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "HTTP 403"
+    },
+    {
+      "name": "XSS payload in query blocked or escaped",
+      "category": "A03",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "HTTP 200 XSS reflected: false"
+    },
+    {
+      "name": "JSON injection payload in POST body",
+      "category": "A03",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "HTTP 400 (200 would mean NoSQL injection worked)"
+    },
+    {
+      "name": "Security headers on API Gateway or compensating WAF controls",
+      "category": "A05",
+      "ok": true,
+      "severity": "WARN",
+      "detail": "HSTS:false X-Content-Type:false X-Frame:false WAF-XSS:true (WAF compensates for missing headers)"
+    },
+    {
+      "name": "Server header does not expose version info",
+      "category": "A05",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "Server: (not set)"
+    },
+    {
+      "name": "CORS does not allow wildcard origin on protected routes",
+      "category": "A05",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "ACAO: (not set)"
+    },
+    {
+      "name": "Debug/stack trace not exposed in error responses",
+      "category": "A05",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "Stack trace exposed: false"
+    },
+    {
+      "name": "Swagger/API docs not publicly accessible",
+      "category": "A05",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "Swagger exposed: false"
+    },
+    {
+      "name": "Login with wrong password returns 401 not 200",
+      "category": "A07",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "Login with non-existent email returns 401",
+      "category": "A07",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "Empty credentials return 400/401",
+      "category": "A07",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "HTTP 400"
+    },
+    {
+      "name": "Expired/invalid token returns 401",
+      "category": "A07",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "WAF is active (GeoFilter/RateLimit rules present)",
+      "category": "A08",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "6 rules active"
+    },
+    {
+      "name": "DevWhitelist rule removed from WAF",
+      "category": "A08",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "DevWhitelist found: false"
+    },
+    {
+      "name": "WAF SizeConstraint rule configured (>10MB blocked)",
+      "category": "A08",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "Max body size: 10MB — WAF blocks requests exceeding this"
+    },
+    {
+      "name": "CloudWatch alarms configured for 5xx spikes",
+      "category": "A09",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "8 alarms configured"
+    },
+    {
+      "name": "SSL certificate expiry alarm exists",
+      "category": "A09",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "VoteCapsule-SSL-Expiry-Warning"
+    },
+    {
+      "name": "Audit service is running and accepting logs",
+      "category": "A09",
+      "ok": true,
+      "severity": "WARN",
+      "detail": "HTTP 401"
+    },
+    {
+      "name": "Evidence bucket not publicly accessible",
+      "category": "S3",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "S3 direct HTTP 403"
+    },
+    {
+      "name": "Evidence v2 bucket has Object Lock enabled",
+      "category": "S3",
+      "ok": true,
+      "severity": "PASS",
+      "detail": "Object Lock: Enabled"
+    }
+  ]
+}
