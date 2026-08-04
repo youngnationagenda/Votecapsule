@@ -180,7 +180,7 @@ async function main() {
     ['GET',  '/api/v1/workflow/health',        200, 'Workflow Service health'],
     ['GET',  '/api/v1/evidence/stats',         200, 'Evidence /stats endpoint'],
     ['GET',  '/api/v1/workflow/stats',         200, 'Workflow /stats endpoint'],
-    ['GET',  '/api/v1/evidence/reconciliation/form-b?electionId=test', 400, 'Reconciliation /form-b list (400=bad electionId uuid — service is up)'],
+    ['GET',  '/api/v1/evidence/reconciliation/form-b?electionId=00000000-0000-0000-0000-000000000000', 200, 'Reconciliation /form-b endpoint live and returns 200 with data array'],
     ['POST', '/api/v1/workflow/sla-check',     200, 'Workflow /sla-check (dash) endpoint — SLA scan'],
     ['POST', '/api/v1/workflow/sla/check',     200, 'Workflow /sla/check (slash) endpoint — EventBridge target'],
   ];
