@@ -53,3 +53,6 @@ firebase-service-account.json
 *-service-account.json
 *-service-account-key.json
 *.keyfile.json
+
+# k6 load test raw results (large JSON)
+infrastructure/load-tests/results/
