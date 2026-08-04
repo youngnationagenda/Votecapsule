@@ -92,6 +92,9 @@ jobs:
 
       - uses: actions/checkout@v4
 
+      - name: Jitter — stagger parallel OIDC calls to avoid STS throttle
+        run: sleep $((RANDOM % 15))
+
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -99,6 +102,7 @@ jobs:
           role-session-name: GitHubActions-${{ matrix.service.name }}-${{ github.run_id }}
           aws-region: us-east-1
           audience: sts.amazonaws.com
+          retry-max-attempts: 5
 
       - name: Login to Amazon ECR
         id: ecr-login
