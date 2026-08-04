@@ -18,19 +18,19 @@ import { FormBSubmitDto } from './dto/form-b-submit.dto';
 export interface ReconciliationResult {
   status: 'MATCHED' | 'DISCREPANCY';
   alerts: ReconciliationAlert[];
-  delta: {
-    validVotes?: number;
-    ballotsIssued?: number;
-    candidates?: Record<number, number>; // ballotNumber → delta
-  };
+  delta: Record<string, unknown>;
+  formBsChecked?: number;
+  expectedValidVotes?: number;
+  formCValidVotes?: number;
 }
 
 export interface ReconciliationAlert {
-  id: string;
+  id?: string;
   alertType: string;
   severity: string;
   description: string;
-  deltaJson: Record<string, unknown>;
+  deltaJson?: Record<string, unknown>;
+  delta?: Record<string, unknown>;
 }
 
 export interface ValidationResult {
@@ -60,6 +60,17 @@ export interface ReconciliationSummary {
     awaitingForms: number;
     openAlerts: number;
   };
+}
+
+export interface FormCReconciliationSummary {
+  position_code: string;
+  form_type: string;
+  county_code: string | null;
+  status: string;
+  total_valid_votes: number;
+  declared_by_name: string;
+  declared_at: Date;
+  open_alerts: number;
 }
 
 export interface PositionSummary {

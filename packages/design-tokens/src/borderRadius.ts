@@ -1,17 +1,7 @@
 /**
- * Vote Capsule™ Border Radius Design Tokens
+ * Vote Capsule™ Border Radius — backward compatibility re-export.
+ * Prefer importing from './borders' directly.
+ * @deprecated Use `import { borderRadius } from './borders'` instead.
  */
-
-export const borderRadius = {
-  none: '0px',
-  sm: '0.125rem',   // 2px
-  DEFAULT: '0.25rem', // 4px
-  md: '0.375rem',   // 6px
-  lg: '0.5rem',     // 8px
-  xl: '0.75rem',    // 12px
-  '2xl': '1rem',    // 16px
-  '3xl': '1.5rem',  // 24px
-  full: '9999px',   // Pill / circular
-} as const;
-
-export type BorderRadius = typeof borderRadius;
+export { borderRadius, borderRadiusValues, borderRadiusExtended } from './borders';
+export type { BorderRadius, BorderRadiusKey } from './borders';

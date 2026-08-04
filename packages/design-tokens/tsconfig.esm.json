@@ -1,9 +1,10 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "./dist/cjs",
+    "outDir": "./dist/esm",
     "rootDir": "./src",
-    "module": "CommonJS",
+    "module": "ES2022",
+    "moduleResolution": "node",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true
