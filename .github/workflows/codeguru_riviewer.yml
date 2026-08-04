@@ -1,39 +1,42 @@
-- name: CodeGuru Reviewer
-  # You may pin to the exact commit or the version.
-  # uses: aws-actions/codeguru-reviewer@e96af14e3ba9bac3cca62a524bd5a8345038c684
-  uses: aws-actions/codeguru-reviewer@v1.1
-  with:
-    # Repository name
-    name: # optional, default is ${{ github.repository }}
-    # Path to Java source repository
-    source_path: # optional, default is .
-    # Path to build artifact(s) - jar or class files in this directory will be uploaded for review
-    build_path: # optional
-    # SHA of next commit to be committed to source code repository after an event
-    destination_commit: # optional, default is ${{ github.event.before || github.event.pull_request.base.sha }}
-    # SHA of previous commit in the source code repository existed before an event
-    source_commit: # optional, default is ${{ github.event.after || github.event.pull_request.head.sha }}
-    # SHA of a commit thats the merge base for before and after commits in a pull or merge request
-    merge_base_commit: # optional, default is ${{ github.event.pull_request.merge_commit_sha }}
-    # Source branch of the event
-    source_branch: # optional, default is ${{ github.head_ref || github.ref}}
-    # Destination branch of the event
-    destination_branch: # optional, default is ${{ github.base_ref || github.ref }}
-    # AWS KMS Key ID to use for encrypting source code/build artifacts. By default, Amazon-owned encryption key is used. Supplying this value overrides it to use Customer-owned encryption key
-    kms_key_id: # optional
-    # Author/Actor who triggered an event in the source code repository
-    author: # optional, default is ${{ github.event.actor }}
-    # An identifier for the event that triggered CodeGuru Reviewer Analysis, e.g. Pull or Merge request id
-    event_id: # optional, default is ${{ github.event.number || github.run_number }}
-    # Name of the event that triggered the CI/CD workflow [supported Events: push, pull, merge_request_event, schedule, workflow_dispatch]
-    event_name: # optional, default is ${{ github.event_name }}
-    # State of the event that triggered the CI/CD workflow [example: pull_request: "opened"]
-    event_state: # optional, default is ${{ github.event.action }}
-    # Unique identifier referring to a specific client version
-    client_id: # optional, default is GithubActions@v1
-    # S3 Bucket which will be used for code reviews
-    s3_bucket: 
-    # Vendor Name(e.g. GITHUB, GITLAB) for CI/CD.
-    vendor_name: # optional, default is GITHUB
-    # Expected format for the results (e.g SARIF, SAST, JENKINS)
-    output_format: # optional, default is SARIF
+name: AWS CodeGuru Reviewer — Code Quality Analysis
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'services/**'
+      - 'packages/**'
+  pull_request:
+    branches:
+      - master
+      - main
+
+jobs:
+  codeguru-review:
+    name: CodeGuru Security & Quality Review
+    runs-on: ubuntu-latest
+    permissions:
+      id-token:        write
+      contents:        read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::683541453923:role/vote-capsule-github-actions-role
+          role-session-name: GitHubActions-codeguru-${{ github.run_id }}
+          aws-region: us-east-1
+          audience: sts.amazonaws.com
+
+      - name: Run CodeGuru Reviewer
+        uses: aws-actions/codeguru-reviewer@v1.1
+        with:
+          s3_bucket:   vote-capsule-public-web-683541453923
+          source_path: .

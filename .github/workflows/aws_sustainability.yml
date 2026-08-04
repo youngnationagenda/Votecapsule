@@ -1,13 +1,50 @@
-- name: AWS Sustainability Scanner GitHub Action
-  # You may pin to the exact commit or the version.
-  # uses: aws-actions/sustainability-scanner@d6067411fc5290a836e3ebcf388c746d83cf0e9f
-  uses: aws-actions/sustainability-scanner@v1
-  with:
-    # File path of the CloudFormation template to be scanned
-    file: # optional
-    # Directory path with CloudFormation files to be scanned
-    directory: # optional, default is .
-    # CDK stack name to be scanned
-    stack_name: # optional
-    # File path to extend set of rules
-    rules_file: # optional
+name: AWS Sustainability Scanner — CloudFormation Templates
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'infrastructure/scripts/*.json'
+      - 'infrastructure/cdk/**'
+  pull_request:
+    paths:
+      - 'infrastructure/scripts/*.json'
+      - 'infrastructure/cdk/**'
+  workflow_dispatch:
+
+jobs:
+  sustainability-scan:
+    name: Scan CloudFormation Templates for Sustainability
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::683541453923:role/vote-capsule-github-actions-role
+          role-session-name: GitHubActions-sustainability-${{ github.run_id }}
+          aws-region: us-east-1
+          audience: sts.amazonaws.com
+
+      - name: Run AWS Sustainability Scanner on CloudFormation templates
+        uses: aws-actions/sustainability-scanner@v1
+        with:
+          directory: infrastructure/scripts
+
+      - name: Run AWS Sustainability Scanner on live VoteCapsule stacks
+        uses: aws-actions/sustainability-scanner@v1
+        with:
+          stack_name: VoteCapsuleComputeStack
+
+      - name: Scan ECS stack
+        uses: aws-actions/sustainability-scanner@v1
+        with:
+          stack_name: VoteCapsuleECSPhase7Stack

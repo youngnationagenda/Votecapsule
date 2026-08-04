@@ -1,4 +1,35 @@
-- name: AWS CLI
-  # You may pin to the exact commit or the version.
-  # uses: ItsKarma/aws-cli@820b0dff33bbd9c699e98194864788bbc69f8a58
-  uses: ItsKarma/aws-cli@v1.70.0
+name: AWS CLI — Run Ad-hoc AWS Commands
+
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: 'AWS CLI command to run (e.g. "ecs list-services --cluster vote-capsule-services")'
+        required: true
+        default: 'sts get-caller-identity'
+      region:
+        description: 'AWS Region'
+        required: false
+        default: 'us-east-1'
+
+jobs:
+  aws-cli:
+    name: Run AWS CLI Command
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::683541453923:role/vote-capsule-github-actions-role
+          role-session-name: GitHubActions-aws-cli-${{ github.run_id }}
+          aws-region: ${{ github.event.inputs.region }}
+          audience: sts.amazonaws.com
+
+      - name: Run AWS CLI command
+        run: aws ${{ github.event.inputs.command }} --region ${{ github.event.inputs.region }}
