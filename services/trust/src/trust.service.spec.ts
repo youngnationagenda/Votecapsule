@@ -199,28 +199,28 @@ describe('TrustService', () => {
   let httpService: any;
 
   const mockBatchRepo = {
-    create: jest.fn((data) => ({ id: 'batch-1', ...data })),
-    save: jest.fn((entity) => Promise.resolve({ id: 'batch-1', ...entity })),
-    findOne: jest.fn(),
-    count: jest.fn().mockResolvedValue(0),
+    create: vi.fn((data) => ({ id: 'batch-1', ...data })),
+    save: vi.fn((entity) => Promise.resolve({ id: 'batch-1', ...entity })),
+    findOne: vi.fn(),
+    count: vi.fn().mockResolvedValue(0),
   };
 
   const mockLeafRepo = {
-    create: jest.fn((data) => data),
-    save: jest.fn((entities) => Promise.resolve(entities)),
-    findOne: jest.fn(),
-    count: jest.fn().mockResolvedValue(0),
+    create: vi.fn((data) => data),
+    save: vi.fn((entities) => Promise.resolve(entities)),
+    findOne: vi.fn(),
+    count: vi.fn().mockResolvedValue(0),
   };
 
   const mockVerifyRepo = {
-    create: jest.fn((data) => data),
-    save: jest.fn((entity) => Promise.resolve(entity)),
+    create: vi.fn((data) => data),
+    save: vi.fn((entity) => Promise.resolve(entity)),
   };
 
   const mockHederaClient = {
-    isReady: jest.fn().mockReturnValue(true),
-    getNetwork: jest.fn().mockReturnValue('testnet'),
-    submitMerkleRoot: jest.fn().mockResolvedValue({
+    isReady: vi.fn().mockReturnValue(true),
+    getNetwork: vi.fn().mockReturnValue('testnet'),
+    submitMerkleRoot: vi.fn().mockResolvedValue({
       transactionId: '0.0.4426239@1234567890.123',
       consensusTimestamp: '2026-01-01T00:00:00.000Z',
       topicId: '0.0.9871113',
@@ -230,9 +230,9 @@ describe('TrustService', () => {
   };
 
   const mockTsaClient = {
-    isReady: jest.fn().mockReturnValue(true),
-    getTsaUrl: jest.fn().mockReturnValue('https://freetsa.org/tsr'),
-    requestTimestamp: jest.fn().mockResolvedValue({
+    isReady: vi.fn().mockReturnValue(true),
+    getTsaUrl: vi.fn().mockReturnValue('https://freetsa.org/tsr'),
+    requestTimestamp: vi.fn().mockResolvedValue({
       token: 'base64-token-data',
       tsaUrl: 'https://freetsa.org/tsr',
       signingTime: '2026-01-01T00:00:00.000Z',
@@ -241,11 +241,11 @@ describe('TrustService', () => {
   };
 
   const mockHttpService = {
-    patch: jest.fn().mockReturnValue(of({ data: { ok: true } })),
+    patch: vi.fn().mockReturnValue(of({ data: { ok: true } })),
   };
 
   const mockConfigService = {
-    get: jest.fn((key: string, defaultVal?: any) => {
+    get: vi.fn((key: string, defaultVal?: any) => {
       const config: Record<string, any> = {
         EVIDENCE_SERVICE_URL: 'http://localhost:3005',
         MERKLE_BATCH_INTERVAL_MS: 60000,
@@ -257,7 +257,7 @@ describe('TrustService', () => {
   const mockDataSource = {};
 
   beforeEach(async () => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [

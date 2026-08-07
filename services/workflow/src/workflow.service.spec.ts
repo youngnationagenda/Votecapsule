@@ -1,13 +1,15 @@
 // ============================================================
 // VoteCapsule — Workflow Engine Service Unit Tests
 // ============================================================
-const mockSfnSend = jest.fn();
-const mockEventsSend = jest.fn();
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 
-jest.mock('@aws-sdk/client-sfn', () => ({
-  SFNClient: jest.fn().mockImplementation(() => ({ send: mockSfnSend })),
-  StartExecutionCommand: jest.fn().mockImplementation((input) => input),
-  DescribeExecutionCommand: jest.fn().mockImplementation((input) => input),
+const mockSfnSend = vi.fn();
+const mockEventsSend = vi.fn();
+
+vi.mock('@aws-sdk/client-sfn', () => ({
+  SFNClient: vi.fn().mockImplementation(() => ({ send: mockSfnSend })),
+  StartExecutionCommand: vi.fn().mockImplementation((input: any) => input),
+  DescribeExecutionCommand: vi.fn().mockImplementation((input: any) => input),
   ExecutionStatus: {
     SUCCEEDED: 'SUCCEEDED',
     FAILED: 'FAILED',
@@ -17,9 +19,9 @@ jest.mock('@aws-sdk/client-sfn', () => ({
   },
 }));
 
-jest.mock('@aws-sdk/client-eventbridge', () => ({
-  EventBridgeClient: jest.fn().mockImplementation(() => ({ send: mockEventsSend })),
-  PutEventsCommand: jest.fn().mockImplementation((input) => input),
+vi.mock('@aws-sdk/client-eventbridge', () => ({
+  EventBridgeClient: vi.fn().mockImplementation(() => ({ send: mockEventsSend })),
+  PutEventsCommand: vi.fn().mockImplementation((input: any) => input),
 }));
 
 import { Test, TestingModule } from '@nestjs/testing';
@@ -44,31 +46,31 @@ import {
 // ── Mocks ────────────────────────────────────────────────────
 
 const createMockRepository = () => ({
-  find: jest.fn().mockResolvedValue([]),
-  findOne: jest.fn(),
-  findOneOrFail: jest.fn(),
-  save: jest.fn().mockImplementation((e) => Promise.resolve({ id: 'exec-1', ...e })),
-  create: jest.fn().mockImplementation((e) => ({ id: 'exec-1', ...e })),
-  update: jest.fn().mockResolvedValue({ affected: 1 }),
-  count: jest.fn().mockResolvedValue(0),
-  createQueryBuilder: jest.fn(() => mockQueryBuilder),
+  find: vi.fn().mockResolvedValue([]),
+  findOne: vi.fn(),
+  findOneOrFail: vi.fn(),
+  save: vi.fn().mockImplementation((e: any) => Promise.resolve({ id: 'exec-1', ...e })),
+  create: vi.fn().mockImplementation((e: any) => ({ id: 'exec-1', ...e })),
+  update: vi.fn().mockResolvedValue({ affected: 1 }),
+  count: vi.fn().mockResolvedValue(0),
+  createQueryBuilder: vi.fn(() => mockQueryBuilder),
 });
 
 const mockQueryBuilder = {
-  select: jest.fn().mockReturnThis(),
-  addSelect: jest.fn().mockReturnThis(),
-  where: jest.fn().mockReturnThis(),
-  andWhere: jest.fn().mockReturnThis(),
-  groupBy: jest.fn().mockReturnThis(),
-  addGroupBy: jest.fn().mockReturnThis(),
-  orderBy: jest.fn().mockReturnThis(),
-  getRawMany: jest.fn().mockResolvedValue([]),
+  select: vi.fn().mockReturnThis(),
+  addSelect: vi.fn().mockReturnThis(),
+  where: vi.fn().mockReturnThis(),
+  andWhere: vi.fn().mockReturnThis(),
+  groupBy: vi.fn().mockReturnThis(),
+  addGroupBy: vi.fn().mockReturnThis(),
+  orderBy: vi.fn().mockReturnThis(),
+  getRawMany: vi.fn().mockResolvedValue([]),
 };
 
 const mockDataSource = {};
 
 const mockConfig = {
-  get: jest.fn().mockImplementation((key: string, defaultVal?: string) => {
+  get: vi.fn().mockImplementation((key: string, defaultVal?: string) => {
     const map: Record<string, string> = {
       AWS_REGION: 'us-east-1',
       EVENT_BUS_NAME: 'votecapsule-events',
@@ -105,7 +107,7 @@ describe('WorkflowService', () => {
     }).compile();
 
     service = module.get<WorkflowService>(WorkflowService);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     // Re-mock SFN after clearAllMocks
     mockSfnSend.mockResolvedValue({ executionArn: 'arn:aws:states:us-east-1:123:execution:test' });
     mockEventsSend.mockResolvedValue({});
@@ -123,10 +125,10 @@ describe('WorkflowService', () => {
     };
 
     it('should create execution and start Step Functions', async () => {
-      execRepo.findOne.mockResolvedValue(null); // no existing
+      execRepo.findOne.mockResolvedValue(null);
       execRepo.save.mockResolvedValue({ id: 'exec-1', ...baseDto, status: WorkflowStatus.RUNNING });
 
-      const result = await service.startWorkflow(baseDto);
+      await service.startWorkflow(baseDto);
 
       expect(execRepo.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -167,7 +169,7 @@ describe('WorkflowService', () => {
       execRepo.save.mockResolvedValue({ id: 'exec-1', status: WorkflowStatus.RUNNING });
       mockSfnSend.mockRejectedValue(new Error('SFN unavailable'));
 
-      const result = await service.startWorkflow(baseDto);
+      await service.startWorkflow(baseDto);
 
       expect(execRepo.update).toHaveBeenCalledWith(
         'exec-1',
@@ -184,7 +186,7 @@ describe('WorkflowService', () => {
 
       await service.startWorkflow({
         ...baseDto,
-        workflowType: WorkflowType.ASSIGNMENT, // no ARN configured
+        workflowType: WorkflowType.ASSIGNMENT,
       });
 
       expect(mockSfnSend).not.toHaveBeenCalled();
@@ -197,9 +199,7 @@ describe('WorkflowService', () => {
       await service.startWorkflow(baseDto);
 
       expect(execRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          deadlineAt: expect.any(Date),
-        }),
+        expect.objectContaining({ deadlineAt: expect.any(Date) }),
       );
     });
   });
@@ -257,9 +257,7 @@ describe('WorkflowService', () => {
       const result = await service.listRunning();
 
       expect(execRepo.find).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { status: WorkflowStatus.RUNNING },
-        }),
+        expect.objectContaining({ where: { status: WorkflowStatus.RUNNING } }),
       );
       expect(result).toHaveLength(2);
     });
@@ -302,8 +300,8 @@ describe('WorkflowService', () => {
     it('should mark workflow SUCCEEDED on terminal success', async () => {
       const exec = { id: 'exec-1', startedAt: new Date(Date.now() - 60000), steps: [], escalations: [] };
       execRepo.findOne
-        .mockResolvedValueOnce(exec) // getExecution in recordStepEvent
-        .mockResolvedValueOnce(exec); // findOne in markCompleted
+        .mockResolvedValueOnce(exec)
+        .mockResolvedValueOnce(exec);
       stepRepo.save.mockResolvedValue({ id: 'step-1' });
 
       await service.recordStepEvent({
@@ -384,7 +382,7 @@ describe('WorkflowService', () => {
       ];
       execRepo.find.mockResolvedValue(overdue);
       execRepo.findOne.mockResolvedValue({ ...overdue[0], steps: [], escalations: [] });
-      escalRepo.findOne.mockResolvedValue(null); // no existing escalation
+      escalRepo.findOne.mockResolvedValue(null);
       escalRepo.save.mockResolvedValue({ id: 'esc-new' });
 
       const count = await service.checkSlaDeadlines();
@@ -400,7 +398,7 @@ describe('WorkflowService', () => {
 
     it('should skip if DEADLINE_BREACH already exists for execution', async () => {
       execRepo.find.mockResolvedValue([{ id: 'exec-1' }]);
-      escalRepo.findOne.mockResolvedValue({ id: 'esc-existing' }); // already escalated
+      escalRepo.findOne.mockResolvedValue({ id: 'esc-existing' });
 
       const count = await service.checkSlaDeadlines();
 
@@ -425,16 +423,16 @@ describe('WorkflowService', () => {
         startedAt: new Date(Date.now() - 60000), steps: [], escalations: [],
       };
       execRepo.findOne
-        .mockResolvedValueOnce(exec) // getExecution
-        .mockResolvedValueOnce(exec) // markCompleted findOne
-        .mockResolvedValueOnce({ ...exec, status: WorkflowStatus.SUCCEEDED }); // final getExecution
+        .mockResolvedValueOnce(exec)
+        .mockResolvedValueOnce(exec)
+        .mockResolvedValueOnce({ ...exec, status: WorkflowStatus.SUCCEEDED });
 
       mockSfnSend.mockResolvedValue({
         status: 'SUCCEEDED',
         output: JSON.stringify({ result: 'done' }),
       });
 
-      const result = await service.syncFromStepFunctions('exec-1');
+      await service.syncFromStepFunctions('exec-1');
 
       expect(mockSfnSend).toHaveBeenCalled();
       expect(execRepo.update).toHaveBeenCalledWith(

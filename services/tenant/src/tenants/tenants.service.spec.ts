@@ -1,6 +1,7 @@
 // ============================================================
 // VoteCapsule — Tenant Service Unit Tests
 // ============================================================
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, ConflictException } from '@nestjs/common';
 
@@ -10,13 +11,13 @@ import { DATABASE_POOL } from '../database/database.module';
 // ── Mocks ────────────────────────────────────────────────────
 
 const mockClient = {
-  query: jest.fn(),
-  release: jest.fn(),
+  query: vi.fn(),
+  release: vi.fn(),
 };
 
 const mockPool = {
-  query: jest.fn(),
-  connect: jest.fn().mockResolvedValue(mockClient),
+  query: vi.fn(),
+  connect: vi.fn().mockResolvedValue(mockClient),
 };
 
 const sampleTenant: Tenant = {
@@ -49,7 +50,7 @@ describe('TenantsService', () => {
     }).compile();
 
     service = module.get<TenantsService>(TenantsService);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
     mockPool.connect.mockResolvedValue(mockClient);
   });
 
@@ -58,8 +59,8 @@ describe('TenantsService', () => {
   describe('findAll()', () => {
     it('should return paginated results', async () => {
       mockPool.query
-        .mockResolvedValueOnce({ rows: [{ count: '3' }] }) // COUNT query
-        .mockResolvedValueOnce({ rows: [sampleTenant] });   // SELECT query
+        .mockResolvedValueOnce({ rows: [{ count: '3' }] })
+        .mockResolvedValueOnce({ rows: [sampleTenant] });
 
       const result = await service.findAll({ page: 1, limit: 20 });
 
@@ -82,7 +83,6 @@ describe('TenantsService', () => {
       expect(result.meta.totalPages).toBe(5);
       expect(result.meta.hasNextPage).toBe(true);
       expect(result.meta.hasPreviousPage).toBe(true);
-      // Check offset calculation: (3-1) * 10 = 20
       expect(mockPool.query).toHaveBeenCalledWith(
         expect.any(String),
         [10, 20],
@@ -153,8 +153,8 @@ describe('TenantsService', () => {
   describe('create()', () => {
     it('should generate slug from name and create tenant', async () => {
       mockPool.query
-        .mockResolvedValueOnce({ rowCount: 0, rows: [] }) // slug uniqueness check
-        .mockResolvedValueOnce({ rows: [{ ...sampleTenant, slug: 'nairobi-county-elections' }] }); // INSERT RETURNING
+        .mockResolvedValueOnce({ rowCount: 0, rows: [] })
+        .mockResolvedValueOnce({ rows: [{ ...sampleTenant, slug: 'nairobi-county-elections' }] });
 
       const result = await service.create(
         {
@@ -177,7 +177,7 @@ describe('TenantsService', () => {
         .mockResolvedValueOnce({ rowCount: 0, rows: [] })
         .mockResolvedValueOnce({ rows: [{ ...sampleTenant, slug: 'custom-slug' }] });
 
-      const result = await service.create(
+      await service.create(
         {
           name: 'Any Name',
           slug: 'Custom Slug!',
@@ -186,7 +186,6 @@ describe('TenantsService', () => {
         'admin-1',
       );
 
-      // Slug should be cleaned: lowercased, special chars replaced
       expect(mockPool.query).toHaveBeenCalledWith(
         expect.stringContaining('SELECT id FROM tenants WHERE slug'),
         ['custom-slug-'],
@@ -207,8 +206,8 @@ describe('TenantsService', () => {
   describe('update()', () => {
     it('should update tenant fields', async () => {
       mockPool.query
-        .mockResolvedValueOnce({ rows: [sampleTenant] }) // findById
-        .mockResolvedValueOnce({ rows: [{ ...sampleTenant, name: 'Updated Name' }] }); // UPDATE
+        .mockResolvedValueOnce({ rows: [sampleTenant] })
+        .mockResolvedValueOnce({ rows: [{ ...sampleTenant, name: 'Updated Name' }] });
 
       const result = await service.update('tenant-1', { name: 'Updated Name' });
 
@@ -220,7 +219,7 @@ describe('TenantsService', () => {
     });
 
     it('should throw NotFoundException if tenant not found', async () => {
-      mockPool.query.mockResolvedValue({ rows: [] }); // findById returns null
+      mockPool.query.mockResolvedValue({ rows: [] });
 
       await expect(
         service.update('non-existent', { name: 'New Name' }),
@@ -233,8 +232,8 @@ describe('TenantsService', () => {
   describe('softDelete()', () => {
     it('should set deleted_at timestamp', async () => {
       mockPool.query
-        .mockResolvedValueOnce({ rows: [sampleTenant] }) // findById
-        .mockResolvedValueOnce({ rowCount: 1 }); // UPDATE
+        .mockResolvedValueOnce({ rows: [sampleTenant] })
+        .mockResolvedValueOnce({ rowCount: 1 });
 
       await service.softDelete('tenant-1');
 
@@ -299,8 +298,8 @@ describe('TenantsService', () => {
 
     it('should rollback on error', async () => {
       mockClient.query
-        .mockResolvedValueOnce(undefined) // BEGIN
-        .mockRejectedValueOnce(new Error('DB error')); // First INSERT fails
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error('DB error'));
 
       await expect(
         service.updateSettings('tenant-1', { bad_key: 'value' }, 'admin-1'),

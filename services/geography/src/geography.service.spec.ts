@@ -1,3 +1,4 @@
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 // ============================================================
 // VoteCapsule — Geography Service Unit Tests
 // services/geography/src/geography.service.spec.ts
@@ -52,18 +53,18 @@ const mockStation: Partial<PollingStation> = {
 
 // ── Mock repositories ───────────────────────────────────────────
 const createMockRepo = () => ({
-  find: jest.fn(),
-  findOne: jest.fn(),
-  count: jest.fn(),
-  createQueryBuilder: jest.fn().mockReturnValue({
-    select: jest.fn().mockReturnThis(),
-    addSelect: jest.fn().mockReturnThis(),
-    where: jest.fn().mockReturnThis(),
-    andWhere: jest.fn().mockReturnThis(),
-    leftJoinAndSelect: jest.fn().mockReturnThis(),
-    orderBy: jest.fn().mockReturnThis(),
-    getRawOne: jest.fn().mockResolvedValue({ total: '22000000' }),
-    getMany: jest.fn().mockResolvedValue([]),
+  find: vi.fn(),
+  findOne: vi.fn(),
+  count: vi.fn(),
+  createQueryBuilder: vi.fn().mockReturnValue({
+    select: vi.fn().mockReturnThis(),
+    addSelect: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    andWhere: vi.fn().mockReturnThis(),
+    leftJoinAndSelect: vi.fn().mockReturnThis(),
+    orderBy: vi.fn().mockReturnThis(),
+    getRawOne: vi.fn().mockResolvedValue({ total: '22000000' }),
+    getMany: vi.fn().mockResolvedValue([]),
   }),
 });
 
@@ -219,10 +220,10 @@ describe('GeographyService', () => {
   describe('getPollingStations', () => {
     it('should return stations with query builder', async () => {
       const mockQb = {
-        leftJoinAndSelect: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        getMany: jest.fn().mockResolvedValue([mockStation]),
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        getMany: vi.fn().mockResolvedValue([mockStation]),
       };
       stationRepo.createQueryBuilder.mockReturnValue(mockQb);
 
@@ -270,10 +271,10 @@ describe('GeographyService', () => {
   describe('getVoterLookup', () => {
     it('should return stations for a given county', async () => {
       const mockQb = {
-        leftJoinAndSelect: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        getMany: jest.fn().mockResolvedValue([mockStation]),
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        getMany: vi.fn().mockResolvedValue([mockStation]),
       };
       stationRepo.createQueryBuilder.mockReturnValue(mockQb);
 
@@ -284,10 +285,10 @@ describe('GeographyService', () => {
 
     it('should return stations filtered by county + constituency', async () => {
       const mockQb = {
-        leftJoinAndSelect: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        getMany: jest.fn().mockResolvedValue([mockStation, mockStation]),
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        getMany: vi.fn().mockResolvedValue([mockStation, mockStation]),
       };
       stationRepo.createQueryBuilder.mockReturnValue(mockQb);
 
@@ -298,10 +299,10 @@ describe('GeographyService', () => {
 
     it('should return empty array for non-matching area', async () => {
       const mockQb = {
-        leftJoinAndSelect: jest.fn().mockReturnThis(),
-        orderBy: jest.fn().mockReturnThis(),
-        andWhere: jest.fn().mockReturnThis(),
-        getMany: jest.fn().mockResolvedValue([]),
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        orderBy: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        getMany: vi.fn().mockResolvedValue([]),
       };
       stationRepo.createQueryBuilder.mockReturnValue(mockQb);
 

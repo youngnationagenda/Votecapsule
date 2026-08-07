@@ -8,6 +8,8 @@
     "build": "nest build",
     "dev": "nest start --watch",
     "start": "node dist/main",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -32,6 +34,8 @@
     "@nestjs/schematics": "^10.1.4",
     "@types/jest": "29.5.14",
     "@types/node": "^20.14.12",
-    "typescript": "^5.5.4"
+    "@vitest/coverage-v8": "2.1.9",
+    "typescript": "^5.5.4",
+    "vitest": "2.1.9"
   }
 }

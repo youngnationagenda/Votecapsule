@@ -1,11 +1,12 @@
 // ============================================================
 // VoteCapsule — AI Verification Service Unit Tests
 // ============================================================
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { NotFoundException, ConflictException } from '@nestjs/common';
 import { of } from 'rxjs';
 
@@ -14,9 +15,8 @@ import {
   AiVerificationJob,
   AiJobStatus,
   RoutingDecision,
-  TextractStatus,
 } from './entities/ai-verification-job.entity';
-import { AiAnomalyEvent, AnomalyType } from './entities/ai-anomaly-event.entity';
+import { AiAnomalyEvent } from './entities/ai-anomaly-event.entity';
 import { TextractProcessor } from './processors/textract.processor';
 import { NecValidatorProcessor } from './processors/nec-validator.processor';
 import { ConfidenceProcessor } from './processors/confidence.processor';
@@ -24,49 +24,49 @@ import { ConfidenceProcessor } from './processors/confidence.processor';
 // ── Mocks ────────────────────────────────────────────────────
 
 const createMockRepository = () => ({
-  find: jest.fn().mockResolvedValue([]),
-  findOne: jest.fn(),
-  findOneOrFail: jest.fn(),
-  save: jest.fn().mockImplementation((e) => Promise.resolve({ id: 'job-1', ...e })),
-  create: jest.fn().mockImplementation((e) => ({ id: 'job-1', attemptCount: 0, maxAttempts: 3, ...e })),
-  count: jest.fn().mockResolvedValue(0),
-  createQueryBuilder: jest.fn(() => mockQueryBuilder),
+  find: vi.fn().mockResolvedValue([]),
+  findOne: vi.fn(),
+  findOneOrFail: vi.fn(),
+  save: vi.fn().mockImplementation((e) => Promise.resolve({ id: 'job-1', ...e })),
+  create: vi.fn().mockImplementation((e) => ({ id: 'job-1', attemptCount: 0, maxAttempts: 3, ...e })),
+  count: vi.fn().mockResolvedValue(0),
+  createQueryBuilder: vi.fn(() => mockQueryBuilder),
 });
 
 const mockQueryBuilder = {
-  select: jest.fn().mockReturnThis(),
-  addSelect: jest.fn().mockReturnThis(),
-  where: jest.fn().mockReturnThis(),
-  andWhere: jest.fn().mockReturnThis(),
-  groupBy: jest.fn().mockReturnThis(),
-  addGroupBy: jest.fn().mockReturnThis(),
-  orderBy: jest.fn().mockReturnThis(),
-  take: jest.fn().mockReturnThis(),
-  update: jest.fn().mockReturnThis(),
-  set: jest.fn().mockReturnThis(),
-  execute: jest.fn().mockResolvedValue({ affected: 1 }),
-  getMany: jest.fn().mockResolvedValue([]),
-  getRawMany: jest.fn().mockResolvedValue([]),
+  select: vi.fn().mockReturnThis(),
+  addSelect: vi.fn().mockReturnThis(),
+  where: vi.fn().mockReturnThis(),
+  andWhere: vi.fn().mockReturnThis(),
+  groupBy: vi.fn().mockReturnThis(),
+  addGroupBy: vi.fn().mockReturnThis(),
+  orderBy: vi.fn().mockReturnThis(),
+  take: vi.fn().mockReturnThis(),
+  update: vi.fn().mockReturnThis(),
+  set: vi.fn().mockReturnThis(),
+  execute: vi.fn().mockResolvedValue({ affected: 1 }),
+  getMany: vi.fn().mockResolvedValue([]),
+  getRawMany: vi.fn().mockResolvedValue([]),
 };
 
 const mockTransactionManager = {
-  create: jest.fn().mockImplementation((_entity, data) => data),
-  save: jest.fn().mockImplementation((data) => Promise.resolve(data)),
-  createQueryBuilder: jest.fn(() => mockQueryBuilder),
+  create: vi.fn().mockImplementation((_entity: any, data: any) => data),
+  save: vi.fn().mockImplementation((data: any) => Promise.resolve(data)),
+  createQueryBuilder: vi.fn(() => mockQueryBuilder),
 };
 
 const mockDataSource = {
-  transaction: jest.fn().mockImplementation((cb) => cb(mockTransactionManager)),
+  transaction: vi.fn().mockImplementation((cb: any) => cb(mockTransactionManager)),
 };
 
 const mockTextract = {
-  analyzeDocument: jest.fn().mockResolvedValue({
+  analyzeDocument: vi.fn().mockResolvedValue({
     success: true,
     ocrConfidence: 0.92,
     rawText: 'INDEPENDENT ELECTORAL AND BOUNDARIES COMMISSION\nFORM 37A\nELECTION RESULTS',
     blocks: [],
   }),
-  parseElectionData: jest.fn().mockReturnValue({
+  parseElectionData: vi.fn().mockReturnValue({
     stationCode: '001001001001001',
     stationName: 'Kibera Primary School',
     position: 'PRESIDENT',
@@ -79,7 +79,7 @@ const mockTextract = {
 };
 
 const mockNecValidator = {
-  validate: jest.fn().mockResolvedValue({
+  validate: vi.fn().mockResolvedValue({
     stationCodeMatchScore: 1.0,
     positionMatchScore: 1.0,
     arithmeticScore: 1.0,
@@ -94,7 +94,7 @@ const mockNecValidator = {
 };
 
 const mockConfidence = {
-  compute: jest.fn().mockReturnValue({
+  compute: vi.fn().mockReturnValue({
     overallConfidence: 0.95,
     routingDecision: RoutingDecision.AUTO_APPROVE,
     routingReason: 'High confidence across all checks',
@@ -104,11 +104,11 @@ const mockConfidence = {
 };
 
 const mockHttpService = {
-  patch: jest.fn().mockReturnValue(of({ data: {} })),
+  patch: vi.fn().mockReturnValue(of({ data: {} })),
 };
 
 const mockConfig = {
-  get: jest.fn().mockReturnValue('http://evidence-service:3005'),
+  get: vi.fn().mockReturnValue('http://evidence-service:3005'),
 };
 
 describe('AiService', () => {
@@ -135,7 +135,7 @@ describe('AiService', () => {
     }).compile();
 
     service = module.get<AiService>(AiService);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   // ── triggerVerification() ──────────────────────────────────
@@ -301,13 +301,11 @@ describe('AiService', () => {
     });
   });
 
-  // ── Pipeline (via triggerVerification setImmediate) ─────────
+  // ── Pipeline ───────────────────────────────────────────────
 
   describe('pipeline execution', () => {
     it('should run full pipeline: textract → NEC → confidence → persist', async () => {
-      // We can test the pipeline by calling the private method via reflection
-      // or by verifying the processors are called after trigger
-      jobRepo.findOne.mockResolvedValue(null); // trigger creates new
+      jobRepo.findOne.mockResolvedValue(null);
       jobRepo.findOneOrFail.mockResolvedValue({
         id: 'job-1',
         capsuleId: 'cap-1',
@@ -319,7 +317,6 @@ describe('AiService', () => {
         maxAttempts: 3,
       });
 
-      // Access private method via any cast for testing
       await (service as any).runPipeline('job-1');
 
       expect(mockTextract.analyzeDocument).toHaveBeenCalledWith('vc-evidence-prod', 'uploads/cap-1.jpg');
@@ -342,7 +339,6 @@ describe('AiService', () => {
 
       await (service as any).runPipeline('job-1');
 
-      // Should set status back to QUEUED (can retry)
       expect(mockQueryBuilder.set).toHaveBeenCalledWith(
         expect.objectContaining({
           status: AiJobStatus.QUEUED,
@@ -365,9 +361,7 @@ describe('AiService', () => {
       await (service as any).runPipeline('job-1');
 
       expect(mockQueryBuilder.set).toHaveBeenCalledWith(
-        expect.objectContaining({
-          status: AiJobStatus.FAILED,
-        }),
+        expect.objectContaining({ status: AiJobStatus.FAILED }),
       );
     });
 
@@ -409,7 +403,6 @@ describe('AiService', () => {
 
       await (service as any).runPipeline('job-1');
 
-      // Should save 2 anomaly events in the transaction
       expect(mockTransactionManager.save).toHaveBeenCalledTimes(2);
     });
 
