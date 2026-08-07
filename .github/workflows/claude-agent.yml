@@ -2,24 +2,15 @@
 # VoteCapsule™ — Claude Code GitHub Action (AWS Bedrock)
 # .github/workflows/claude-agent.yml
 #
-# FIXED: Replaced ANTHROPIC_API_KEY (direct Anthropic API key
-# that was never set) with AWS Bedrock via OIDC role assumption.
+# Trigger : comment "@claude <instruction>" on any PR or issue
+# Model   : us.anthropic.claude-sonnet-4-5-20250929-v1:0
+# Auth    : AWS Bedrock via OIDC — zero repo secrets needed
 #
-# How it works:
-#   - GitHub Actions assumes `vote-capsule-github-actions-role`
-#     via OIDC (same role used by every other workflow).
-#   - That role now has bedrock:InvokeModel permission (added
-#     to the inline policy github-actions-ecr-ecs-s3).
-#   - The claude-code-action is pointed at the Bedrock provider
-#     using the US cross-region inference profile for Claude
-#     Sonnet 4.5 — the latest stable Sonnet available in this
-#     account's us-east-1 region.
-#   - Zero new secrets required — fully secretless AWS auth.
-#
-# Model: us.anthropic.claude-sonnet-4-5-20250929-v1:0
-#   (US cross-region inference profile — best latency + availability)
-#
-# Usage: Comment "@claude <instruction>" on any PR or issue.
+# Project knowledge (tech stack, services, critical rules, etc.)
+# lives entirely in CLAUDE.md at the repo root. Claude Code reads
+# that file automatically on every run. custom_instructions here
+# contains ONLY workflow-specific behaviour rules that are not
+# appropriate for CLAUDE.md (permissions, tool limits, CI etiquette).
 # ============================================================
 name: Claude Agent
 
@@ -33,11 +24,10 @@ on:
 
 jobs:
   claude:
-    # Only run when @claude is mentioned in a comment or issue body
     if: |
-      (github.event_name == 'issue_comment'              && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'issue_comment'               && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'issues'                     && contains(github.event.issue.body,    '@claude'))
+      (github.event_name == 'issues'                      && contains(github.event.issue.body,   '@claude'))
     runs-on: ubuntu-latest
     permissions:
       contents:      write
@@ -46,7 +36,6 @@ jobs:
       id-token:      write   # Required for OIDC → Bedrock
 
     steps:
-      # ── Step 1: Assume the OIDC role (gives Bedrock access) ────────────────
       - name: Configure AWS credentials (OIDC → Bedrock)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -55,70 +44,35 @@ jobs:
           aws-region:        us-east-1
           audience:          sts.amazonaws.com
 
-      # ── Step 2: Run Claude via Bedrock ─────────────────────────────────────
       - name: Run Claude Code (Bedrock)
         uses: anthropics/claude-code-action@v1
         with:
-          # Bedrock provider — uses the AWS credentials from the step above.
-          # No ANTHROPIC_API_KEY needed.
-          use_bedrock: "true"
-
-          # US cross-region inference profile for Claude Sonnet 4.5
-          # (latest stable Sonnet in this account; routes across US regions
-          # for best availability and lowest latency)
-          model: "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
-
+          use_bedrock:     "true"
+          model:           "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
           timeout_minutes: 30
 
-          # VoteCapsule project context injected into every Claude session
+          # ── Workflow-specific behaviour only ──────────────────────────────
+          # Project knowledge (stack, services, ports, critical rules, DB
+          # layout, lifecycle patterns) is in CLAUDE.md at the repo root.
+          # Claude Code reads that file automatically — do not duplicate it here.
+          # ──────────────────────────────────────────────────────────────────
           custom_instructions: |
-            You are the CTO AI agent for VoteCapsule™, an Election Intelligence Cloud Platform
-            targeting Kenya's 2027 General Election.
+            ## How to respond in GitHub
+            - Always reply in the same PR comment thread or issue that triggered you.
+            - Prefix every reply with a one-line summary of what you did or decided.
+            - If you cannot complete a task safely, explain why and suggest the next step.
+            - Never force-push. Never rebase shared branches. Create new commits only.
 
-            ## Architecture
-            - 13 NestJS microservices (ports 3001-3013): identity, evidence, trust, geography,
-              candidate, election, notification, reporting, workflow, ai, tenant, audit, billing
-            - 6 React+Vite web portals: admin, authority, party, candidate, observer, public
-            - 2 React Native/Expo mobile apps: agent-mobile, validator-mobile
-            - Monorepo: pnpm workspaces + turbo
-            - DB: Aurora PostgreSQL 16.8 Serverless v2 (TypeORM)
-            - AWS: ECS Fargate, ALB, API Gateway HTTP v2, CloudFront, S3, OpenSearch, ElastiCache Redis
-            - Auth: Cognito User Pool + JWT (InitiateAuth — NOT hosted UI)
-            - Trust: Hedera Consensus Service + RFC 3161 (NO blockchain, NO smart contracts)
-            - AI: AWS Bedrock (Claude Sonnet 4.5 via us-east-1 inference profile)
+            ## Code change rules
+            - Run `pnpm install --frozen-lockfile` before making any code changes.
+            - After changes, run the affected service tests: `cd services/<name> && pnpm test`.
+            - Run `pnpm lint` and `pnpm tsc --noEmit` before committing.
+            - Never edit files in `database/migrations/` — migrations are immutable once applied.
+            - Never commit secrets, `.env` files, or `firebase-service-account.json`.
 
-            ## Critical Rules — NEVER violate:
-            - SHA-256 formula LOCKED: SHA-256(imageSHA256 + sortedMetadataJSON + captureTimestamp)
-            - User-facing trust language: "Integrity Verified" — NEVER say "blockchain"
-            - NEC is Single Source of Truth for geography — never duplicate station data
-            - Evidence is immutable after dual-anchor confirmation (Hedera + RFC 3161)
-            - DB credentials in AWS Secrets Manager ONLY — never in code or env files
-            - No smart contracts anywhere in the platform
-            - Never commit firebase-service-account.json
+            ## Scope limits
+            - Only modify files relevant to the requested task.
+            - Do not refactor unrelated code in the same commit.
+            - Do not change `pnpm-lock.yaml` unless explicitly asked to update dependencies.
 
-            ## Monorepo Layout
-            ```
-            vote-capsule/
-            ├── services/             # 13 NestJS microservices
-            ├── apps/                 # 6 web portals + 2 mobile apps
-            ├── packages/             # shared: types, design-tokens, test-utils
-            ├── infrastructure/       # CDK, step-functions, scripts
-            ├── database/migrations/  # 128 SQL migrations
-            └── tests/integration/    # Cross-service integration tests
-            ```
-
-            ## Key Lifecycle Patterns
-            - Capsule: DRAFT → CAPTURED → QUEUED → UPLOADING → UPLOADED → APPROVED → ANCHORED → PUBLISHED
-            - Form chain: Form A (station) → Form B (constituency) → Form C (county/national)
-            - Reconciliation: SUM(Form As) == Form B, SUM(Form Bs) == Form C
-            - AI routing: AUTO_APPROVE (>0.85), HUMAN_REVIEW (0.6-0.85), ESCALATE (<0.6)
-
-            ## When fixing code:
-            - Run `pnpm install` first
-            - Run tests: `cd services/<name> && pnpm test`
-            - Lint: `pnpm lint`
-            - Type-check: `pnpm tsc --noEmit`
-            - Never modify database migrations that have already been applied
-
-          # Tools Claude is permitted to use
           allowed_tools: "bash,read,write,edit"
