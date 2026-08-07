@@ -1,0 +1,63 @@
+# =============================================================
+# VoteCapsule™ — CODEOWNERS
+#
+# Defines who must review and approve changes before they can
+# be merged into master. GitHub automatically requests reviews
+# from these owners when a PR touches their owned paths.
+#
+# Rules:
+# - More specific patterns below override broader ones above.
+# - At least 1 approval from a listed owner is required
+#   (enforced by the branch protection rule on master).
+# - The @youngnationagenda/cto team must approve any change to
+#   critical security, auth, infrastructure or CI paths.
+# =============================================================
+
+# ── Default: CTO approves everything ────────────────────────
+*                                               @youngnationagenda/cto
+
+# ── Core services ────────────────────────────────────────────
+services/identity/**                            @youngnationagenda/cto
+services/evidence/**                            @youngnationagenda/cto
+services/trust/**                               @youngnationagenda/cto
+services/audit/**                               @youngnationagenda/cto
+services/billing/**                             @youngnationagenda/cto
+
+services/geography/**                           @youngnationagenda/cto @youngnationagenda/backend
+services/candidate/**                           @youngnationagenda/cto @youngnationagenda/backend
+services/election/**                            @youngnationagenda/cto @youngnationagenda/backend
+services/notification/**                        @youngnationagenda/cto @youngnationagenda/backend
+services/reporting/**                           @youngnationagenda/cto @youngnationagenda/backend
+services/workflow/**                            @youngnationagenda/cto @youngnationagenda/backend
+services/ai/**                                  @youngnationagenda/cto @youngnationagenda/backend
+services/tenant/**                              @youngnationagenda/cto @youngnationagenda/backend
+
+# ── Web portals ──────────────────────────────────────────────
+apps/admin-web/**                               @youngnationagenda/cto @youngnationagenda/frontend
+apps/authority-web/**                           @youngnationagenda/cto @youngnationagenda/frontend
+apps/party-web/**                               @youngnationagenda/cto @youngnationagenda/frontend
+apps/candidate-web/**                           @youngnationagenda/cto @youngnationagenda/frontend
+apps/observer-web/**                            @youngnationagenda/cto @youngnationagenda/frontend
+apps/public-web/**                              @youngnationagenda/cto @youngnationagenda/frontend
+
+# ── Mobile apps ──────────────────────────────────────────────
+apps/agent-mobile/**                            @youngnationagenda/cto @youngnationagenda/mobile
+apps/validator-mobile/**                        @youngnationagenda/cto @youngnationagenda/mobile
+
+# ── Shared packages (any change ripples everywhere) ──────────
+packages/**                                     @youngnationagenda/cto
+
+# ── Database migrations (immutable once applied) ─────────────
+packages/database/migrations/**                 @youngnationagenda/cto
+
+# ── Infrastructure & CDK ─────────────────────────────────────
+infrastructure/**                               @youngnationagenda/cto
+
+# ── CI/CD workflows ──────────────────────────────────────────
+.github/**                                      @youngnationagenda/cto
+
+# ── IAM & trust policies ─────────────────────────────────────
+iam/**                                          @youngnationagenda/cto
+
+# ── Integration tests ────────────────────────────────────────
+tests/**                                        @youngnationagenda/cto @youngnationagenda/backend

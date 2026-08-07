@@ -1,0 +1,235 @@
+name: PR Quality Gate
+
+# ============================================================
+# Runs on every pull request targeting master or main.
+# ALL jobs must pass before a PR can be merged (enforced by
+# branch protection rules on master).
+#
+# Build workflows (build-and-push-services, deploy-portals,
+# deploy-cdk, trigger-codebuild) only fire on push to master —
+# meaning code reaches the build ONLY after this gate passes
+# AND a human reviewer approves.
+#
+# Gate jobs (all must pass):
+#   1. typecheck   — tsc --noEmit across the entire monorepo
+#   2. lint        — eslint across the entire monorepo
+#   3. unit-tests  — jest for every affected service (matrix)
+#   4. secret-scan — blocks commits containing secrets/keys
+#   5. migration-guard — blocks edits to existing migrations
+# ============================================================
+
+on:
+  pull_request:
+    branches:
+      - master
+      - main
+    types: [opened, synchronize, reopened, ready_for_review]
+
+# Cancel in-progress runs for the same PR when new commits are pushed
+concurrency:
+  group: pr-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # ── 1. TypeScript ────────────────────────────────────────────────────────────
+  typecheck:
+    name: TypeScript — tsc --noEmit
+    runs-on: ubuntu-latest
+    # Skip draft PRs — only run when PR is ready for review
+    if: github.event.pull_request.draft == false
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        run: pnpm tsc --noEmit
+        # Fails the gate if any TypeScript error exists anywhere in the monorepo
+
+  # ── 2. Lint ──────────────────────────────────────────────────────────────────
+  lint:
+    name: ESLint
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+        # Fails the gate if any ESLint error exists
+
+  # ── 3. Unit tests (matrix — all 13 services) ────────────────────────────────
+  unit-tests:
+    name: Unit Tests — ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false   # Run all services, don't stop on first failure
+      matrix:
+        service:
+          - identity
+          - evidence
+          - trust
+          - geography
+          - candidate
+          - election
+          - notification
+          - reporting
+          - workflow
+          - ai
+          - tenant
+          - audit
+          - billing
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run unit tests — ${{ matrix.service }}
+        run: |
+          pnpm --filter "@vote-capsule/${{ matrix.service }}" \
+            test -- --coverage --ci --passWithNoTests
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pr-coverage-${{ matrix.service }}-${{ github.event.pull_request.number }}
+          path: services/${{ matrix.service }}/coverage/
+          retention-days: 3
+
+  # ── 4. Secret scan ───────────────────────────────────────────────────────────
+  secret-scan:
+    name: Secret Scan — no credentials in code
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Full history so we can scan only the PR diff
+
+      - name: Scan for secrets (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+        # Scans only the commits in this PR — fails if any secret pattern is found.
+        # Catches: AWS keys, private keys, Cognito secrets, DB passwords, tokens.
+
+  # ── 5. Migration guard ───────────────────────────────────────────────────────
+  migration-guard:
+    name: Migration Guard — no edits to existing migrations
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for edits to existing migration files
+        run: |
+          # Get list of migration files changed in this PR
+          CHANGED=$(git diff --name-only origin/${{ github.base_ref }}...HEAD \
+            -- 'packages/database/migrations/*.sql' \
+               'packages/database/migrations/*.ts' 2>/dev/null || true)
+
+          if [ -z "$CHANGED" ]; then
+            echo "✅ No migration files touched."
+            exit 0
+          fi
+
+          # New migration files (only additions) are allowed
+          MODIFIED=$(git diff --name-only --diff-filter=M origin/${{ github.base_ref }}...HEAD \
+            -- 'packages/database/migrations/*.sql' \
+               'packages/database/migrations/*.ts' 2>/dev/null || true)
+          DELETED=$(git diff --name-only --diff-filter=D origin/${{ github.base_ref }}...HEAD \
+            -- 'packages/database/migrations/*.sql' \
+               'packages/database/migrations/*.ts' 2>/dev/null || true)
+
+          if [ -n "$MODIFIED" ] || [ -n "$DELETED" ]; then
+            echo "❌ BLOCKED: Existing migration files must never be edited or deleted."
+            echo "   Migrations are immutable once applied to any environment."
+            echo ""
+            echo "   Modified files:"
+            echo "$MODIFIED"
+            echo "   Deleted files:"
+            echo "$DELETED"
+            echo ""
+            echo "   If you need to change data/schema, create a NEW migration file."
+            exit 1
+          fi
+
+          # Only new files — allowed
+          ADDED=$(git diff --name-only --diff-filter=A origin/${{ github.base_ref }}...HEAD \
+            -- 'packages/database/migrations/*.sql' \
+               'packages/database/migrations/*.ts' 2>/dev/null || true)
+          echo "✅ New migration file(s) added (additions are allowed):"
+          echo "$ADDED"
+
+  # ── Summary gate ─────────────────────────────────────────────────────────────
+  # This job is the single required status check configured in branch protection.
+  # GitHub requires a single check name — this job depends on all others so it
+  # only passes when every gate above has passed.
+  gate-passed:
+    name: ✅ All quality gates passed
+    runs-on: ubuntu-latest
+    needs: [typecheck, lint, unit-tests, secret-scan, migration-guard]
+    if: always()
+    steps:
+      - name: Check all gates
+        run: |
+          RESULTS='${{ toJSON(needs) }}'
+          echo "Gate results: $RESULTS"
+
+          # Check if any required job failed or was cancelled
+          if echo "$RESULTS" | grep -q '"result": "failure"'; then
+            echo "❌ One or more quality gates FAILED — PR cannot be merged."
+            exit 1
+          fi
+          if echo "$RESULTS" | grep -q '"result": "cancelled"'; then
+            echo "❌ One or more quality gates were CANCELLED — PR cannot be merged."
+            exit 1
+          fi
+
+          echo "✅ All quality gates passed — PR is ready for reviewer approval."
