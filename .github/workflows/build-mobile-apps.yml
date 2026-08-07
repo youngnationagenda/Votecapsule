@@ -48,7 +48,6 @@ env:
   EAS_PROJECT_ID: 969c7ec4-865c-41f2-b4b4-d01f1409d2a8
   EAS_OWNER:      ynakenya
   NODE_VERSION:   '22'
-  PNPM_VERSION:   '9'
 
 jobs:
   # ──────────────────────────────────────────────────────────
@@ -72,8 +71,7 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
+        # Version read from package.json "packageManager" field (pnpm@9.14.4)
 
       - name: Setup Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4
@@ -163,8 +161,7 @@ jobs:
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: ${{ env.PNPM_VERSION }}
+        # Version read from package.json "packageManager" field (pnpm@9.14.4)
 
       - name: Setup Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v4

@@ -1,9 +1,9 @@
 # Vote Capsule™ — Admin Portal (ECR Public mirror — no Docker Hub rate limits)
 ARG GIT_SHA=local
 
-FROM public.ecr.aws/docker/library/node:20-alpine AS builder
+FROM public.ecr.aws/docker/library/node:22-alpine AS builder
 WORKDIR /app
-RUN npm install -g pnpm@9 --silent
+RUN corepack enable && corepack prepare pnpm@9.14.4 --activate
 
 # Copy monorepo root manifests
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json turbo.json ./

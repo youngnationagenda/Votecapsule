@@ -2,9 +2,9 @@
 ARG SERVICE_PORT=3004
 ARG GIT_SHA=local
 
-FROM public.ecr.aws/docker/library/node:20-alpine AS builder
+FROM public.ecr.aws/docker/library/node:22-alpine AS builder
 WORKDIR /app
-RUN npm install -g pnpm@9 --silent
+RUN corepack enable && corepack prepare pnpm@9.14.4 --activate
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json turbo.json ./
 COPY packages/ ./packages/
 COPY services/geography/ ./services/geography/
@@ -17,7 +17,7 @@ RUN cd /app/services/geography && npx tsc --project tsconfig.json --noEmitOnErro
 # The output path must be absolute and outside the service directory to avoid nesting
 RUN pnpm --filter @vote-capsule/geography-service deploy --prod /tmp/geography-deploy
 
-FROM public.ecr.aws/docker/library/node:20-alpine AS runner
+FROM public.ecr.aws/docker/library/node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ARG SERVICE_PORT
