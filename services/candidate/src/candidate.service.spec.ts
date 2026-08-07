@@ -93,14 +93,16 @@ function createMockCandidate(overrides: Partial<Candidate> = {}): Candidate {
     createdAt: new Date(),
     updatedAt: new Date(),
     election: null as any,
-    position: null as any,
+    position: {
+      id: 'position-001',
+      positionCode: 'MP',
+      positionName: 'Member of Parliament',
+      geographicLevel: 'CONSTITUENCY',
+      description: null,
+    } as any,
     party: null as any,
     statusLog: [],
     ballotReferences: [],
-    positionCode: 'MP',
-    positionLevel: 'CONSTITUENCY',
-    photoUrl: null,
-    description: null,
     ...overrides,
   } as any;
 }
@@ -633,10 +635,16 @@ describe('CandidateService', () => {
         electionId: 'nomination-001',
         positionId: 'nom-position-001',
         nominationWon: true,
-        positionCode: 'MP',
         countyCode: '047',
         constituencyCode: '263',
         wardCode: null,
+        position: {
+          id: 'nom-position-001',
+          positionCode: 'MP',
+          positionName: 'Member of Parliament',
+          geographicLevel: 'CONSTITUENCY',
+          description: null,
+        } as any,
       });
       const nominationElection = createMockElection({
         id: 'nomination-001',

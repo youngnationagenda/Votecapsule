@@ -382,7 +382,7 @@ export class CandidateService {
         fromStatus:  winner.status,
         toStatus:    CandidateStatus.ELECTED,
         changedBy:   declaredBy,
-        reason:      `Declared winner of party nomination for ${winner.positionCode ?? 'position'}`,
+        reason:      `Declared winner of party nomination for ${winner.position?.positionCode ?? 'position'}`,
       });
 
       const losers: Candidate[] = [];
@@ -454,10 +454,12 @@ export class CandidateService {
     }
 
     // Find matching position in the general election
+    // positionCode and geographicLevel live on the ElectionPosition entity, not Candidate
+    const nomPosition = nomCandidate.position;
     const generalPosition = await this.positionRepo.findOne({
       where: {
         electionId:   generalElection.id,
-        positionCode: nomCandidate.positionCode ?? undefined,
+        positionCode: nomPosition?.positionCode ?? undefined,
         countyCode:   nomCandidate.countyCode   ?? undefined,
         constituencyCode: nomCandidate.constituencyCode ?? undefined,
         wardCode:     nomCandidate.wardCode     ?? undefined,
@@ -465,7 +467,7 @@ export class CandidateService {
     });
     if (!generalPosition) {
       throw new BadRequestException(
-        `No matching position found in the General Election for ${nomCandidate.positionCode} ` +
+        `No matching position found in the General Election for ${nomPosition?.positionCode ?? 'unknown'} ` +
         `in constituency ${nomCandidate.constituencyCode ?? nomCandidate.countyCode}. ` +
         `Ensure the General Election has positions seeded (run migration 021).`
       );
@@ -483,16 +485,14 @@ export class CandidateService {
         nationalId:              nomCandidate.nationalId,
         dateOfBirth:             nomCandidate.dateOfBirth,
         gender:                  nomCandidate.gender,
-        positionCode:            nomCandidate.positionCode,
-        positionLevel:           nomCandidate.positionLevel,
+        // Geography from the candidate (NEC codes)
         countyCode:              nomCandidate.countyCode,
         constituencyCode:        nomCandidate.constituencyCode,
         wardCode:                nomCandidate.wardCode,
         runningMateName:         nomCandidate.runningMateName,
         runningMateNationalId:   nomCandidate.runningMateNationalId,
         gazetteReference:        nomCandidate.gazetteReference,
-        description:             nomCandidate.description,
-        photoUrl:                nomCandidate.photoUrl,
+        photographUrl:           nomCandidate.photographUrl,
         // Promotion metadata
         sponsorshipType:         'PARTY_SPONSORED',
         nominationElectionId:    nominationElection.id,
@@ -513,9 +513,9 @@ export class CandidateService {
         reason:      `Promoted from party nomination election ${nominationElection.id} — ${nominationElection.name}`,
       });
 
-      // Mark the nomination candidate as promoted
+      // Mark the nomination candidate as promoted (store note in gazetteReference field)
       await manager.update(Candidate, nomCandidate.id, {
-        description: `[PROMOTED to General Election ${generalElection.id}] ${nomCandidate.description ?? ''}`.trim(),
+        gazetteReference: `[PROMOTED to General Election ${generalElection.id}] ${nomCandidate.gazetteReference ?? ''}`.trim(),
       });
 
       this.logger.log(

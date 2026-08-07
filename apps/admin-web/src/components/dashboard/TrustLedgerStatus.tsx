@@ -67,7 +67,7 @@ export function TrustLedgerStatus({ ledgerDigest }: TrustLedgerStatusProps): Rea
               <span className="font-mono text-gray-600 break-all text-xs leading-relaxed">
                 {ledgerDigest.digest.slice(0, 32)}…
               </span>
-              <span className="text-gray-400">{new Date(ledgerDigest.at).toLocaleTimeString()}</span>
+              <span className="text-gray-400">{ledgerDigest.at ? new Date(ledgerDigest.at).toLocaleTimeString() : ''}</span>
             </div>
           )}
         </div>

@@ -1,5 +1,14 @@
 name: Rate My OpenAPI — API Quality Lint
 
+# ============================================================
+# FIXED: The previous version set `working-directory: vote-capsule`
+# on the pnpm install step. The GitHub Actions runner checks out
+# the repo so that the repo root IS already the monorepo root
+# (vote-capsule/). Adding that directory prefix caused pnpm to look
+# for a non-existent nested `vote-capsule/vote-capsule/` path,
+# which always failed. All steps now run from the repo root (`.`).
+# ============================================================
+
 on:
   push:
     branches:
@@ -28,43 +37,45 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Install pnpm
+      - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9
 
+      # FIXED: removed `working-directory: vote-capsule` — runner already
+      # starts in the repo root which is the monorepo root.
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-        working-directory: vote-capsule
 
       - name: Generate OpenAPI spec from NestJS services
         run: |
-          # Export swagger spec from identity service (representative)
-          cd vote-capsule
-          echo "Generating OpenAPI spec..."
           node -e "
           const spec = {
             openapi: '3.0.0',
             info: {
               title: 'VoteCapsule API',
               version: '1.0.0',
-              description: 'VoteCapsule Election Intelligence Cloud Platform API'
+              description: 'VoteCapsule™ Election Intelligence Cloud Platform API'
             },
-            servers: [{url: 'https://483uyy43nc.execute-api.us-east-1.amazonaws.com/api/v1'}],
+            servers: [{ url: 'https://483uyy43nc.execute-api.us-east-1.amazonaws.com/api/v1' }],
             paths: {},
-            components: { securitySchemes: { bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' } } },
+            components: {
+              securitySchemes: {
+                bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' }
+              }
+            },
             security: [{ bearerAuth: [] }]
           };
           require('fs').writeFileSync('openapi.json', JSON.stringify(spec, null, 2));
-          console.log('OpenAPI spec generated');
+          console.log('✅ OpenAPI spec generated → openapi.json');
           "
 
       - name: Rate OpenAPI spec
         uses: zuplo/rmoa-action@v1
         with:
-          filepath:      vote-capsule/openapi.json
-          apikey:        ${{ secrets.RMOA_API_KEY }}
-          minimum-score: 60
-          max-errors:    10
-          max-warnings:  20
-        continue-on-error: true
+          filepath:       openapi.json
+          apikey:         ${{ secrets.RMOA_API_KEY }}
+          minimum-score:  60
+          max-errors:     10
+          max-warnings:   20
+        continue-on-error: true   # Non-blocking — quality gate, not a hard blocker

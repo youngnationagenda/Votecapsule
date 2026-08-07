@@ -1,5 +1,13 @@
 name: Trigger AWS CodeBuild (Docker Build + ECR Push)
 
+# ============================================================
+# FIXED: Removed the `push` trigger on services/** that caused
+# this workflow AND aws_codebuild.yml to both fire on every
+# service commit — double-triggering CodeBuild unnecessarily.
+# aws_codebuild.yml owns the push-triggered builds.
+# This file is now manual-trigger (workflow_dispatch) only.
+# ============================================================
+
 on:
   workflow_dispatch:
     inputs:
@@ -7,16 +15,6 @@ on:
         description: 'Reason for manual trigger'
         required: false
         default: 'Manual build trigger'
-
-  push:
-    branches:
-      - master
-      - main
-    paths:
-      - 'services/**'
-      - 'apps/admin-web/**'
-      - 'packages/**'
-      - 'buildspec.yml'
 
 jobs:
   trigger-codebuild:
@@ -28,12 +26,12 @@ jobs:
 
     steps:
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v6.2.3
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::683541453923:role/vote-capsule-github-actions-role
-          role-session-name: GitHubActions-${{ github.run_id }}
-          aws-region: us-east-1
-          audience: sts.amazonaws.com
+          role-to-assume:    arn:aws:iam::683541453923:role/vote-capsule-github-actions-role
+          role-session-name: GitHubActions-manual-codebuild-${{ github.run_id }}
+          aws-region:        us-east-1
+          audience:          sts.amazonaws.com
 
       - name: Start CodeBuild project
         id: codebuild
@@ -44,27 +42,28 @@ jobs:
             --region us-east-1 \
             --query 'build.id' \
             --output text)
-          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
-          echo "🚀 Started CodeBuild: $BUILD_ID"
+          echo "build_id=${BUILD_ID}" >> $GITHUB_OUTPUT
+          echo "🚀 Started CodeBuild: ${BUILD_ID}"
+          echo "   Reason: ${{ github.event.inputs.reason }}"
 
       - name: Wait for CodeBuild to complete
         run: |
           BUILD_ID="${{ steps.codebuild.outputs.build_id }}"
-          echo "Polling build: $BUILD_ID"
+          echo "Polling build: ${BUILD_ID}"
           while true; do
             STATUS=$(aws codebuild batch-get-builds \
-              --ids "$BUILD_ID" \
+              --ids "${BUILD_ID}" \
               --region us-east-1 \
               --query 'builds[0].buildStatus' \
               --output text)
-            echo "  Status: $STATUS"
+            echo "  Status: ${STATUS}"
             case $STATUS in
               SUCCEEDED)
                 echo "✅ CodeBuild SUCCEEDED"
                 exit 0
                 ;;
               FAILED|FAULT|TIMED_OUT|STOPPED)
-                echo "❌ CodeBuild $STATUS"
+                echo "❌ CodeBuild ${STATUS}"
                 exit 1
                 ;;
               *)
@@ -77,5 +76,4 @@ jobs:
         if: always()
         run: |
           BUILD_ID="${{ steps.codebuild.outputs.build_id }}"
-          PROJECT=$(echo "$BUILD_ID" | cut -d: -f2 | cut -d/ -f1)
-          echo "📋 Logs: https://us-east-1.console.aws.amazon.com/codesuite/codebuild/683541453923/projects/vote-capsule-docker-build/build/$BUILD_ID/log"
+          echo "📋 Logs: https://us-east-1.console.aws.amazon.com/codesuite/codebuild/683541453923/projects/vote-capsule-docker-build/build/${BUILD_ID}/log"

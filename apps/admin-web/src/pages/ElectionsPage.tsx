@@ -21,6 +21,7 @@ interface Election {
   tenantId: string;
   name: string;
   type: 'GENERAL' | 'BY_ELECTION' | 'REPEAT';
+  electionType?: 'GENERAL' | 'BY_ELECTION' | 'REPEAT' | 'PARTY_NOMINATION';
   electionYear: number;
   electionDate: string | null;
   nominationDeadline: string | null;

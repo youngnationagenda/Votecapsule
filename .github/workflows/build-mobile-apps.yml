@@ -1,5 +1,11 @@
 name: Build Mobile Apps (EAS)
 
+# ============================================================
+# FIXED: Added EXPO_TOKEN guard step before EAS CLI setup.
+# If the secret is not set the job now exits with a clear
+# message instead of silently failing inside the EAS action.
+# ============================================================
+
 on:
   push:
     branches:
@@ -40,14 +46,14 @@ on:
 
 env:
   EAS_PROJECT_ID: 969c7ec4-865c-41f2-b4b4-d01f1409d2a8
-  EAS_OWNER: ynakenya
-  NODE_VERSION: '22'
-  PNPM_VERSION: '9'
+  EAS_OWNER:      ynakenya
+  NODE_VERSION:   '22'
+  PNPM_VERSION:   '9'
 
 jobs:
-  # ---------------------------------------------------------------------------
+  # ──────────────────────────────────────────────────────────
   # Agent Mobile Build
-  # ---------------------------------------------------------------------------
+  # ──────────────────────────────────────────────────────────
   build-agent:
     name: Build Agent Mobile (${{ github.event.inputs.profile || 'preview' }})
     runs-on: ubuntu-latest
@@ -73,11 +79,23 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
         working-directory: .
+
+      # FIXED: guard against missing EXPO_TOKEN before EAS CLI setup.
+      # Without this the expo-github-action step fails with a cryptic
+      # auth error rather than a clear "secret not set" message.
+      - name: Verify EXPO_TOKEN is set
+        run: |
+          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "❌ EXPO_TOKEN secret is not set in this repository."
+            echo "   Go to Settings → Secrets → Actions and add EXPO_TOKEN."
+            exit 1
+          fi
+          echo "✅ EXPO_TOKEN is present."
 
       - name: Setup EAS CLI
         uses: expo/expo-github-action@v8
@@ -104,14 +122,14 @@ jobs:
             --no-wait \
             --json 2>&1 | tail -1)
           echo "build_output=${BUILD_OUTPUT}" >> $GITHUB_OUTPUT
-          BUILD_ID=$(echo "$BUILD_OUTPUT" | jq -r '.[0].id // empty')
+          BUILD_ID=$(echo "${BUILD_OUTPUT}" | jq -r '.[0].id // empty')
           BUILD_URL="https://expo.dev/accounts/${EAS_OWNER}/projects/votecapsule-agent/builds/${BUILD_ID}"
-          echo "build_id=${BUILD_ID}" >> $GITHUB_OUTPUT
+          echo "build_id=${BUILD_ID}"   >> $GITHUB_OUTPUT
           echo "build_url=${BUILD_URL}" >> $GITHUB_OUTPUT
-          echo "## Agent Mobile Build Submitted" >> $GITHUB_STEP_SUMMARY
+          echo "## Agent Mobile Build Submitted"               >> $GITHUB_STEP_SUMMARY
           echo "- **Profile:** ${{ steps.profile.outputs.name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Build ID:** ${BUILD_ID}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Build URL:** ${BUILD_URL}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build ID:** ${BUILD_ID}"                   >> $GITHUB_STEP_SUMMARY
+          echo "- **Build URL:** ${BUILD_URL}"                 >> $GITHUB_STEP_SUMMARY
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
@@ -121,17 +139,17 @@ jobs:
         with:
           script: |
             const buildUrl = '${{ steps.eas-build.outputs.build_url }}';
-            const profile = '${{ steps.profile.outputs.name }}';
+            const profile  = '${{ steps.profile.outputs.name }}';
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+              owner:        context.repo.owner,
+              repo:         context.repo.repo,
               body: `### Agent Mobile Build Submitted\n\n| Field | Value |\n|-------|-------|\n| **App** | VoteCapsule Agent |\n| **Profile** | ${profile} |\n| **Platform** | Android |\n| **Build URL** | ${buildUrl} |\n\n_Build started via EAS. Check the link above for status and artifacts._`
             });
 
-  # ---------------------------------------------------------------------------
+  # ──────────────────────────────────────────────────────────
   # Validator Mobile Build
-  # ---------------------------------------------------------------------------
+  # ──────────────────────────────────────────────────────────
   build-validator:
     name: Build Validator Mobile (${{ github.event.inputs.profile || 'preview' }})
     runs-on: ubuntu-latest
@@ -157,11 +175,21 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'pnpm'
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
         working-directory: .
+
+      # FIXED: guard against missing EXPO_TOKEN
+      - name: Verify EXPO_TOKEN is set
+        run: |
+          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "❌ EXPO_TOKEN secret is not set in this repository."
+            echo "   Go to Settings → Secrets → Actions and add EXPO_TOKEN."
+            exit 1
+          fi
+          echo "✅ EXPO_TOKEN is present."
 
       - name: Setup EAS CLI
         uses: expo/expo-github-action@v8
@@ -188,14 +216,14 @@ jobs:
             --no-wait \
             --json 2>&1 | tail -1)
           echo "build_output=${BUILD_OUTPUT}" >> $GITHUB_OUTPUT
-          BUILD_ID=$(echo "$BUILD_OUTPUT" | jq -r '.[0].id // empty')
+          BUILD_ID=$(echo "${BUILD_OUTPUT}" | jq -r '.[0].id // empty')
           BUILD_URL="https://expo.dev/accounts/${EAS_OWNER}/projects/votecapsule-validator/builds/${BUILD_ID}"
-          echo "build_id=${BUILD_ID}" >> $GITHUB_OUTPUT
+          echo "build_id=${BUILD_ID}"   >> $GITHUB_OUTPUT
           echo "build_url=${BUILD_URL}" >> $GITHUB_OUTPUT
-          echo "## Validator Mobile Build Submitted" >> $GITHUB_STEP_SUMMARY
+          echo "## Validator Mobile Build Submitted"               >> $GITHUB_STEP_SUMMARY
           echo "- **Profile:** ${{ steps.profile.outputs.name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Build ID:** ${BUILD_ID}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Build URL:** ${BUILD_URL}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Build ID:** ${BUILD_ID}"                      >> $GITHUB_STEP_SUMMARY
+          echo "- **Build URL:** ${BUILD_URL}"                    >> $GITHUB_STEP_SUMMARY
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
 
@@ -205,10 +233,10 @@ jobs:
         with:
           script: |
             const buildUrl = '${{ steps.eas-build.outputs.build_url }}';
-            const profile = '${{ steps.profile.outputs.name }}';
+            const profile  = '${{ steps.profile.outputs.name }}';
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+              owner:        context.repo.owner,
+              repo:         context.repo.repo,
               body: `### Validator Mobile Build Submitted\n\n| Field | Value |\n|-------|-------|\n| **App** | VoteCapsule Validator |\n| **Profile** | ${profile} |\n| **Platform** | Android |\n| **Build URL** | ${buildUrl} |\n\n_Build started via EAS. Check the link above for status and artifacts._`
             });

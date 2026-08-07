@@ -80,6 +80,13 @@ export const evidenceApi = {
     return data;
   },
 
+  getCapsulesByCounty: async (countyCode: string, status?: string): Promise<EvidenceCapsule[]> => {
+    const params: Record<string, string> = { countyCode };
+    if (status) params.status = status;
+    const { data } = await evidenceClient.get<EvidenceCapsule[]>('/capsules', { params });
+    return data;
+  },
+
   getStats: async (tenantId?: string): Promise<EvidenceStats> => {
     const { data } = await evidenceClient.get<EvidenceStats>('/stats', {
       params: tenantId ? { tenantId } : {},
