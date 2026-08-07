@@ -1,24 +1,82 @@
 name: Trigger AWS CodeBuild (Docker Build + ECR Push)
 
-# ============================================================
-# FIXED: Removed the `push` trigger on services/** that caused
-# this workflow AND aws_codebuild.yml to both fire on every
-# service commit — double-triggering CodeBuild unnecessarily.
-# aws_codebuild.yml owns the push-triggered builds.
-# This file is now manual-trigger (workflow_dispatch) only.
-# ============================================================
+# Absorbed aws_codebuild.yml (deleted) into this file.
+# - push trigger owns automated builds on services/** and buildspec.yml changes
+# - workflow_dispatch allows manual one-off builds with an optional reason + project name
+# - Uses aws-actions/aws-codebuild-run-build for push-triggered builds (streams logs live)
+# - Manual dispatch uses direct aws-cli polling (gives full control + explicit log URL)
 
 on:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'services/**'
+      - 'packages/**'
+      - 'buildspec.yml'
+
   workflow_dispatch:
     inputs:
+      project_name:
+        description: 'CodeBuild project name'
+        required: false
+        default: 'vote-capsule-docker-build'
+      source_version:
+        description: 'Git SHA or branch to build (leave empty for HEAD)'
+        required: false
+        default: ''
       reason:
         description: 'Reason for manual trigger'
         required: false
         default: 'Manual build trigger'
 
+env:
+  DEFAULT_PROJECT: vote-capsule-docker-build
+
 jobs:
-  trigger-codebuild:
-    name: Start CodeBuild — vote-capsule-docker-build
+  # ──────────────────────────────────────────────────────────────────
+  # Auto build — fires on push via aws-codebuild-run-build (streams logs)
+  # ──────────────────────────────────────────────────────────────────
+  codebuild-push:
+    name: CodeBuild (push) — ${{ github.event.inputs.project_name || 'vote-capsule-docker-build' }}
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume:    arn:aws:iam::683541453923:role/vote-capsule-github-actions-role
+          role-session-name: GitHubActions-codebuild-push-${{ github.run_id }}
+          aws-region:        us-east-1
+          audience:          sts.amazonaws.com
+
+      - name: Run CodeBuild project (streams logs)
+        uses: aws-actions/aws-codebuild-run-build@v1.0.19
+        with:
+          project-name:            ${{ env.DEFAULT_PROJECT }}
+          source-version-override: ${{ github.sha }}
+          env-vars-for-codebuild: |
+            GITHUB_SHA,
+            GITHUB_REF,
+            GITHUB_REPOSITORY
+        env:
+          GITHUB_SHA:        ${{ github.sha }}
+          GITHUB_REF:        ${{ github.ref }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+
+  # ──────────────────────────────────────────────────────────────────
+  # Manual build — fires on workflow_dispatch, polls until complete
+  # ──────────────────────────────────────────────────────────────────
+  codebuild-manual:
+    name: CodeBuild (manual) — ${{ github.event.inputs.project_name || 'vote-capsule-docker-build' }}
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -29,51 +87,49 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume:    arn:aws:iam::683541453923:role/vote-capsule-github-actions-role
-          role-session-name: GitHubActions-manual-codebuild-${{ github.run_id }}
+          role-session-name: GitHubActions-codebuild-manual-${{ github.run_id }}
           aws-region:        us-east-1
           audience:          sts.amazonaws.com
 
       - name: Start CodeBuild project
-        id: codebuild
+        id: start
         run: |
+          PROJECT="${{ github.event.inputs.project_name || env.DEFAULT_PROJECT }}"
+          SOURCE="${{ github.event.inputs.source_version || github.sha }}"
           BUILD_ID=$(aws codebuild start-build \
-            --project-name vote-capsule-docker-build \
-            --source-version ${{ github.sha }} \
+            --project-name "$PROJECT" \
+            --source-version "$SOURCE" \
             --region us-east-1 \
             --query 'build.id' \
             --output text)
-          echo "build_id=${BUILD_ID}" >> $GITHUB_OUTPUT
+          echo "build_id=${BUILD_ID}"   >> $GITHUB_OUTPUT
+          echo "project=${PROJECT}"     >> $GITHUB_OUTPUT
           echo "🚀 Started CodeBuild: ${BUILD_ID}"
-          echo "   Reason: ${{ github.event.inputs.reason }}"
+          echo "   Project : ${PROJECT}"
+          echo "   Source  : ${SOURCE}"
+          echo "   Reason  : ${{ github.event.inputs.reason }}"
 
-      - name: Wait for CodeBuild to complete
+      - name: Poll until complete
         run: |
-          BUILD_ID="${{ steps.codebuild.outputs.build_id }}"
-          echo "Polling build: ${BUILD_ID}"
+          BUILD_ID="${{ steps.start.outputs.build_id }}"
+          echo "Polling: ${BUILD_ID}"
           while true; do
             STATUS=$(aws codebuild batch-get-builds \
               --ids "${BUILD_ID}" \
               --region us-east-1 \
               --query 'builds[0].buildStatus' \
               --output text)
-            echo "  Status: ${STATUS}"
+            echo "  → ${STATUS}"
             case $STATUS in
-              SUCCEEDED)
-                echo "✅ CodeBuild SUCCEEDED"
-                exit 0
-                ;;
-              FAILED|FAULT|TIMED_OUT|STOPPED)
-                echo "❌ CodeBuild ${STATUS}"
-                exit 1
-                ;;
-              *)
-                sleep 30
-                ;;
+              SUCCEEDED) echo "✅ SUCCEEDED"; exit 0 ;;
+              FAILED|FAULT|TIMED_OUT|STOPPED) echo "❌ ${STATUS}"; exit 1 ;;
+              *) sleep 30 ;;
             esac
           done
 
-      - name: Print CodeBuild log URL
+      - name: Print log URL
         if: always()
         run: |
-          BUILD_ID="${{ steps.codebuild.outputs.build_id }}"
-          echo "📋 Logs: https://us-east-1.console.aws.amazon.com/codesuite/codebuild/683541453923/projects/vote-capsule-docker-build/build/${BUILD_ID}/log"
+          BUILD_ID="${{ steps.start.outputs.build_id }}"
+          PROJECT="${{ steps.start.outputs.project }}"
+          echo "📋 https://us-east-1.console.aws.amazon.com/codesuite/codebuild/683541453923/projects/${PROJECT}/build/${BUILD_ID}/log"

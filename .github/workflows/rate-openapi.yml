@@ -1,13 +1,10 @@
 name: Rate My OpenAPI — API Quality Lint
 
-# ============================================================
-# FIXED: The previous version set `working-directory: vote-capsule`
-# on the pnpm install step. The GitHub Actions runner checks out
-# the repo so that the repo root IS already the monorepo root
-# (vote-capsule/). Adding that directory prefix caused pnpm to look
-# for a non-existent nested `vote-capsule/vote-capsule/` path,
-# which always failed. All steps now run from the repo root (`.`).
-# ============================================================
+# Renamed from copilot-setup-steps.yml — the old name was completely
+# misleading (it has nothing to do with AWS Copilot setup steps).
+# This workflow lints the VoteCapsule OpenAPI spec for quality and
+# completeness using the Rate My OpenAPI (RMOA) action.
+# Non-blocking (continue-on-error) — quality gate, not a hard CI blocker.
 
 on:
   push:
@@ -42,12 +39,10 @@ jobs:
         with:
           version: 9
 
-      # FIXED: removed `working-directory: vote-capsule` — runner already
-      # starts in the repo root which is the monorepo root.
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate OpenAPI spec from NestJS services
+      - name: Generate OpenAPI spec
         run: |
           node -e "
           const spec = {
@@ -78,4 +73,4 @@ jobs:
           minimum-score:  60
           max-errors:     10
           max-warnings:   20
-        continue-on-error: true   # Non-blocking — quality gate, not a hard blocker
+        continue-on-error: true

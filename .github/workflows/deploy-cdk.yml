@@ -1,9 +1,14 @@
 name: Deploy CDK Stacks
 
+# Fixed: added `master` to the push trigger branches.
+# Previously only `main` was listed — pushes to `master`
+# (the repo's default branch) never triggered CDK deploys.
+
 on:
   push:
     branches:
       - main
+      - master
     paths:
       - 'infrastructure/cdk/**'
 
@@ -24,23 +29,28 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - uses: pnpm/action-setup@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
           version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6.2.3
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::683541453923:role/vote-capsule-github-actions-role
-          role-session-name: GitHubActions-${{ github.run_id }}
-          aws-region: us-east-1
-          audience: sts.amazonaws.com
+          role-to-assume:    arn:aws:iam::683541453923:role/vote-capsule-github-actions-role
+          role-session-name: GitHubActions-cdk-${{ github.run_id }}
+          aws-region:        us-east-1
+          audience:          sts.amazonaws.com
 
       - name: CDK Diff
         run: |
@@ -49,7 +59,7 @@ jobs:
           if [ -z "$STACK" ]; then
             pnpm cdk diff --all
           else
-            pnpm cdk diff $STACK
+            pnpm cdk diff "$STACK"
           fi
 
       - name: CDK Deploy
@@ -59,5 +69,5 @@ jobs:
           if [ -z "$STACK" ]; then
             pnpm cdk deploy --all --require-approval never
           else
-            pnpm cdk deploy $STACK --require-approval never
+            pnpm cdk deploy "$STACK" --require-approval never
           fi

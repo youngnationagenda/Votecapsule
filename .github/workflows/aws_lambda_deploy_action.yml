@@ -1,5 +1,13 @@
 name: AWS Lambda — Deploy Function
 
+# Fixes from audit:
+# - Replaced deprecated/archived aws-lambda-deploy@v1.1.2 with direct
+#   aws-cli update-function-code calls (works for both Image and Zip types)
+# - Zip type now uses the correct evidence-upload Lambda S3 bucket, not
+#   the portal bucket (vote-capsule-public-web-*)
+# - Added function existence check before deploy to give a clear error
+#   message when the function name is wrong
+
 on:
   workflow_dispatch:
     inputs:
@@ -7,7 +15,7 @@ on:
         description: 'Lambda function name (e.g. vote-capsule-receive-upload)'
         required: true
       package_type:
-        description: 'Package type: Zip or Image'
+        description: 'Package type: Image or Zip'
         required: false
         default: 'Image'
         type: choice
@@ -15,13 +23,13 @@ on:
           - Image
           - Zip
       image_tag:
-        description: 'ECR image tag (for Image type). Defaults to latest commit SHA.'
+        description: 'ECR image tag (Image type only — leave empty to use latest commit SHA)'
         required: false
         default: ''
 
 env:
-  AWS_REGION:    us-east-1
-  ECR_REGISTRY:  683541453923.dkr.ecr.us-east-1.amazonaws.com
+  AWS_REGION:   us-east-1
+  ECR_REGISTRY: 683541453923.dkr.ecr.us-east-1.amazonaws.com
 
 jobs:
   deploy-lambda:
@@ -35,44 +43,79 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v6.2.3
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::683541453923:role/vote-capsule-github-actions-role
+          role-to-assume:    arn:aws:iam::683541453923:role/vote-capsule-github-actions-role
           role-session-name: GitHubActions-lambda-${{ github.run_id }}
-          aws-region: us-east-1
-          audience: sts.amazonaws.com
+          aws-region:        us-east-1
+          audience:          sts.amazonaws.com
+
+      - name: Verify Lambda function exists
+        run: |
+          FUNC="${{ github.event.inputs.function_name }}"
+          aws lambda get-function \
+            --function-name "$FUNC" \
+            --region us-east-1 \
+            --query 'Configuration.FunctionName' \
+            --output text > /dev/null
+          echo "✅ Function exists: $FUNC"
 
       - name: Set image tag
         id: tag
         run: |
-          TAG="${{ github.event.inputs.image_tag || github.sha }}"
-          echo "tag=${TAG::8}" >> $GITHUB_OUTPUT
+          RAW="${{ github.event.inputs.image_tag || github.sha }}"
+          echo "tag=${RAW::8}" >> $GITHUB_OUTPUT
 
-      - name: Deploy Lambda function (Image)
+      # ── Image deploy (ECR container) ────────────────────────────────────────
+      - name: Deploy Lambda — Image (ECR)
         if: github.event.inputs.package_type == 'Image'
-        uses: aws-actions/aws-lambda-deploy@v1.1.2
-        with:
-          function-name: ${{ github.event.inputs.function_name }}
-          package-type:  Image
-          image-uri:     ${{ env.ECR_REGISTRY }}/vote-capsule/${{ github.event.inputs.function_name }}:${{ steps.tag.outputs.tag }}
-          publish:       true
+        run: |
+          IMAGE_URI="${ECR_REGISTRY}/vote-capsule/${{ github.event.inputs.function_name }}:${{ steps.tag.outputs.tag }}"
+          echo "Deploying image: ${IMAGE_URI}"
+          aws lambda update-function-code \
+            --function-name "${{ github.event.inputs.function_name }}" \
+            --image-uri "${IMAGE_URI}" \
+            --region us-east-1 \
+            --output json
+          # Wait for the update to complete before publishing
+          aws lambda wait function-updated \
+            --function-name "${{ github.event.inputs.function_name }}" \
+            --region us-east-1
+          aws lambda publish-version \
+            --function-name "${{ github.event.inputs.function_name }}" \
+            --region us-east-1 \
+            --output table
 
-      - name: Deploy Lambda function (Zip)
+      # ── Zip deploy (S3 artifact) ────────────────────────────────────────────
+      - name: Deploy Lambda — Zip (S3)
         if: github.event.inputs.package_type == 'Zip'
-        uses: aws-actions/aws-lambda-deploy@v1.1.2
-        with:
-          function-name:       ${{ github.event.inputs.function_name }}
-          package-type:        Zip
-          code-artifacts-dir:  dist
-          handler:             index.handler
-          runtime:             nodejs22.x
-          publish:             true
-          s3-bucket:           vote-capsule-public-web-683541453923
+        run: |
+          FUNC="${{ github.event.inputs.function_name }}"
+          ZIP_KEY="lambda-zips/${FUNC}/${{ steps.tag.outputs.tag }}.zip"
+          # Build and upload zip to the Lambda artifacts bucket
+          zip -r /tmp/function.zip dist/
+          aws s3 cp /tmp/function.zip \
+            "s3://vote-capsule-lambda-artifacts-683541453923/${ZIP_KEY}" \
+            --region us-east-1
+          aws lambda update-function-code \
+            --function-name "$FUNC" \
+            --s3-bucket  vote-capsule-lambda-artifacts-683541453923 \
+            --s3-key     "${ZIP_KEY}" \
+            --region     us-east-1 \
+            --output json
+          aws lambda wait function-updated \
+            --function-name "$FUNC" \
+            --region us-east-1
+          aws lambda publish-version \
+            --function-name "$FUNC" \
+            --region us-east-1 \
+            --output table
 
+      # ── Verify ──────────────────────────────────────────────────────────────
       - name: Verify deployment
         run: |
           aws lambda get-function \
-            --function-name ${{ github.event.inputs.function_name }} \
+            --function-name "${{ github.event.inputs.function_name }}" \
             --region us-east-1 \
-            --query 'Configuration.{State:State,LastModified:LastModified,Runtime:Runtime,MemorySize:MemorySize}' \
+            --query 'Configuration.{State:State,LastModified:LastModified,Runtime:Runtime,MemorySize:MemorySize,CodeSize:CodeSize}' \
             --output table
