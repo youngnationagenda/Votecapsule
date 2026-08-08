@@ -1,0 +1,42 @@
+name: OIDC Debug — Print Sub Claim
+
+on:
+  workflow_dispatch:
+
+jobs:
+  debug-oidc:
+    name: Decode OIDC Token Sub
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Fetch and decode OIDC token
+        run: |
+          # Request an OIDC token for sts.amazonaws.com audience
+          TOKEN=$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com")
+
+          JWT=$(echo "$TOKEN" | python3 -c "import sys,json; print(json.load(sys.stdin)['value'])")
+
+          # Decode the payload (middle part of JWT) — base64url decode
+          PAYLOAD=$(echo "$JWT" | cut -d'.' -f2)
+          # Pad base64url to standard base64
+          PADDED="${PAYLOAD}$(python3 -c "import sys; p=len('${PAYLOAD}') % 4; print('='*(4-p) if p else '')")"
+          DECODED=$(echo "$PADDED" | python3 -c "
+          import sys, base64, json
+          raw = sys.stdin.read().strip()
+          # base64url decode
+          raw = raw.replace('-','+').replace('_','/')
+          pad = 4 - len(raw) % 4
+          if pad != 4:
+              raw += '=' * pad
+          decoded = base64.b64decode(raw)
+          payload = json.loads(decoded)
+          print(json.dumps({k: payload[k] for k in ['sub','aud','iss','repository','repository_id','repository_owner','repository_owner_id','ref','event_name'] if k in payload}, indent=2))
+          ")
+
+          echo "=== OIDC Token Claims ==="
+          echo "$DECODED"
+          echo "========================="
