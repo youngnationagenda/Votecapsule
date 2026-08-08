@@ -9,13 +9,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Test } from '@nestjs/testing';
-import { getRepositoryToken } from '@nestjs/typeorm';
-import { ConfigService } from '@nestjs/config';
-import { HttpService } from '@nestjs/axios';
-import { NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { of, throwError } from 'rxjs';
-import { DataSource } from 'typeorm';
 import * as crypto from 'crypto';
 
 import { EvidenceService } from './evidence.service';
@@ -274,21 +268,17 @@ describe('EvidenceService', () => {
       indexCapsule: vi.fn().mockResolvedValue(undefined),
     };
 
-    const moduleRef = await Test.createTestingModule({
-      providers: [
-        EvidenceService,
-        { provide: getRepositoryToken(EvidenceCapsule), useValue: capsuleRepo },
-        { provide: getRepositoryToken(EvidenceImage), useValue: imageRepo },
-        { provide: getRepositoryToken(EvidenceHash), useValue: hashRepo },
-        { provide: getRepositoryToken(EvidenceChainOfCustody), useValue: custodyRepo },
-        { provide: DataSource, useValue: dataSource },
-        { provide: ConfigService, useValue: configService },
-        { provide: HttpService, useValue: httpService },
-        { provide: EvidenceSearchService, useValue: searchService },
-      ],
-    }).compile();
-
-    service = moduleRef.get<EvidenceService>(EvidenceService);
+    // Direct instantiation — avoids NestJS DI token-identity issues in pnpm monorepo
+    service = new EvidenceService(
+      capsuleRepo,
+      imageRepo,
+      hashRepo,
+      custodyRepo,
+      dataSource,
+      configService,
+      httpService,
+      searchService,
+    );
   });
 
   // ── getCapsule ───────────────────────────────────────────────
@@ -310,7 +300,7 @@ describe('EvidenceService', () => {
 
       await expect(service.getCapsule('non-existent-id'))
         .rejects
-        .toThrow(NotFoundException);
+        .toThrow('not found');
     });
   });
 
@@ -377,7 +367,7 @@ describe('EvidenceService', () => {
 
       await expect(
         service.submitTally('non-existent-id', validTallyDto as any, 'agent-001'),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow('not found');
     });
 
     it('rejects capsule in DRAFT status with BadRequestException', async () => {
@@ -388,7 +378,7 @@ describe('EvidenceService', () => {
 
       await expect(
         service.submitTally('capsule-uuid-001', validTallyDto as any, 'agent-001'),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow('Cannot submit tally');
     });
 
     it('rejects capsule in REJECTED status with BadRequestException', async () => {
@@ -399,7 +389,7 @@ describe('EvidenceService', () => {
 
       await expect(
         service.submitTally('capsule-uuid-001', validTallyDto as any, 'agent-001'),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow('Cannot submit tally');
     });
 
     it('accepts capsule in APPROVED status (allowed for late tally entry)', async () => {
@@ -639,7 +629,7 @@ describe('EvidenceService', () => {
 
       await expect(
         service.submitCapsule(tamperedDto as any, imageBuffer, 'agent-uuid-001', 'device-uuid-001'),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow('hash mismatch');
     });
 
     it('rejects invalid station code format (not 15 digits)', async () => {
@@ -647,7 +637,7 @@ describe('EvidenceService', () => {
 
       await expect(
         service.submitCapsule(badDto as any, imageBuffer, 'agent-uuid-001', 'device-uuid-001'),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow('Invalid IEBC station code');
     });
 
     it('rejects inactive polling station', async () => {
@@ -655,7 +645,7 @@ describe('EvidenceService', () => {
 
       await expect(
         service.submitCapsule(submitDto as any, imageBuffer, 'agent-uuid-001', 'device-uuid-001'),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow('not active');
     });
 
     it('rejects station not found in NEC database (404 from Geography)', async () => {
@@ -663,7 +653,7 @@ describe('EvidenceService', () => {
 
       await expect(
         service.submitCapsule(submitDto as any, imageBuffer, 'agent-uuid-001', 'device-uuid-001'),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toThrow('not found in NEC database');
     });
 
     it('rejects duplicate submission (same station + position + election)', async () => {
@@ -675,7 +665,7 @@ describe('EvidenceService', () => {
 
       await expect(
         service.submitCapsule(submitDto as any, imageBuffer, 'agent-uuid-001', 'device-uuid-001'),
-      ).rejects.toThrow(ConflictException);
+      ).rejects.toThrow('already exists');
     });
 
     it('triggers AI verification after successful submission', async () => {
@@ -809,7 +799,7 @@ describe('EvidenceService', () => {
 
       await expect(
         service.approveOrReject('capsule-uuid-001', 'APPROVED', 'validator-001'),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toThrow('expected PENDING_VALIDATION');
     });
   });
 

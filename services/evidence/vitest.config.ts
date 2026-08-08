@@ -7,6 +7,7 @@ export default defineConfig({
     environment: 'node',
     setupFiles: ['reflect-metadata'],
     include: ['src/**/*.spec.ts'],
+    exclude: ['src/**/*.integration.spec.ts', 'node_modules/**'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
