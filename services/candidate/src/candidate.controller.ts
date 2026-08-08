@@ -194,13 +194,17 @@ export class CandidateController {
    * PATCH /candidates/elections/:id/status
    * Generic status update — validates transitions server-side.
    * Prefer the named lifecycle endpoints below for clarity.
+   * CRITICAL: Requires X-User-Id.
    */
   @Patch('elections/:id/status')
   async updateElectionStatus(
     @Param('id', ParseUUIDPipe) id: string,
     @Body('status') status: ElectionStatus,
+    @Headers('x-user-id') userId: string,
   ) {
     if (!status) throw new BadRequestException('status is required');
+    if (!userId) throw new BadRequestException('X-User-Id header is required (must be authenticated)');
+    this.logger.log(`updateElectionStatus: election=${id} status=${status} by user=${userId}`);
     return this.service.updateElectionStatus(id, status);
   }
 
@@ -209,45 +213,66 @@ export class CandidateController {
   /**
    * POST /candidates/elections/:id/nominations/open
    * PLANNING → NOMINATION — opens the candidate registration window.
+   * CRITICAL: Requires X-User-Id (API Gateway injects after JWT validation).
    */
   @Post('elections/:id/nominations/open')
   @HttpCode(HttpStatus.OK)
-  async openNominations(@Param('id', ParseUUIDPipe) id: string) {
+  async openNominations(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Headers('x-user-id') userId: string,
+  ) {
+    if (!userId) throw new BadRequestException('X-User-Id header is required (must be authenticated)');
+    this.logger.log(`openNominations: election=${id} by user=${userId}`);
     return this.service.openNominations(id);
   }
 
   /**
    * POST /candidates/elections/:id/campaign/open
    * NOMINATION → CAMPAIGN — nominations close, campaigning begins.
+   * CRITICAL: Requires X-User-Id.
    */
   @Post('elections/:id/campaign/open')
   @HttpCode(HttpStatus.OK)
-  async openCampaign(@Param('id', ParseUUIDPipe) id: string) {
+  async openCampaign(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Headers('x-user-id') userId: string,
+  ) {
+    if (!userId) throw new BadRequestException('X-User-Id header is required (must be authenticated)');
+    this.logger.log(`openCampaign: election=${id} by user=${userId}`);
     return this.service.openCampaign(id);
   }
 
   /**
    * POST /candidates/elections/:id/voting/open
    * CAMPAIGN → ACTIVE — voting day begins, evidence capture opens.
-   * Header: X-Tenant-Id required.
+   * Header: X-Tenant-Id, X-User-Id required.
    */
   @Post('elections/:id/voting/open')
   @HttpCode(HttpStatus.OK)
   async openVoting(
     @Param('id', ParseUUIDPipe) id: string,
     @Headers('x-tenant-id') tenantId: string,
+    @Headers('x-user-id')   userId: string,
   ) {
     if (!tenantId) throw new BadRequestException('X-Tenant-Id header is required');
+    if (!userId)   throw new BadRequestException('X-User-Id header is required (must be authenticated)');
+    this.logger.log(`openVoting: election=${id} by user=${userId}`);
     return this.service.openVoting(id, tenantId);
   }
 
   /**
    * POST /candidates/elections/:id/voting/close
    * ACTIVE → TALLYING — polls close, counting begins.
+   * CRITICAL: Requires X-User-Id.
    */
   @Post('elections/:id/voting/close')
   @HttpCode(HttpStatus.OK)
-  async closePolls(@Param('id', ParseUUIDPipe) id: string) {
+  async closePolls(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Headers('x-user-id') userId: string,
+  ) {
+    if (!userId) throw new BadRequestException('X-User-Id header is required (must be authenticated)');
+    this.logger.log(`closePolls: election=${id} by user=${userId}`);
     return this.service.closePolls(id);
   }
 
@@ -255,33 +280,49 @@ export class CandidateController {
    * POST /candidates/elections/:id/results/publish
    * TALLYING → RESULTS_PUBLISHED — official results published.
    * AI ASSISTS, HUMANS DECIDE.
+   * CRITICAL: Requires X-User-Id.
    */
   @Post('elections/:id/results/publish')
   @HttpCode(HttpStatus.OK)
-  async publishResults(@Param('id', ParseUUIDPipe) id: string) {
+  async publishResults(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Headers('x-user-id') userId: string,
+  ) {
+    if (!userId) throw new BadRequestException('X-User-Id header is required (must be authenticated)');
+    this.logger.log(`publishResults: election=${id} by user=${userId}`);
     return this.service.publishResults(id);
   }
 
   /**
    * POST /candidates/elections/:id/close
    * RESULTS_PUBLISHED → CLOSED — archive the election.
+   * CRITICAL: Requires X-User-Id.
    */
   @Post('elections/:id/close')
   @HttpCode(HttpStatus.OK)
-  async closeElection(@Param('id', ParseUUIDPipe) id: string) {
+  async closeElection(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Headers('x-user-id') userId: string,
+  ) {
+    if (!userId) throw new BadRequestException('X-User-Id header is required (must be authenticated)');
+    this.logger.log(`closeElection: election=${id} by user=${userId}`);
     return this.service.closeElection(id);
   }
 
   /**
    * POST /candidates/elections/:id/cancel
    * Any state → CANCELLED. Provide reason in body.
+   * CRITICAL: Requires X-User-Id.
    */
   @Post('elections/:id/cancel')
   @HttpCode(HttpStatus.OK)
   async cancelElection(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body('reason') reason?: string,
+    @Body('reason') reason: string | undefined,
+    @Headers('x-user-id') userId: string,
   ) {
+    if (!userId) throw new BadRequestException('X-User-Id header is required (must be authenticated)');
+    this.logger.log(`cancelElection: election=${id} by user=${userId} reason=${reason ?? 'none'}`);
     return this.service.cancelElection(id, reason);
   }
 
@@ -567,10 +608,15 @@ export class CandidateController {
    * POST /candidates/ballot-refs
    * Create a ballot reference record.
    * Called by Election Authority when ballot is printed.
+   * CRITICAL: Requires X-User-Id (election authority official).
    */
   @Post('ballot-refs')
   @HttpCode(HttpStatus.CREATED)
-  async createBallotRef(@Body() dto: CreateBallotRefDto) {
+  async createBallotRef(
+    @Body() dto: CreateBallotRefDto,
+    @Headers('x-user-id') userId: string,
+  ) {
+    if (!userId) throw new BadRequestException('X-User-Id header is required (must be authenticated)');
     return this.service.createBallotRef(dto);
   }
 

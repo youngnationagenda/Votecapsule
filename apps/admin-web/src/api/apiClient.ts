@@ -10,6 +10,16 @@ import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 const API_BASE = (import.meta.env['VITE_API_GATEWAY_URL'] as string | undefined)
   ?? 'https://483uyy43nc.execute-api.us-east-1.amazonaws.com';
 
+/**
+ * Paths that return 401/403 by design (behind API Gateway JWT authorizer)
+ * and should NOT trigger a session logout. Health checks are expected to
+ * return 401 when hit through the gateway without a token refresh.
+ */
+const AUTH_EXEMPT_PATHS = ['/health'];
+
+/** Debounce flag — prevents multiple 401s from all triggering navigation */
+let isLoggingOut = false;
+
 function createApiClient(servicePrefix: string): AxiosInstance {
   const client = axios.create({
     baseURL: `${API_BASE}/api/v1/${servicePrefix}`,
@@ -26,13 +36,24 @@ function createApiClient(servicePrefix: string): AxiosInstance {
     return config;
   });
 
-  // Handle 401 — redirect to login
+  // Handle 401 — soft redirect to login (skip health checks)
   client.interceptors.response.use(
     (response) => response,
     (error) => {
       if (axios.isAxiosError(error) && error.response?.status === 401) {
-        localStorage.removeItem('vc_access_token');
-        window.location.assign('/login');
+        const requestPath = error.config?.url ?? '';
+        const isExempt = AUTH_EXEMPT_PATHS.some(p => requestPath.endsWith(p));
+
+        // Only logout on genuine auth failures, not health probes
+        if (!isExempt && !isLoggingOut) {
+          isLoggingOut = true;
+          localStorage.removeItem('vc_access_token');
+          // Soft redirect — gives React time to unmount cleanly
+          setTimeout(() => {
+            window.location.replace('/login');
+            isLoggingOut = false;
+          }, 100);
+        }
       }
       return Promise.reject(error instanceof Error ? error : new Error(String(error)));
     },

@@ -5,7 +5,7 @@
  * Route protection: all admin routes require PLATFORM_SUPER_ADMIN role.
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AdminLayout } from './layouts/AdminLayout';
 import { LoginPage } from './pages/LoginPage';
@@ -29,10 +29,80 @@ import { AiOperationsPage } from './pages/AiOperationsPage';
 import { BillingAdminPage } from './pages/BillingAdminPage';
 import { ComingSoonPage } from './pages/ComingSoonPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
-import { useAppSelector } from './store/hooks';
+import { useAppSelector, useAppDispatch } from './store/hooks';
+import { loginSuccess, logout } from './store/slices/authSlice';
+import { identityClient } from './api/apiClient';
+
+/**
+ * Session hydration — validates stored token on app load.
+ * Prevents the "blink and disappear" bug where expired tokens
+ * pass the initial isAuthenticated check, fire API calls that all
+ * 401, and then the interceptor kills the session mid-render.
+ */
+function useSessionHydration() {
+  const dispatch = useAppDispatch();
+  const token = useAppSelector((s) => s.auth.accessToken);
+  const user = useAppSelector((s) => s.auth.user);
+  const [hydrating, setHydrating] = useState(!!token && !user);
+
+  useEffect(() => {
+    if (!token) {
+      setHydrating(false);
+      return;
+    }
+    if (user) {
+      // Already hydrated (e.g. just logged in)
+      setHydrating(false);
+      return;
+    }
+
+    // Token exists but user is null — validate & hydrate
+    let cancelled = false;
+    identityClient
+      .get('/users/me')
+      .then(({ data }) => {
+        if (cancelled) return;
+        const me = data.data ?? data;
+        dispatch(loginSuccess({
+          user: {
+            id: me.id ?? '',
+            email: me.email ?? '',
+            roles: me.roles ?? ['PLATFORM_SUPER_ADMIN'],
+            tenantId: me.tenantId,
+          },
+          accessToken: token,
+        }));
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // Token is invalid/expired — log out gracefully (no blink)
+        dispatch(logout());
+      })
+      .finally(() => {
+        if (!cancelled) setHydrating(false);
+      });
+
+    return () => { cancelled = true; };
+  }, [token, user, dispatch]);
+
+  return hydrating;
+}
 
 export default function App(): React.JSX.Element {
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const hydrating = useSessionHydration();
+
+  // Show loading state while validating stored token
+  if (hydrating) {
+    return (
+      <div className="min-h-screen bg-[#F5F7FA] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-10 h-10 border-3 border-[#0B3C6D] border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-sm text-gray-500 mt-3">Verifying session…</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Routes>

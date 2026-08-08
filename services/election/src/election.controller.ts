@@ -280,10 +280,16 @@ export class ElectionController {
   /**
    * POST /elections/:id/voting/close
    * ACTIVE → TALLYING — polls close.
+   * CRITICAL: Requires X-User-Id (injected by API Gateway after JWT validation).
    */
   @Post('elections/:id/voting/close')
   @HttpCode(HttpStatus.OK)
-  closePolls(@Param('id') id: string) {
+  closePolls(
+    @Param('id') id: string,
+    @Headers('x-user-id') userId: string,
+  ) {
+    if (!userId) throw new BadRequestException('X-User-Id header is required (must be authenticated)');
+    this.logger.log(`closePolls: election=${id} by user=${userId}`);
     return this.service.closePolls(id);
   }
 
@@ -291,33 +297,49 @@ export class ElectionController {
    * POST /elections/:id/results/publish
    * TALLYING → RESULTS_PUBLISHED — official results published.
    * AI ASSISTS, HUMANS DECIDE.
+   * CRITICAL: Requires X-User-Id (injected by API Gateway after JWT validation).
    */
   @Post('elections/:id/results/publish')
   @HttpCode(HttpStatus.OK)
-  publishResults(@Param('id') id: string) {
+  publishResults(
+    @Param('id') id: string,
+    @Headers('x-user-id') userId: string,
+  ) {
+    if (!userId) throw new BadRequestException('X-User-Id header is required (must be authenticated)');
+    this.logger.log(`publishResults: election=${id} by user=${userId}`);
     return this.service.publishResults(id);
   }
 
   /**
    * POST /elections/:id/close
    * RESULTS_PUBLISHED → CLOSED — archive.
+   * CRITICAL: Requires X-User-Id (injected by API Gateway after JWT validation).
    */
   @Post('elections/:id/close')
   @HttpCode(HttpStatus.OK)
-  closeElection(@Param('id') id: string) {
+  closeElection(
+    @Param('id') id: string,
+    @Headers('x-user-id') userId: string,
+  ) {
+    if (!userId) throw new BadRequestException('X-User-Id header is required (must be authenticated)');
+    this.logger.log(`closeElection: election=${id} by user=${userId}`);
     return this.service.closeElection(id);
   }
 
   /**
    * POST /elections/:id/cancel
    * Any → CANCELLED — emergency cancellation.
+   * CRITICAL: Requires X-User-Id (injected by API Gateway after JWT validation).
    */
   @Post('elections/:id/cancel')
   @HttpCode(HttpStatus.OK)
   cancelElection(
     @Param('id') id: string,
-    @Body('reason') reason?: string,
+    @Body('reason') reason: string | undefined,
+    @Headers('x-user-id') userId: string,
   ) {
+    if (!userId) throw new BadRequestException('X-User-Id header is required (must be authenticated)');
+    this.logger.log(`cancelElection: election=${id} by user=${userId} reason=${reason ?? 'none'}`);
     return this.service.cancelElection(id, reason);
   }
 

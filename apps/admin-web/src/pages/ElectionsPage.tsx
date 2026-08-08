@@ -14,7 +14,7 @@ import {
   PlayCircle, CheckCircle2, XCircle, Clock, AlertTriangle,
 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { electionClient } from '../api/apiClient';
+import { electionClient, candidateClient } from '../api/apiClient';
 
 interface Election {
   id: string;
@@ -320,7 +320,7 @@ function PartyNominationsOverview({ elections }: { elections: Election[] }) {
   const { data: nominations, isLoading } = useQuery({
     queryKey: ['admin-nominations', selectedElection],
     queryFn: () =>
-      electionClient.get(`/candidates/nominations?parentElectionId=${selectedElection}`)
+      candidateClient.get(`/nominations?parentElectionId=${selectedElection}`)
         .then(r => r.data?.data ?? r.data ?? []),
     enabled: !!selectedElection,
     staleTime: 60_000,
