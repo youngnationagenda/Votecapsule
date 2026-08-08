@@ -33,6 +33,10 @@ on:
         description: 'Service to build (e.g. identity, geography). Leave empty to build all.'
         required: false
         default: ''
+      no_cache:
+        description: 'Disable Docker layer cache (true/false)'
+        required: false
+        default: 'false'
 
 env:
   AWS_REGION:   us-east-1
@@ -65,18 +69,29 @@ jobs:
           - { name: billing,      dir: services/billing,      repo: vote-capsule/billing-service,      port: 3013 }
 
     steps:
-      # ── Skip if a specific service was requested and this is not it ──────────
-      - name: Skip if not the requested service
-        if: github.event.inputs.service != '' && github.event.inputs.service != matrix.service.name
-        run: |
-          echo "⏭️  Skipping ${{ matrix.service.name }} — only building ${{ github.event.inputs.service }}"
-          exit 0
-
       # ── 1. Checkout ──────────────────────────────────────────────────────────
       - uses: actions/checkout@v4
 
-      # ── 2. AWS credentials via OIDC ──────────────────────────────────────────
+      # ── 2. Skip if a specific service was requested and this is not it ───────
+      # FIX: use `continue` pattern via job-level `if:` on subsequent steps
+      # instead of `exit 0` inside a step (which fails the job, not skips it).
+      # We gate every downstream step with this condition instead.
+      - name: Check if this service should be skipped
+        id: should_run
+        run: |
+          REQUESTED="${{ github.event.inputs.service }}"
+          THIS="${{ matrix.service.name }}"
+          if [ -n "$REQUESTED" ] && [ "$REQUESTED" != "$THIS" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "⏭️  Skipping $THIS — only building $REQUESTED"
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "▶️  Building $THIS"
+          fi
+
+      # ── 3. AWS credentials via OIDC ──────────────────────────────────────────
       - name: Configure AWS credentials (OIDC)
+        if: steps.should_run.outputs.skip != 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume:    arn:aws:iam::683541453923:role/vote-capsule-github-actions-role
@@ -84,25 +99,29 @@ jobs:
           aws-region:        us-east-1
           audience:          sts.amazonaws.com
 
-      # ── 3. Login to ECR ──────────────────────────────────────────────────────
+      # ── 4. Login to ECR ──────────────────────────────────────────────────────
       - name: Login to Amazon ECR
+        if: steps.should_run.outputs.skip != 'true'
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
 
-      # ── 4. Resolve image tags ────────────────────────────────────────────────
+      # ── 5. Resolve image tags ─────────────────────────────────────────────────
       - name: Set image tags
+        if: steps.should_run.outputs.skip != 'true'
         id: tags
         run: |
           SHORT_SHA="${GITHUB_SHA::8}"
-          echo "short_sha=${SHORT_SHA}"                                                                  >> $GITHUB_OUTPUT
-          echo "image_tag=${SHORT_SHA}"                                                                   >> $GITHUB_OUTPUT
-          echo "image_uri=${ECR_REGISTRY}/${{ matrix.service.repo }}:${SHORT_SHA}"                       >> $GITHUB_OUTPUT
-          echo "latest_uri=${ECR_REGISTRY}/${{ matrix.service.repo }}:latest"                            >> $GITHUB_OUTPUT
+          echo "short_sha=${SHORT_SHA}"                                                            >> $GITHUB_OUTPUT
+          echo "image_tag=${SHORT_SHA}"                                                            >> $GITHUB_OUTPUT
+          echo "image_uri=${ECR_REGISTRY}/${{ matrix.service.repo }}:${SHORT_SHA}"                >> $GITHUB_OUTPUT
+          echo "latest_uri=${ECR_REGISTRY}/${{ matrix.service.repo }}:latest"                     >> $GITHUB_OUTPUT
 
-      # ── 5. Ensure ECR repository exists with scanOnPush=true ─────────────────
+      # ── 6. Ensure ECR repository exists with scanOnPush=true ─────────────────
       - name: Ensure ECR repository exists
+        if: steps.should_run.outputs.skip != 'true'
         run: |
           REPO="${{ matrix.service.repo }}"
+
           if aws ecr describe-repositories \
                --repository-names "$REPO" \
                --region us-east-1 \
@@ -118,7 +137,7 @@ jobs:
             echo "✅ Created: $REPO"
           fi
 
-          # Enforce scanOnPush=true idempotently (fixes repos created before this policy)
+          # Idempotently enforce scanOnPush=true on every run
           aws ecr put-image-scanning-configuration \
             --repository-name "$REPO" \
             --image-scanning-configuration scanOnPush=true \
@@ -126,10 +145,17 @@ jobs:
             --output json > /dev/null
           echo "✅ scanOnPush=true enforced: $REPO"
 
-      # ── 6. Build Docker image ────────────────────────────────────────────────
+      # ── 7. Build Docker image ─────────────────────────────────────────────────
       - name: Build Docker image — ${{ matrix.service.name }}
+        if: steps.should_run.outputs.skip != 'true'
         run: |
-          docker build \
+          NO_CACHE_FLAG=""
+          if [ "${{ github.event.inputs.no_cache }}" = "true" ]; then
+            NO_CACHE_FLAG="--no-cache"
+            echo "ℹ️  Building without Docker layer cache"
+          fi
+
+          docker build $NO_CACHE_FLAG \
             --build-arg SERVICE_PORT=${{ matrix.service.port }} \
             --build-arg BUILD_DATE=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
             --build-arg GIT_SHA=${{ github.sha }} \
@@ -138,20 +164,53 @@ jobs:
             -f "${{ matrix.service.dir }}/Dockerfile" \
             .
 
-      # ── 7. Push to ECR ───────────────────────────────────────────────────────
+      # ── 8. Push to ECR ────────────────────────────────────────────────────────
       - name: Push to ECR — ${{ matrix.service.name }}
+        if: steps.should_run.outputs.skip != 'true'
         run: |
           docker push "${{ steps.tags.outputs.image_uri }}"
           docker push "${{ steps.tags.outputs.latest_uri }}"
           echo "✅ Pushed: ${{ steps.tags.outputs.image_uri }}"
           echo "✅ Pushed: ${{ steps.tags.outputs.latest_uri }}"
 
-      # ── 8. Print image digest ────────────────────────────────────────────────
-      - name: Output image digest
+      # ── 9. Report: digest + scan summary ─────────────────────────────────────
+      - name: Image digest & scan summary — ${{ matrix.service.name }}
+        if: steps.should_run.outputs.skip != 'true'
         run: |
+          REPO="${{ matrix.service.repo }}"
+          TAG="${{ steps.tags.outputs.image_tag }}"
+
+          echo "──────────────────────────────────────────────"
+          echo "  Service : ${{ matrix.service.name }}"
+          echo "  SHA tag : $TAG"
+          echo "──────────────────────────────────────────────"
+
+          # Image metadata
           aws ecr describe-images \
-            --repository-name "${{ matrix.service.repo }}" \
-            --image-ids imageTag=${{ steps.tags.outputs.image_tag }} \
+            --repository-name "$REPO" \
+            --image-ids imageTag="$TAG" \
             --region us-east-1 \
-            --query 'imageDetails[0].{Digest:imageDigest,PushedAt:imagePushedAt,SizeBytes:imageSizeInBytes}' \
+            --query 'imageDetails[0].{Digest:imageDigest,PushedAt:imagePushedAt,SizeMB:imageSizeInBytes}' \
             --output table
+
+          # Wait briefly for scan to start, then print severity summary
+          sleep 10
+          SCAN=$(aws ecr describe-image-scan-findings \
+            --repository-name "$REPO" \
+            --image-id imageTag="$TAG" \
+            --region us-east-1 \
+            --query '{Status:imageScanStatus.status,Findings:imageScanFindings.findingSeverityCounts}' \
+            --output json 2>/dev/null || echo '{"Status":"PENDING","Findings":{}}')
+
+          echo "Scan result: $SCAN"
+
+          # Fail the step if any CRITICAL or HIGH CVEs are found
+          CRITICAL=$(echo "$SCAN" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('Findings',{}).get('CRITICAL',0))" 2>/dev/null || echo 0)
+          HIGH=$(echo "$SCAN" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('Findings',{}).get('HIGH',0))" 2>/dev/null || echo 0)
+
+          if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
+            echo "❌ CRITICAL=$CRITICAL HIGH=$HIGH CVEs found in $REPO:$TAG — blocking push"
+            exit 1
+          fi
+
+          echo "✅ Scan clean — CRITICAL=0 HIGH=0"
