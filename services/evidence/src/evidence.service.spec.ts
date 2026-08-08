@@ -750,10 +750,10 @@ describe('EvidenceService', () => {
         ...mockCapsule,
         status: CapsuleStatus.PENDING_VALIDATION,
       };
+      const approvedCapsule = { ...mockCapsule, status: CapsuleStatus.APPROVED };
       capsuleRepo.findOne
-        .mockResolvedValueOnce(pendingCapsule) // getCapsule for approveOrReject
-        .mockResolvedValueOnce({ ...pendingCapsule, status: CapsuleStatus.APPROVED }) // re-fetch after update
-        .mockResolvedValueOnce({ ...pendingCapsule, status: CapsuleStatus.APPROVED }); // final getCapsule
+        .mockResolvedValueOnce(pendingCapsule)   // getCapsule #1: pre-check in approveOrReject
+        .mockResolvedValue(approvedCapsule);     // all subsequent calls: queueForTrustAnchor, re-index, final return
 
       hashRepo.findOne.mockResolvedValue({
         hashValue: 'a'.repeat(64),
