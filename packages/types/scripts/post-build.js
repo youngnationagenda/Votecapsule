@@ -21,15 +21,15 @@ fs.writeFileSync(
   "'use strict';\nmodule.exports = require('./cjs/common.js');\n"
 );
 
-// Root-level type declarations
+// Root-level type declarations — point to esm which has the .d.ts files
 fs.writeFileSync(
   path.join(distDir, 'index.d.ts'),
-  "export * from './cjs/index';\n"
+  "export * from './esm/index';\n"
 );
 
 fs.writeFileSync(
   path.join(distDir, 'common.d.ts'),
-  "export * from './cjs/common';\n"
+  "export * from './esm/common';\n"
 );
 
 console.log('✅ @vote-capsule/types: root-level CJS shims generated');

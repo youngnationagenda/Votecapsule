@@ -95,6 +95,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build shared packages (types, design-tokens)
+        run: |
+          pnpm --filter @vote-capsule/types build
+          pnpm --filter @vote-capsule/design-tokens build 2>/dev/null || true
+
       - name: Build portal — ${{ matrix.portal.name }}
         run: pnpm --filter "@vote-capsule/${{ matrix.portal.filter }}" build
         env:

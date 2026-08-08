@@ -7,6 +7,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),
+      // Resolve workspace package from TypeScript source — avoids needing a pre-built dist
+      '@vote-capsule/types': resolve(__dirname, '../../packages/types/src/index.ts'),
     },
   },
   server: {
@@ -49,15 +51,9 @@ export default defineConfig({
       },
     },
   },
-  optimizeDeps: {
-    include: ['@vote-capsule/types'],
-  },
   build: {
     outDir: 'dist',
     sourcemap: true,
-    commonjsOptions: {
-      include: [/vote-capsule\/types/, /node_modules/],
-    },
     rollupOptions: {
       output: {
         manualChunks: {
