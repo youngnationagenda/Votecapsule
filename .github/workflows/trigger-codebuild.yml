@@ -1,21 +1,29 @@
-name: Trigger AWS CodeBuild (Docker Build + ECR Push)
+name: Trigger AWS CodeBuild (Manual Fallback Only)
 
-# Absorbed aws_codebuild.yml (deleted) into this file.
-# - push trigger owns automated builds on services/** and buildspec.yml changes
-# - workflow_dispatch allows manual one-off builds with an optional reason + project name
-# - Uses aws-actions/aws-codebuild-run-build for push-triggered builds (streams logs live)
-# - Manual dispatch uses direct aws-cli polling (gives full control + explicit log URL)
+# ============================================================
+# MANUAL FALLBACK ONLY — automatic builds are handled entirely
+# by build-and-push-services.yml (GitHub Actions, 13 parallel
+# jobs, correct port map, CVE gate, scanOnPush enforcement).
+#
+# Use this workflow only when you need to:
+#   - Force a full sequential rebuild via CodeBuild (e.g. to
+#     use BUILD_GENERAL1_LARGE memory for a heavy build)
+#   - Target a specific git SHA or branch manually
+#   - Diagnose a CodeBuild-specific issue
+#
+# The CodeBuild webhook has been REMOVED — CodeBuild no longer
+# auto-fires on push. Only workflow_dispatch triggers it.
+#
+# History:
+#   Was: push-triggered (services/**, packages/**, buildspec.yml)
+#        + workflow_dispatch
+#   Now: workflow_dispatch ONLY
+#        The auto codebuild-push job has been removed to stop
+#        triple-building (webhook + this job + build-and-push)
+#        every commit.
+# ============================================================
 
 on:
-  push:
-    branches:
-      - master
-      - main
-    paths:
-      - 'services/**'
-      - 'packages/**'
-      - 'buildspec.yml'
-
   workflow_dispatch:
     inputs:
       project_name:
@@ -29,54 +37,17 @@ on:
       reason:
         description: 'Reason for manual trigger'
         required: false
-        default: 'Manual build trigger'
+        default: 'Manual fallback build'
 
 env:
   DEFAULT_PROJECT: vote-capsule-docker-build
 
 jobs:
-  # ──────────────────────────────────────────────────────────────────
-  # Auto build — fires on push via aws-codebuild-run-build (streams logs)
-  # ──────────────────────────────────────────────────────────────────
-  codebuild-push:
-    name: CodeBuild (push) — ${{ github.event.inputs.project_name || 'vote-capsule-docker-build' }}
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume:    arn:aws:iam::683541453923:role/vote-capsule-github-actions-role
-          role-session-name: GitHubActions-codebuild-push-${{ github.run_id }}
-          aws-region:        us-east-1
-          audience:          sts.amazonaws.com
-
-      - name: Run CodeBuild project (streams logs)
-        uses: aws-actions/aws-codebuild-run-build@v1.0.19
-        with:
-          project-name:            ${{ env.DEFAULT_PROJECT }}
-          source-version-override: ${{ github.sha }}
-          env-vars-for-codebuild: |
-            GITHUB_SHA,
-            GITHUB_REF,
-            GITHUB_REPOSITORY
-        env:
-          GITHUB_SHA:        ${{ github.sha }}
-          GITHUB_REF:        ${{ github.ref }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-
-  # ──────────────────────────────────────────────────────────────────
-  # Manual build — fires on workflow_dispatch, polls until complete
-  # ──────────────────────────────────────────────────────────────────
+  # ──────────────────────────────────────────────────────────────────────────
+  # Manual build — polls CodeBuild until complete, prints CloudWatch log URL
+  # ──────────────────────────────────────────────────────────────────────────
   codebuild-manual:
     name: CodeBuild (manual) — ${{ github.event.inputs.project_name || 'vote-capsule-docker-build' }}
-    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -96,40 +67,56 @@ jobs:
         run: |
           PROJECT="${{ github.event.inputs.project_name || env.DEFAULT_PROJECT }}"
           SOURCE="${{ github.event.inputs.source_version || github.sha }}"
+
           BUILD_ID=$(aws codebuild start-build \
             --project-name "$PROJECT" \
             --source-version "$SOURCE" \
             --region us-east-1 \
             --query 'build.id' \
             --output text)
+
           echo "build_id=${BUILD_ID}"   >> $GITHUB_OUTPUT
           echo "project=${PROJECT}"     >> $GITHUB_OUTPUT
-          echo "🚀 Started CodeBuild: ${BUILD_ID}"
-          echo "   Project : ${PROJECT}"
-          echo "   Source  : ${SOURCE}"
-          echo "   Reason  : ${{ github.event.inputs.reason }}"
+          echo "▶️  Started CodeBuild build"
+          echo "   Build ID : ${BUILD_ID}"
+          echo "   Project  : ${PROJECT}"
+          echo "   Source   : ${SOURCE}"
+          echo "   Reason   : ${{ github.event.inputs.reason }}"
 
       - name: Poll until complete
         run: |
           BUILD_ID="${{ steps.start.outputs.build_id }}"
-          echo "Polling: ${BUILD_ID}"
+          echo "Polling build: ${BUILD_ID}"
           while true; do
             STATUS=$(aws codebuild batch-get-builds \
               --ids "${BUILD_ID}" \
               --region us-east-1 \
               --query 'builds[0].buildStatus' \
               --output text)
-            echo "  → ${STATUS}"
+            PHASE=$(aws codebuild batch-get-builds \
+              --ids "${BUILD_ID}" \
+              --region us-east-1 \
+              --query 'builds[0].currentPhase' \
+              --output text)
+            echo "  → Status: ${STATUS}  Phase: ${PHASE}"
             case $STATUS in
-              SUCCEEDED) echo "✅ SUCCEEDED"; exit 0 ;;
-              FAILED|FAULT|TIMED_OUT|STOPPED) echo "❌ ${STATUS}"; exit 1 ;;
+              SUCCEEDED) echo "✅ Build SUCCEEDED"; exit 0 ;;
+              FAILED|FAULT|TIMED_OUT|STOPPED)
+                echo "❌ Build ${STATUS}"
+                exit 1
+                ;;
               *) sleep 30 ;;
             esac
           done
 
-      - name: Print log URL
+      - name: Print CloudWatch log URL
         if: always()
         run: |
           BUILD_ID="${{ steps.start.outputs.build_id }}"
           PROJECT="${{ steps.start.outputs.project }}"
-          echo "📋 https://us-east-1.console.aws.amazon.com/codesuite/codebuild/683541453923/projects/${PROJECT}/build/${BUILD_ID}/log"
+          echo ""
+          echo "📋 CloudWatch Logs:"
+          echo "   https://us-east-1.console.aws.amazon.com/codesuite/codebuild/683541453923/projects/${PROJECT}/build/${BUILD_ID}/log"
+          echo ""
+          echo "📋 CodeBuild Console:"
+          echo "   https://us-east-1.console.aws.amazon.com/codesuite/codebuild/683541453923/projects/${PROJECT}/history"
