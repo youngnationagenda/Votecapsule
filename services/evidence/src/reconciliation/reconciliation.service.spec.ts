@@ -11,9 +11,6 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Test } from '@nestjs/testing';
-import { NotFoundException, ConflictException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
 
 import {
   ReconciliationService,
@@ -96,11 +93,11 @@ describe('ReconciliationService', () => {
   let dataSource: any;
   let queryResults: Record<string, any[]>;
 
-  beforeEach(async () => {
+  beforeEach(() => {
     queryResults = {};
 
     dataSource = {
-      query: vi.fn().mockImplementation(async (sql: string, params?: any[]) => {
+      query: vi.fn().mockImplementation(async (sql: string, _params?: any[]) => {
         // Return pre-configured results based on SQL pattern
         if (sql.includes('SELECT id FROM iebc_form_b_collations')) {
           return queryResults['checkDuplicate'] ?? [];
@@ -149,7 +146,7 @@ describe('ReconciliationService', () => {
       }),
       transaction: vi.fn().mockImplementation(async (fn: any) => {
         const mockManager = {
-          query: vi.fn().mockImplementation(async (sql: string, params?: any[]) => {
+          query: vi.fn().mockImplementation(async (sql: string, _params?: any[]) => {
             if (sql.includes('INSERT INTO iebc_form_b_collations')) {
               return [{ id: FORM_B_ID }];
             }
@@ -172,14 +169,10 @@ describe('ReconciliationService', () => {
       }),
     };
 
-    const moduleRef = await Test.createTestingModule({
-      providers: [
-        ReconciliationService,
-        { provide: DataSource, useValue: dataSource },
-      ],
-    }).compile();
-
-    service = moduleRef.get<ReconciliationService>(ReconciliationService);
+    // Instantiate directly — avoids NestJS DI decorator-metadata issues
+    // in a pnpm monorepo where duplicate package copies can cause
+    // token-identity mismatches between the service and spec.
+    service = new ReconciliationService(dataSource as any);
   });
 
   // ── validateFormBInternal ────────────────────────────────────
@@ -360,7 +353,7 @@ describe('ReconciliationService', () => {
       const dto = makeValidFormBDto();
 
       await expect(service.submitFormB(dto as any))
-        .rejects.toThrow(ConflictException);
+        .rejects.toThrow('already exists');
     });
 
     it('creates INTERNAL_MISMATCH alert when Form B has internal errors', async () => {
@@ -470,7 +463,7 @@ describe('ReconciliationService', () => {
       queryResults['formB'] = [];
 
       await expect(service.reconcileFormB('non-existent-id'))
-        .rejects.toThrow(NotFoundException);
+        .rejects.toThrow('not found');
     });
 
     it('detects per-candidate vote mismatch', async () => {
@@ -558,7 +551,7 @@ describe('ReconciliationService', () => {
       });
 
       await expect(service.getMissingFormAs('non-existent-id'))
-        .rejects.toThrow(NotFoundException);
+        .rejects.toThrow('not found');
     });
   });
 
@@ -789,7 +782,7 @@ describe('ReconciliationService', () => {
       });
 
       await expect(service.reconcileFormC('non-existent-id'))
-        .rejects.toThrow(NotFoundException);
+        .rejects.toThrow('not found');
     });
 
     it('handles presidential 34C national scope (no county filter)', async () => {

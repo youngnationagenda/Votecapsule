@@ -1,3 +1,4 @@
+import swc from 'unplugin-swc';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
@@ -14,4 +15,12 @@ export default defineConfig({
       thresholds: { lines: 60, functions: 60, branches: 50, statements: 60 },
     },
   },
+  plugins: [
+    swc.vite({
+      jsc: {
+        parser: { syntax: 'typescript', decorators: true },
+        transform: { legacyDecorator: true, decoratorMetadata: true },
+      },
+    }),
+  ],
 });

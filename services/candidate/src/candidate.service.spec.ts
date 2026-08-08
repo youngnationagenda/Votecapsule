@@ -8,6 +8,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { of } from 'rxjs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
@@ -339,11 +340,8 @@ describe('CandidateService', () => {
       positionRepo.findOne.mockResolvedValue(position);
       candidateRepo.findOne.mockResolvedValue(null); // no duplicate
 
-      // Mock geography validation — service unavailable (graceful degradation)
-      mockHttpService.get.mockReturnValue({
-        pipe: vi.fn().mockReturnThis(),
-        subscribe: vi.fn(),
-      });
+      // Mock geography validation — returns HTTP 200 (county exists)
+      mockHttpService.get.mockReturnValue(of({ status: 200, data: { id: '047' } }));
 
       // DataSource transaction mock — captures the candidate saved
       dataSource.transaction.mockImplementation(async (cb) => {

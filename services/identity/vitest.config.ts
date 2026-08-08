@@ -1,3 +1,4 @@
+import swc from 'unplugin-swc';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
@@ -19,4 +20,13 @@ export default defineConfig({
       },
     },
   },
+  plugins: [
+    // SWC plugin enables emitDecoratorMetadata for NestJS DI to work in vitest
+    swc.vite({
+      jsc: {
+        parser: { syntax: 'typescript', decorators: true },
+        transform: { legacyDecorator: true, decoratorMetadata: true },
+      },
+    }),
+  ],
 });

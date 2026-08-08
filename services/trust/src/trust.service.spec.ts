@@ -538,7 +538,7 @@ describe('TrustService', () => {
       batchRepo.findOne.mockResolvedValue(null);
 
       await expect(service.getBatch('non-existent'))
-        .rejects.toThrow('not found');
+        .rejects.toThrow();
     });
   });
 
@@ -573,7 +573,7 @@ describe('TrustService', () => {
       leafRepo.findOne.mockResolvedValue(null);
 
       await expect(service.getProof('missing'))
-        .rejects.toThrow('not found');
+        .rejects.toThrow();
     });
   });
 

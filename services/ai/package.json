@@ -35,11 +35,13 @@
   "devDependencies": {
     "@nestjs/cli": "^10.4.9",
     "@nestjs/testing": "^10.4.15",
+    "@swc/core": "^1.15.47",
     "@types/jest": "29.5.14",
     "@types/node": "^22.10.2",
     "@vitest/coverage-v8": "^2.1.9",
     "rimraf": "^6.0.1",
     "typescript": "^5.7.2",
+    "unplugin-swc": "^1.5.10",
     "vitest": "^2.1.9"
   }
 }
