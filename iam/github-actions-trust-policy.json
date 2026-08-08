@@ -2,7 +2,7 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "GitHubActionsOIDCImmutableSub",
+      "Sid": "GitHubActionsOIDC",
       "Effect": "Allow",
       "Principal": {
         "Federated": "arn:aws:iam::683541453923:oidc-provider/token.actions.githubusercontent.com"
@@ -14,17 +14,7 @@
         },
         "StringLike": {
           "token.actions.githubusercontent.com:sub": [
-
-            "repo:youngnationagenda@258562527/Votecapsule@1317813265:*",
-
-            "repo:youngnationagenda/Votecapsule:*",
-            "repo:youngnationagenda/votecapsule:*",
-            "repo:youngnationagenda/vote-capsule:*",
-            "repo:youngnationagenda/VoteCapsule:*",
-            "repo:YoungNationAgenda/Votecapsule:*",
-            "repo:YoungNationAgenda/votecapsule:*",
-            "repo:YoungNationAgenda/VoteCapsule:*",
-            "repo:YoungNationAgenda/vote-capsule:*"
+            "repo:youngnationagenda/Votecapsule:*"
           ]
         }
       }
