@@ -1,9 +1,10 @@
 name: AWS CodeGuru Reviewer — Code Quality Analysis
 
 # Renamed from codeguru_riviewer.yml (typo: "riviewer" → "reviewer")
-# Fixed: Added S3 bucket creation step — vote-capsule-codeguru-reviews-683541453923
+# Fixed: Added S3 bucket creation step — codeguru-reviewer-vote-capsule-683541453923
 # must exist before the reviewer action can store results. Without it the
 # action fails silently with an S3 AccessDenied / NoSuchBucket error.
+# NOTE: CodeGuru enforces that the bucket name must start with "codeguru-reviewer-".
 #
 # Step 2 additions:
 #   - SARIF output uploaded to GitHub Code Scanning via
@@ -55,7 +56,7 @@ jobs:
       # reviewer action runs.
       - name: Ensure CodeGuru S3 bucket exists and is hardened
         run: |
-          BUCKET="vote-capsule-codeguru-reviews-683541453923"
+          BUCKET="codeguru-reviewer-vote-capsule-683541453923"
           REGION="us-east-1"
 
           # Create bucket if it does not exist yet
@@ -96,7 +97,7 @@ jobs:
         id: codeguru
         uses: aws-actions/codeguru-reviewer@v1.1
         with:
-          s3_bucket:   vote-capsule-codeguru-reviews-683541453923
+          s3_bucket:   codeguru-reviewer-vote-capsule-683541453923
           source_path: .
 
       # ── 5. Upload SARIF to GitHub Code Scanning ───────────────────────────────

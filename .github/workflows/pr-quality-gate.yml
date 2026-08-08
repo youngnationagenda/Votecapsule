@@ -241,9 +241,10 @@ jobs:
 
       # CodeGuru stores review artifacts in S3 — bucket must exist before the
       # reviewer action runs. This step is idempotent (safe to re-run).
+      # NOTE: CodeGuru enforces bucket name must start with "codeguru-reviewer-".
       - name: Ensure CodeGuru S3 bucket exists and is hardened
         run: |
-          BUCKET="vote-capsule-codeguru-reviews-683541453923"
+          BUCKET="codeguru-reviewer-vote-capsule-683541453923"
           REGION="us-east-1"
 
           if ! aws s3api head-bucket --bucket "$BUCKET" --region "$REGION" 2>/dev/null; then
@@ -277,7 +278,7 @@ jobs:
         id: codeguru
         uses: aws-actions/codeguru-reviewer@v1.1
         with:
-          s3_bucket:   vote-capsule-codeguru-reviews-683541453923
+          s3_bucket:   codeguru-reviewer-vote-capsule-683541453923
           source_path: .
 
       # Upload SARIF findings to GitHub Code Scanning Security tab.
