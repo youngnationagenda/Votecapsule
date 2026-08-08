@@ -14,7 +14,7 @@
         },
         "StringLike": {
           "token.actions.githubusercontent.com:sub": [
-            "repo:youngnationagenda/Votecapsule:*"
+            "repo:youngnationagenda@258562527/Votecapsule@1317813265:*"
           ]
         }
       }
