@@ -35,6 +35,7 @@ describe('AuthService', () => {
   let usersService: {
     updateLastLogin: ReturnType<typeof vi.fn>;
     logAuthEvent: ReturnType<typeof vi.fn>;
+    findByEmailWithRoles: ReturnType<typeof vi.fn>;
   };
 
   const mockConfigService = {
@@ -62,7 +63,14 @@ describe('AuthService', () => {
     usersService = {
       updateLastLogin: vi.fn().mockResolvedValue(undefined),
       logAuthEvent: vi.fn().mockResolvedValue(undefined),
-    };
+      // findByEmailWithRoles is called after successful Cognito auth to build JWT payload
+      findByEmailWithRoles: vi.fn().mockResolvedValue({
+        id: 'user-uuid-123',
+        email: 'agent@votecapsule.co.ke',
+        roles: ['PLATFORM_SUPER_ADMIN'],
+        tenantId: 'tenant-uuid-456',
+      }),
+    } as unknown as typeof usersService;
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -93,8 +101,10 @@ describe('AuthService', () => {
 
       const result = await service.login(loginDto, ipAddress, userAgent);
 
+      // accessToken is now the platform HS256 JWT (from jwtService.sign mock → 'signed-token')
+      // refreshToken is the Cognito refresh token (used for token refresh calls)
       expect(result).toEqual({
-        accessToken: 'cognito-access-token',
+        accessToken: 'signed-token',   // platform JWT signed with JWT_SECRET
         refreshToken: 'cognito-refresh-token',
         expiresIn: 3600,
         tokenType: 'Bearer',
@@ -107,6 +117,17 @@ describe('AuthService', () => {
           ipAddress,
           userAgent,
           success: true,
+        }),
+      );
+      // Verify JWT was signed with correct payload
+      expect(mockJwtService.sign).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: loginDto.email,
+          roles: ['PLATFORM_SUPER_ADMIN'],
+        }),
+        expect.objectContaining({
+          issuer: 'vote-capsule-identity',
+          audience: 'vote-capsule-platform',
         }),
       );
     });
@@ -272,8 +293,9 @@ describe('AuthService', () => {
 
       const result = await service.verifyMfa(mfaDto, ipAddress, userAgent);
 
+      // accessToken is the platform HS256 JWT; refreshToken is Cognito refresh token
       expect(result).toEqual({
-        accessToken: 'mfa-access-token',
+        accessToken: 'signed-token',  // platform JWT from jwtService.sign mock
         refreshToken: 'mfa-refresh-token',
         expiresIn: 3600,
         tokenType: 'Bearer',
