@@ -5,7 +5,7 @@ import { apiClient } from '../api/apiClient';
 
 export function NationalDashboardPage(): React.JSX.Element {
   const { data: geoStats } = useQuery({ queryKey: ['geo','stats'], queryFn: () => apiClient.get('/geography/stats').then(r => r.data?.data ?? r.data ?? {}) });
-  const { data: reporting } = useQuery({ queryKey: ['reporting','national'], queryFn: () => apiClient.get('/reporting/dashboard').then(r => r.data?.data ?? {}) });
+  const { data: reporting } = useQuery({ queryKey: ['reporting','national'], queryFn: () => apiClient.get('/reporting/reports/dashboard').then(r => r.data?.data ?? {}) });
 
   const stats = [
     { label: 'Polling Stations', value: geoStats?.totalPollingStations?.toLocaleString() ?? '45,805', icon: MapPin, color: 'text-sky-600', bg: 'bg-sky-50' },

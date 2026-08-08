@@ -22,6 +22,7 @@ import {
   identityClient, geographyClient, trustClient,
   evidenceClient, aiClient, electionClient, tenantClient,
   workflowClient, notificationClient, reportingClient, auditClient, billingClient,
+  candidateClient,
 } from '../api/apiClient';
 
 // ── Tab types ──────────────────────────────────────────────────
@@ -51,6 +52,7 @@ const SERVICES = [
   { name: 'Reporting',    path: '/health', port: 3010, client: reportingClient },
   { name: 'Audit',        path: '/health', port: 3012, client: auditClient },
   { name: 'Billing',      path: '/health', port: 3013, client: billingClient },
+  { name: 'Candidate',    path: '/health', port: 3009, client: candidateClient },
 ];
 
 type ServiceStatus = 'healthy' | 'reachable' | 'unreachable' | 'checking';
