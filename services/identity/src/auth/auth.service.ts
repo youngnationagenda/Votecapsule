@@ -86,6 +86,9 @@ export class AuthService {
       // Update last login timestamp
       await this.usersService.updateLastLogin(dto.email);
 
+      // Look up user to include userId + roles in JWT payload
+      const user = await this.usersService.findByEmailWithRoles(dto.email).catch(() => null);
+
       // Log authentication event
       await this.usersService.logAuthEvent({
         email: dto.email,
@@ -95,9 +98,25 @@ export class AuthService {
         success: true,
       });
 
+      // Issue our own HS256 JWT so all other services can validate with JWT_SECRET.
+      // The Cognito AccessToken (RS256) is stored as refreshToken for token refresh calls.
+      const platformToken = this.jwtService.sign(
+        {
+          sub: user?.id ?? dto.email,
+          email: dto.email,
+          roles: user?.roles ?? [],
+          tenantId: user?.tenantId ?? null,
+        },
+        {
+          expiresIn: `${ExpiresIn}s`,
+          issuer: 'vote-capsule-identity',
+          audience: 'vote-capsule-platform',
+        },
+      );
+
       return {
-        accessToken: AccessToken,
-        refreshToken: RefreshToken,
+        accessToken: platformToken,
+        refreshToken: RefreshToken,   // Cognito refresh token
         expiresIn: ExpiresIn,
         tokenType: 'Bearer',
       };
@@ -148,8 +167,26 @@ export class AuthService {
         success: true,
       });
 
+      // Look up user for platform JWT
+      const user = await this.usersService.findByEmailWithRoles(dto.email).catch(() => null);
+
+      // Issue HS256 platform token after MFA success
+      const platformToken = this.jwtService.sign(
+        {
+          sub: user?.id ?? dto.email,
+          email: dto.email,
+          roles: user?.roles ?? [],
+          tenantId: user?.tenantId ?? null,
+        },
+        {
+          expiresIn: `${ExpiresIn ?? 3600}s`,
+          issuer: 'vote-capsule-identity',
+          audience: 'vote-capsule-platform',
+        },
+      );
+
       return {
-        accessToken: AccessToken ?? '',
+        accessToken: platformToken,
         refreshToken: RefreshToken ?? '',
         expiresIn: ExpiresIn ?? 3600,
         tokenType: 'Bearer',

@@ -120,6 +120,35 @@ export class UsersService {
     return result.rows[0] ?? null;
   }
 
+  /** Find user with roles + tenantId — used for JWT payload construction */
+  async findByEmailWithRoles(email: string): Promise<(User & { roles: string[]; tenantId: string | null }) | null> {
+    const result = await this.db.query<User & { roles: string[]; tenantId: string | null }>(
+      `SELECT u.id, u.email,
+              u.email_verified as "emailVerified",
+              u.cognito_sub as "cognitoSub",
+              u.status,
+              u.last_login_at as "lastLoginAt",
+              u.created_at as "createdAt",
+              u.updated_at as "updatedAt",
+              u.deleted_at as "deletedAt",
+              COALESCE(
+                (SELECT json_agg(r.name)
+                 FROM user_role_assignments ura
+                 JOIN roles r ON r.id = ura.role_id
+                 WHERE ura.user_id = u.id AND (ura.expires_at IS NULL OR ura.expires_at > NOW())),
+                '[]'::json
+              ) as roles,
+              (SELECT t.id FROM tenant_members tm
+               JOIN tenants t ON t.id = tm.tenant_id
+               WHERE tm.user_id = u.id AND tm.status = 'active'
+               LIMIT 1) as "tenantId"
+       FROM users u
+       WHERE u.email = $1 AND u.deleted_at IS NULL`,
+      [email.toLowerCase()],
+    );
+    return result.rows[0] ?? null;
+  }
+
   async create(dto: CreateUserDto): Promise<User> {
     const existing = await this.findByEmail(dto.email);
     if (existing) {

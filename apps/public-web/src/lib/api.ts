@@ -52,7 +52,14 @@ export interface GeographyStats {
 
 export async function getGeographyStats(): Promise<GeographyStats> {
   const { data } = await api.get('/geography/stats');
-  return data;
+  // Normalize API field names → interface field names
+  return {
+    totalCounties: data.counties ?? data.totalCounties ?? 0,
+    totalConstituencies: data.constituencies ?? data.totalConstituencies ?? 0,
+    totalWards: data.wards ?? data.totalWards ?? 0,
+    totalStations: data.pollingStations ?? data.totalStations ?? 0,
+    totalRegisteredVoters: data.totalRegisteredVoters ?? 0,
+  };
 }
 
 // ─── Elections ───────────────────────────────────────────────────────────────
@@ -68,7 +75,15 @@ export interface Election {
 
 export async function getElections(): Promise<Election[]> {
   const { data } = await api.get('/election/elections');
-  return data;
+  // Normalize API field names → interface field names
+  return (data ?? []).map((e: Record<string, unknown>) => ({
+    id: e.id,
+    name: e.name,
+    type: (e.electionType ?? e.type ?? 'GENERAL') as string,
+    date: (e.electionDate ?? e.date ?? '') as string,
+    status: ((e.status as string) ?? 'PLANNING').toLowerCase(),
+    description: e.description as string | undefined,
+  }));
 }
 
 // ─── Results ─────────────────────────────────────────────────────────────────
