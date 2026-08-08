@@ -6,6 +6,7 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
+    "dev:services": "node dev-services.js",
     "dev:portals": "node dev-portals.js",
     "test": "turbo run test",
     "lint": "turbo run lint",
