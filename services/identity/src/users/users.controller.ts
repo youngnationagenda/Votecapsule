@@ -64,12 +64,27 @@ export class UsersController {
   }
 
   @Get('me')
-  @ApiOperation({ summary: 'Get the currently authenticated user' })
-  @ApiResponse({ status: 200, description: 'Current user details' })
-  getMe(@Req() req: Request & { user?: JwtPayload }) {
-    const userId = req.user?.sub;
-    if (!userId) return null;
-    return this.usersService.findById(userId);
+  @ApiOperation({ summary: 'Get the currently authenticated user (with roles + tenantId)' })
+  @ApiResponse({ status: 200, description: 'Current user details including roles' })
+  async getMe(@Req() req: Request & { user?: JwtPayload }) {
+    const jwtUser = req.user;
+    if (!jwtUser?.sub) return null;
+
+    // Fetch fresh user record from DB
+    const user = await this.usersService.findByEmailWithRoles(jwtUser.email);
+
+    // Merge: DB profile + roles from DB (fresh) + JWT sub + tenantId
+    return {
+      id:           user?.id      ?? jwtUser.sub,
+      email:        user?.email   ?? jwtUser.email,
+      status:       user?.status  ?? 'active',
+      emailVerified: user?.emailVerified ?? false,
+      lastLoginAt:  user?.lastLoginAt ?? null,
+      createdAt:    user?.createdAt ?? null,
+      // roles: DB is source of truth (same query used when issuing JWT)
+      roles:        user?.roles   ?? jwtUser.roles ?? [],
+      tenantId:     user?.tenantId ?? jwtUser.tenantId ?? null,
+    };
   }
 
   @Post()
