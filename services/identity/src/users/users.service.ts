@@ -133,9 +133,9 @@ export class UsersService {
               u.deleted_at as "deletedAt",
               COALESCE(
                 (SELECT json_agg(r.name)
-                 FROM user_role_assignments ura
-                 JOIN roles r ON r.id = ura.role_id
-                 WHERE ura.user_id = u.id AND (ura.expires_at IS NULL OR ura.expires_at > NOW())),
+                 FROM user_roles ur
+                 JOIN roles r ON r.id = ur.role_id
+                 WHERE ur.user_id = u.id),
                 '[]'::json
               ) as roles,
               (SELECT t.id FROM tenant_members tm
