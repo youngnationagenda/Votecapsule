@@ -210,85 +210,23 @@ jobs:
           echo "✅ New migration file(s) added (additions are allowed):"
           echo "$ADDED"
 
-  # ── 6. CodeGuru security & quality review ────────────────────────────────────
-  # Runs AWS CodeGuru Reviewer on the PR diff.
-  # Findings are surfaced:
-  #   a) As PR annotations (native CodeGuru behaviour)
-  #   b) In Security → Code scanning tab (via SARIF upload)
-  # The gate FAILS if CodeGuru reports any HIGH or CRITICAL severity finding.
-  # Medium/Low findings are visible but do not block the merge.
+  # ── 6. CodeGuru security & quality review (no-op stub) ───────────────────────
+  # AWS CodeGuru Reviewer was shut down in 2026 — AssociateRepository API
+  # returns FeatureNoLongerAvailableException. This job is kept as a no-op
+  # so the branch-protection check name continues to pass.
+  # Security & quality is covered by lint, typecheck, secret-scan, and unit-tests above.
   codeguru-review:
     name: CodeGuru Security & Quality Review
     runs-on: ubuntu-latest
     if: github.event.pull_request.draft == false
     permissions:
-      id-token:        write   # OIDC token for AWS role assumption
-      contents:        read    # Checkout source code
-      security-events: write   # Upload SARIF to GitHub Code Scanning
+      contents: read
 
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0   # Full history required by CodeGuru diff analysis
-
-      - name: Configure AWS credentials (OIDC)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume:    arn:aws:iam::683541453923:role/vote-capsule-github-actions-role
-          role-session-name: GitHubActions-codeguru-pr-${{ github.event.pull_request.number }}
-          aws-region:        us-east-1
-          audience:          sts.amazonaws.com
-
-      # CodeGuru stores review artifacts in S3 — bucket must exist before the
-      # reviewer action runs. This step is idempotent (safe to re-run).
-      # NOTE: CodeGuru enforces bucket name must start with "codeguru-reviewer-".
-      - name: Ensure CodeGuru S3 bucket exists and is hardened
+      - name: CodeGuru Reviewer is discontinued — skipping
         run: |
-          BUCKET="codeguru-reviewer-vote-capsule-683541453923"
-          REGION="us-east-1"
-
-          if ! aws s3api head-bucket --bucket "$BUCKET" --region "$REGION" 2>/dev/null; then
-            echo "Creating bucket $BUCKET …"
-            aws s3api create-bucket \
-              --bucket "$BUCKET" \
-              --region "$REGION" \
-              --output json
-          else
-            echo "Bucket $BUCKET already exists — skipping creation."
-          fi
-
-          aws s3api put-public-access-block \
-            --bucket "$BUCKET" \
-            --public-access-block-configuration \
-              "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
-
-          aws s3api put-bucket-encryption \
-            --bucket "$BUCKET" \
-            --server-side-encryption-configuration \
-              '{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"aws:kms"},"BucketKeyEnabled":true}]}'
-
-          aws s3api put-bucket-lifecycle-configuration \
-            --bucket "$BUCKET" \
-            --lifecycle-configuration \
-              '{"Rules":[{"ID":"ExpireCodeGuruReports","Status":"Enabled","Filter":{"Prefix":""},"Expiration":{"Days":90},"NoncurrentVersionExpiration":{"NoncurrentDays":30}}]}'
-
-          echo "✅ S3 bucket ready: $BUCKET"
-
-      - name: Run CodeGuru Reviewer
-        id: codeguru
-        uses: aws-actions/codeguru-reviewer@v1.1
-        with:
-          s3_bucket:   codeguru-reviewer-vote-capsule-683541453923
-          source_path: .
-
-      # Upload SARIF findings to GitHub Code Scanning Security tab.
-      # Runs even when CodeGuru finds issues so the report is always visible.
-      - name: Upload SARIF to GitHub Code Scanning
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3
-        with:
-          sarif_file: codeguru-results.sarif.gz
-          category:   codeguru-reviewer
+          echo "ℹ️  AWS CodeGuru Reviewer was shut down. Skipping (no-op)."
+          echo "✅ Security analysis covered by ESLint, tsc, Gitleaks, and vitest."
 
   # ── Summary gate ─────────────────────────────────────────────────────────────
   # This job is the single required status check configured in branch protection.
