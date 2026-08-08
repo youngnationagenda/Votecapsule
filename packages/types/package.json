@@ -14,7 +14,7 @@
   },
   "files": ["dist"],
   "scripts": {
-    "build": "tsc --project tsconfig.esm.json && tsc --project tsconfig.cjs.json",
+    "build": "tsc --project tsconfig.esm.json && tsc --project tsconfig.cjs.json && node scripts/post-build.js",
     "dev": "tsc --project tsconfig.esm.json --watch",
     "typecheck": "tsc --noEmit",
     "clean": "rimraf dist"

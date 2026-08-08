@@ -42,14 +42,16 @@ function createApiClient(servicePrefix: string): AxiosInstance {
 }
 
 // Each service client uses its own path prefix
-export const identityClient  = createApiClient('identity');
-export const tenantClient    = createApiClient('tenant');
-export const trustClient     = createApiClient('trust');
-export const geographyClient = createApiClient('geography');
-export const evidenceClient  = createApiClient('evidence');
-export const aiClient        = createApiClient('ai');
-export const workflowClient  = createApiClient('workflow');
-export const electionClient  = createApiClient('election');
-export const reportingClient = createApiClient('reporting');
-export const auditClient     = createApiClient('audit');
-export const billingClient   = createApiClient('billing');
+export const identityClient     = createApiClient('identity');
+export const tenantClient       = createApiClient('tenant');
+export const trustClient        = createApiClient('trust');
+export const geographyClient    = createApiClient('geography');
+export const evidenceClient     = createApiClient('evidence');
+export const aiClient           = createApiClient('ai');
+export const workflowClient     = createApiClient('workflow');
+export const notificationClient = createApiClient('notification');
+export const candidateClient    = createApiClient('candidate');
+export const electionClient     = createApiClient('election');
+export const reportingClient    = createApiClient('reporting');
+export const auditClient        = createApiClient('audit');
+export const billingClient      = createApiClient('billing');

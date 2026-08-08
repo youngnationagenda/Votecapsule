@@ -13,7 +13,7 @@ COPY packages/ ./packages/
 COPY services/notification/ ./services/notification/
 
 RUN pnpm install --no-frozen-lockfile
-RUN pnpm --filter @vote-capsule/types build 2>/dev/null || true
+RUN pnpm --filter @vote-capsule/types build
 RUN pnpm --filter @vote-capsule/database build 2>/dev/null || true && mkdir -p /app/packages/database/dist
 RUN cd /app/services/notification && npx tsc --project tsconfig.json --noEmitOnError false
 RUN pnpm --filter @vote-capsule/notification-service deploy --prod /tmp/notification-deploy
@@ -31,6 +31,9 @@ COPY --from=builder /tmp/notification-deploy/node_modules      ./node_modules
 COPY --from=builder /app/services/notification/dist            ./dist
 COPY --from=builder /app/services/notification/package.json    ./package.json
 COPY --from=builder /app/packages/types/dist/cjs               ./node_modules/@vote-capsule/types/dist/cjs
+COPY --from=builder /app/packages/types/dist/index.js     ./node_modules/@vote-capsule/types/dist/index.js
+COPY --from=builder /app/packages/types/dist/common.js    ./node_modules/@vote-capsule/types/dist/common.js
+COPY --from=builder /app/packages/types/dist/index.d.ts   ./node_modules/@vote-capsule/types/dist/index.d.ts
 COPY --from=builder /app/packages/types/dist/esm               ./node_modules/@vote-capsule/types/dist/esm
 COPY --from=builder /app/packages/database/dist                ./node_modules/@vote-capsule/database/dist
 

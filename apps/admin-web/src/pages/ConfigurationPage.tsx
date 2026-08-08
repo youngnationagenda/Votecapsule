@@ -21,6 +21,7 @@ import { clsx } from 'clsx';
 import {
   identityClient, geographyClient, trustClient,
   evidenceClient, aiClient, electionClient, tenantClient,
+  workflowClient, notificationClient, reportingClient, auditClient, billingClient,
 } from '../api/apiClient';
 
 // ── Tab types ──────────────────────────────────────────────────
@@ -38,47 +39,71 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
 // ── Platform Status Tab ────────────────────────────────────────
 
 const SERVICES = [
-  { name: 'Identity',     path: '/auth/health',  port: 3001, client: identityClient },
-  { name: 'Geography',    path: '/health',        port: 3004, client: geographyClient },
-  { name: 'Trust',        path: '/health',        port: 3003, client: trustClient },
-  { name: 'Evidence',     path: '/health',        port: 3005, client: evidenceClient },
-  { name: 'AI',           path: '/health',        port: 3006, client: aiClient },
-  { name: 'Election',     path: '/health',        port: 3011, client: electionClient },
-  { name: 'Tenant',       path: '/health',        port: 3002, client: tenantClient },
+  { name: 'Identity',     path: '/health', port: 3001, client: identityClient },
+  { name: 'Geography',    path: '/health', port: 3004, client: geographyClient },
+  { name: 'Trust',        path: '/health', port: 3003, client: trustClient },
+  { name: 'Evidence',     path: '/health', port: 3005, client: evidenceClient },
+  { name: 'AI',           path: '/health', port: 3006, client: aiClient },
+  { name: 'Election',     path: '/health', port: 3011, client: electionClient },
+  { name: 'Tenant',       path: '/health', port: 3002, client: tenantClient },
+  { name: 'Workflow',     path: '/health', port: 3007, client: workflowClient },
+  { name: 'Notification', path: '/health', port: 3008, client: notificationClient },
+  { name: 'Reporting',    path: '/health', port: 3010, client: reportingClient },
+  { name: 'Audit',        path: '/health', port: 3012, client: auditClient },
+  { name: 'Billing',      path: '/health', port: 3013, client: billingClient },
 ];
+
+type ServiceStatus = 'healthy' | 'reachable' | 'unreachable' | 'checking';
 
 function ServiceHealthRow({ name, path, client }: { name: string; path: string; client: any }) {
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ['health', name],
-    queryFn: () => client.get(path).then((r: any) => r.data),
+    queryFn: () =>
+      client.get(path).then(
+        (r: any) => ({ ok: true, data: r.data }),
+        (err: any) => {
+          // 401/403 = service is RUNNING, just auth-protected — not unreachable
+          const status = err?.response?.status;
+          if (status === 401 || status === 403) return { ok: true, data: null, authProtected: true };
+          return Promise.reject(err);
+        },
+      ),
     retry: 1,
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
 
-  const healthy = !!data && !error;
+  const status: ServiceStatus = isLoading || isFetching
+    ? 'checking'
+    : data?.ok
+      ? (data.authProtected ? 'reachable' : 'healthy')
+      : error
+        ? 'unreachable'
+        : 'checking';
+
+  const statusDisplay: Record<ServiceStatus, { dot: string; badge: string; label: string }> = {
+    healthy:     { dot: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-700', label: 'HEALTHY' },
+    reachable:   { dot: 'bg-emerald-400', badge: 'bg-blue-100 text-blue-700',       label: 'RUNNING' },
+    unreachable: { dot: 'bg-red-500',     badge: 'bg-red-100 text-red-700',         label: 'UNREACHABLE' },
+    checking:    { dot: 'bg-amber-400 animate-pulse', badge: 'bg-amber-100 text-amber-700', label: 'Checking…' },
+  };
+
+  const s = statusDisplay[status];
 
   return (
     <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
       <div className="flex items-center gap-3">
-        {isLoading || isFetching ? (
-          <div className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
-        ) : healthy ? (
-          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-        ) : (
-          <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
-        )}
+        <div className={clsx('w-2.5 h-2.5 rounded-full', s.dot)} />
         <span className="text-sm font-medium text-gray-800">{name} Service</span>
+        {status === 'reachable' && (
+          <span className="text-xs text-gray-400">(auth-protected)</span>
+        )}
       </div>
       <div className="flex items-center gap-3">
-        <span className={clsx('text-xs font-semibold px-2 py-0.5 rounded-full',
-          healthy ? 'bg-emerald-100 text-emerald-700' :
-          isLoading ? 'bg-amber-100 text-amber-700' :
-          'bg-red-100 text-red-700'
-        )}>
-          {isLoading ? 'Checking…' : healthy ? 'HEALTHY' : 'UNREACHABLE'}
+        <span className={clsx('text-xs font-semibold px-2 py-0.5 rounded-full', s.badge)}>
+          {s.label}
         </span>
-        <button onClick={() => refetch()} className="text-gray-400 hover:text-gray-600">
+        <button onClick={() => refetch()} className="text-gray-400 hover:text-gray-600" title="Refresh">
           <RefreshCw className={clsx('w-3.5 h-3.5', isFetching && 'animate-spin')} />
         </button>
       </div>
