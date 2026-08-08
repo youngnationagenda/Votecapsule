@@ -1,22 +1,24 @@
-# Vote Capsule(tm) -- Geography Service
+# Vote Capsule™ — Geography Service
+# Port: 3004
 ARG SERVICE_PORT=3004
 ARG GIT_SHA=local
 
+# ── Stage 1: builder ─────────────────────────────────────────────────────────
 FROM public.ecr.aws/docker/library/node:22-alpine AS builder
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@9.14.4 --activate
+
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json turbo.json ./
 COPY packages/ ./packages/
 COPY services/geography/ ./services/geography/
+
 RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @vote-capsule/types build 2>/dev/null || true
 RUN pnpm --filter @vote-capsule/database build 2>/dev/null || true && mkdir -p /app/packages/database/dist
-# Compile TypeScript
 RUN cd /app/services/geography && npx tsc --project tsconfig.json --noEmitOnError false
-# Create production-ready self-contained node_modules via pnpm deploy
-# The output path must be absolute and outside the service directory to avoid nesting
 RUN pnpm --filter @vote-capsule/geography-service deploy --prod /tmp/geography-deploy
 
+# ── Stage 2: runner ──────────────────────────────────────────────────────────
 FROM public.ecr.aws/docker/library/node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
@@ -24,15 +26,19 @@ ARG SERVICE_PORT
 ARG GIT_SHA
 ENV PORT=$SERVICE_PORT
 ENV GIT_SHA=$GIT_SHA
-# Self-contained production node_modules from pnpm deploy (no symlinks to workspace)
-COPY --from=builder /tmp/geography-deploy/node_modules ./node_modules
-# Compiled TypeScript output
-COPY --from=builder /app/services/geography/dist ./dist
-COPY --from=builder /app/services/geography/package.json ./package.json
-# Shared packages
-COPY --from=builder /app/packages/types/dist/cjs ./node_modules/@vote-capsule/types/dist/cjs
-COPY --from=builder /app/packages/types/dist/esm ./node_modules/@vote-capsule/types/dist/esm
-LABEL build-date="2026-08-04-phase13"
+
+COPY --from=builder /tmp/geography-deploy/node_modules         ./node_modules
+COPY --from=builder /app/services/geography/dist               ./dist
+COPY --from=builder /app/services/geography/package.json       ./package.json
+COPY --from=builder /app/packages/types/dist/cjs               ./node_modules/@vote-capsule/types/dist/cjs
+COPY --from=builder /app/packages/types/dist/esm               ./node_modules/@vote-capsule/types/dist/esm
+COPY --from=builder /app/packages/database/dist                ./node_modules/@vote-capsule/database/dist
+
+LABEL org.opencontainers.image.title="vote-capsule-geography-service" \
+      org.opencontainers.image.revision=$GIT_SHA \
+      org.opencontainers.image.created="2026-08-04"
+
 EXPOSE $SERVICE_PORT
-HEALTHCHECK NONE
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD wget -qO- http://localhost:$PORT/health || exit 1
 CMD ["node", "dist/main"]

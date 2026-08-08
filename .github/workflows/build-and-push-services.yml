@@ -1,10 +1,21 @@
 name: Build & Push Service Images to ECR
 
 # ============================================================
-# FIXED: Migrated from static AWS key secrets (AWS_ACCESS_KEY_ID /
-# AWS_SECRET_ACCESS_KEY) to OIDC role assumption — consistent
-# with every other workflow in this repo. No repo secrets needed
-# for AWS auth.
+# Triggered on every push to master/main that touches services
+# or packages, and on manual workflow_dispatch for a single
+# service or all services.
+#
+# Auth:   OIDC — no static AWS keys in repo secrets.
+# Images: tagged with short SHA (8 chars) + :latest
+# ECR:    repositories auto-created if missing, scanOnPush=true
+#         enforced idempotently on every run.
+#
+# Port map (canonical — matches Dockerfile ARG SERVICE_PORT):
+#   identity     3001    evidence     3002    trust        3003
+#   geography    3004    candidate    3005    election     3006
+#   notification 3007    workflow     3008    reporting    3009
+#   ai           3010    tenant       3011    audit        3012
+#   billing      3013
 # ============================================================
 
 on:
@@ -19,88 +30,52 @@ on:
   workflow_dispatch:
     inputs:
       service:
-        description: 'Service to build (e.g. identity, geography). Leave empty for all.'
+        description: 'Service to build (e.g. identity, geography). Leave empty to build all.'
         required: false
         default: ''
 
 env:
-  AWS_REGION:    us-east-1
-  ECR_REGISTRY:  683541453923.dkr.ecr.us-east-1.amazonaws.com
+  AWS_REGION:   us-east-1
+  ECR_REGISTRY: 683541453923.dkr.ecr.us-east-1.amazonaws.com
 
 jobs:
   build-and-push:
     name: Build & Push — ${{ matrix.service.name }}
     runs-on: ubuntu-latest
     permissions:
-      id-token: write   # Required for OIDC
+      id-token: write   # Required for OIDC role assumption
       contents: read
 
     strategy:
-      fail-fast: false
+      fail-fast: false   # Build all services even if one fails
       matrix:
         service:
-          - name: identity
-            dir:  services/identity
-            repo: vote-capsule/identity-service
-            port: 3001
-          - name: evidence
-            dir:  services/evidence
-            repo: vote-capsule/evidence-service
-            port: 3002
-          - name: trust
-            dir:  services/trust
-            repo: vote-capsule/trust-service
-            port: 3003
-          - name: geography
-            dir:  services/geography
-            repo: vote-capsule/geography-service
-            port: 3004
-          - name: candidate
-            dir:  services/candidate
-            repo: vote-capsule/candidate-service
-            port: 3005
-          - name: election
-            dir:  services/election
-            repo: vote-capsule/election-service
-            port: 3006
-          - name: notification
-            dir:  services/notification
-            repo: vote-capsule/notification-service
-            port: 3007
-          - name: reporting
-            dir:  services/reporting
-            repo: vote-capsule/reporting-service
-            port: 3008
-          - name: workflow
-            dir:  services/workflow
-            repo: vote-capsule/workflow-service
-            port: 3009
-          - name: ai
-            dir:  services/ai
-            repo: vote-capsule/ai-service
-            port: 3010
-          - name: tenant
-            dir:  services/tenant
-            repo: vote-capsule/tenant-service
-            port: 3011
-          - name: audit
-            dir:  services/audit
-            repo: vote-capsule/audit-service
-            port: 3012
-          - name: billing
-            dir:  services/billing
-            repo: vote-capsule/billing-service
-            port: 3013
+          - { name: identity,     dir: services/identity,     repo: vote-capsule/identity-service,     port: 3001 }
+          - { name: evidence,     dir: services/evidence,     repo: vote-capsule/evidence-service,     port: 3002 }
+          - { name: trust,        dir: services/trust,        repo: vote-capsule/trust-service,        port: 3003 }
+          - { name: geography,    dir: services/geography,    repo: vote-capsule/geography-service,    port: 3004 }
+          - { name: candidate,    dir: services/candidate,    repo: vote-capsule/candidate-service,    port: 3005 }
+          - { name: election,     dir: services/election,     repo: vote-capsule/election-service,     port: 3006 }
+          - { name: notification, dir: services/notification, repo: vote-capsule/notification-service, port: 3007 }
+          - { name: workflow,     dir: services/workflow,     repo: vote-capsule/workflow-service,     port: 3008 }
+          - { name: reporting,    dir: services/reporting,    repo: vote-capsule/reporting-service,    port: 3009 }
+          - { name: ai,           dir: services/ai,           repo: vote-capsule/ai-service,           port: 3010 }
+          - { name: tenant,       dir: services/tenant,       repo: vote-capsule/tenant-service,       port: 3011 }
+          - { name: audit,        dir: services/audit,        repo: vote-capsule/audit-service,        port: 3012 }
+          - { name: billing,      dir: services/billing,      repo: vote-capsule/billing-service,      port: 3013 }
 
     steps:
-      # Skip matrix entry when a specific service is requested via workflow_dispatch
-      - name: Skip if specific service requested and this is not it
+      # ── Skip if a specific service was requested and this is not it ──────────
+      - name: Skip if not the requested service
         if: github.event.inputs.service != '' && github.event.inputs.service != matrix.service.name
-        run: echo "Skipping ${{ matrix.service.name }}" && exit 0
+        run: |
+          echo "⏭️  Skipping ${{ matrix.service.name }} — only building ${{ github.event.inputs.service }}"
+          exit 0
 
+      # ── 1. Checkout ──────────────────────────────────────────────────────────
       - uses: actions/checkout@v4
 
-      # ── FIXED: OIDC auth — no static keys required ──────────────────────────
+      # ── 2. AWS credentials via OIDC ──────────────────────────────────────────
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -109,42 +84,49 @@ jobs:
           aws-region:        us-east-1
           audience:          sts.amazonaws.com
 
+      # ── 3. Login to ECR ──────────────────────────────────────────────────────
       - name: Login to Amazon ECR
         id: ecr-login
         uses: aws-actions/amazon-ecr-login@v2
 
+      # ── 4. Resolve image tags ────────────────────────────────────────────────
       - name: Set image tags
         id: tags
         run: |
           SHORT_SHA="${GITHUB_SHA::8}"
-          IMAGE_TAG="${SHORT_SHA}"
-          echo "short_sha=${SHORT_SHA}"                                                            >> $GITHUB_OUTPUT
-          echo "image_tag=${IMAGE_TAG}"                                                            >> $GITHUB_OUTPUT
-          echo "image_uri=${ECR_REGISTRY}/${{ matrix.service.repo }}:${IMAGE_TAG}"                >> $GITHUB_OUTPUT
-          echo "latest_uri=${ECR_REGISTRY}/${{ matrix.service.repo }}:latest"                     >> $GITHUB_OUTPUT
+          echo "short_sha=${SHORT_SHA}"                                                                  >> $GITHUB_OUTPUT
+          echo "image_tag=${SHORT_SHA}"                                                                   >> $GITHUB_OUTPUT
+          echo "image_uri=${ECR_REGISTRY}/${{ matrix.service.repo }}:${SHORT_SHA}"                       >> $GITHUB_OUTPUT
+          echo "latest_uri=${ECR_REGISTRY}/${{ matrix.service.repo }}:latest"                            >> $GITHUB_OUTPUT
 
-      - name: Create ECR repository if it does not exist
+      # ── 5. Ensure ECR repository exists with scanOnPush=true ─────────────────
+      - name: Ensure ECR repository exists
         run: |
-          # Describe returns exit 254 (RepositoryNotFoundException) when the repo
-          # does not exist — that's the only case we want to create it.
-          # We discard stdout/stderr from describe, then only create when it fails,
-          # and swallow the create exit-code so an unexpected error surfaces clearly.
+          REPO="${{ matrix.service.repo }}"
           if aws ecr describe-repositories \
-               --repository-names "${{ matrix.service.repo }}" \
+               --repository-names "$REPO" \
                --region us-east-1 \
-               --output json \
-               > /dev/null 2>&1; then
-            echo "✅ ECR repository already exists: ${{ matrix.service.repo }}"
+               --output json > /dev/null 2>&1; then
+            echo "✅ ECR repository exists: $REPO"
           else
-            echo "ℹ️  Repository not found — creating: ${{ matrix.service.repo }}"
+            echo "ℹ️  Creating ECR repository: $REPO"
             aws ecr create-repository \
-              --repository-name "${{ matrix.service.repo }}" \
+              --repository-name "$REPO" \
               --region us-east-1 \
               --image-scanning-configuration scanOnPush=true \
               --output json
-            echo "✅ ECR repository created: ${{ matrix.service.repo }}"
+            echo "✅ Created: $REPO"
           fi
 
+          # Enforce scanOnPush=true idempotently (fixes repos created before this policy)
+          aws ecr put-image-scanning-configuration \
+            --repository-name "$REPO" \
+            --image-scanning-configuration scanOnPush=true \
+            --region us-east-1 \
+            --output json > /dev/null
+          echo "✅ scanOnPush=true enforced: $REPO"
+
+      # ── 6. Build Docker image ────────────────────────────────────────────────
       - name: Build Docker image — ${{ matrix.service.name }}
         run: |
           docker build \
@@ -156,6 +138,7 @@ jobs:
             -f "${{ matrix.service.dir }}/Dockerfile" \
             .
 
+      # ── 7. Push to ECR ───────────────────────────────────────────────────────
       - name: Push to ECR — ${{ matrix.service.name }}
         run: |
           docker push "${{ steps.tags.outputs.image_uri }}"
@@ -163,6 +146,7 @@ jobs:
           echo "✅ Pushed: ${{ steps.tags.outputs.image_uri }}"
           echo "✅ Pushed: ${{ steps.tags.outputs.latest_uri }}"
 
+      # ── 8. Print image digest ────────────────────────────────────────────────
       - name: Output image digest
         run: |
           aws ecr describe-images \
