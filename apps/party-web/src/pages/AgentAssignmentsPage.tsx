@@ -88,7 +88,7 @@ export function AgentAssignmentsPage(): React.JSX.Element {
             <tbody>
               {(Array.isArray(candidates) ? candidates : []).map((c: any) => (
                 <tr key={c.id}>
-                  <td className="font-medium">{c.fullName ?? c.firstName + " " + c.lastName ?? "—"}</td>
+                  <td className="font-medium">{c.fullName ?? (c.firstName && c.lastName ? `${c.firstName} ${c.lastName}` : "—")}</td>
                   <td>{c.positionCode ?? c.position?.positionCode ?? "—"}</td>
                   <td>{c.countyName ?? "—"}</td>
                   <td>
