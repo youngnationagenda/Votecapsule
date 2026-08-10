@@ -10,9 +10,9 @@
 
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Lock, CheckCircle2, Search, Shield, Hash, RefreshCw, AlertCircle, ExternalLink } from 'lucide-react';
+import { Lock, CheckCircle2, Search, Shield, Hash, RefreshCw, AlertCircle } from 'lucide-react';
 import { clsx } from 'clsx';
-import { trustApi, type VerificationResult, type TrustAnchorBatch } from '../api/trustApi';
+import { trustApi, type VerificationResult, type TrustStats } from '../api/trustApi';
 import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 function TrustLedgerPageContent(): React.JSX.Element {
@@ -21,10 +21,10 @@ function TrustLedgerPageContent(): React.JSX.Element {
   const [isVerifying, setIsVerifying] = useState(false);
   const [verifyError, setVerifyError] = useState('');
 
-  // Recent anchor batches from Trust Service
-  const { data: batches, isLoading: batchesLoading, refetch: refetchBatches } = useQuery<TrustAnchorBatch[]>({
-    queryKey: ['trust-anchor-batches'],
-    queryFn: trustApi.getBatches,
+  // Anchor stats from Trust Service — returns counts object, NOT an array
+  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery<TrustStats>({
+    queryKey: ['trust-stats'],
+    queryFn: trustApi.getStats,
     refetchInterval: 30_000,
     retry: 1,
   });
@@ -58,8 +58,7 @@ function TrustLedgerPageContent(): React.JSX.Element {
     }
   };
 
-  const totalAnchors = batches?.reduce((sum, b) => sum + (b.leafCount ?? 0), 0) ?? 0;
-  const latestBatch = batches?.[0] ?? null;
+  const totalAnchors = stats?.totalLeaves ?? 0;
 
   return (
     <div className="space-y-6">
@@ -92,11 +91,13 @@ function TrustLedgerPageContent(): React.JSX.Element {
 
         <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500">Batch Interval</span>
+            <span className="text-sm text-gray-500">Total Batches</span>
             <RefreshCw className="w-4 h-4 text-[#0B3C6D]" />
           </div>
-          <p className="text-sm font-medium text-gray-900">60 seconds</p>
-          <p className="text-xs text-gray-400 mt-0.5">Merkle tree batching</p>
+          <p className="text-2xl font-bold text-gray-900">
+            {statsLoading ? '—' : (stats?.totalBatches ?? 0).toLocaleString()}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">Merkle tree batches</p>
         </div>
 
         <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
@@ -104,78 +105,59 @@ function TrustLedgerPageContent(): React.JSX.Element {
             <span className="text-sm text-gray-500">Total Anchored</span>
             <Shield className="w-4 h-4 text-[#0B3C6D]" />
           </div>
-          <p className="text-2xl font-bold text-gray-900">{totalAnchors.toLocaleString()}</p>
+          <p className="text-2xl font-bold text-gray-900">
+            {statsLoading ? '—' : totalAnchors.toLocaleString()}
+          </p>
           <p className="text-xs text-gray-400 mt-0.5">Evidence capsules</p>
         </div>
 
         <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-500">Anchor Status</span>
+            <span className="text-sm text-gray-500">Dual-Anchored</span>
             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
           </div>
-          <p className="text-sm font-medium text-emerald-700">Active</p>
-          {latestBatch?.anchoredAt && (
-            <p className="text-xs text-gray-400 mt-0.5">
-              Last: {new Date(latestBatch.anchoredAt).toLocaleTimeString()}
-            </p>
-          )}
+          <p className="text-2xl font-bold text-emerald-700">
+            {statsLoading ? '—' : (stats?.dualAnchored ?? 0).toLocaleString()}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">Hedera + RFC 3161</p>
         </div>
       </div>
 
-      {/* Latest Batch Merkle Root */}
-      {latestBatch && (
+      {/* Anchor Stats Detail */}
+      {stats && (
         <div className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-semibold text-gray-900">Latest Merkle Root</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-900">Anchor Infrastructure</h3>
             <button
-              onClick={() => void refetchBatches()}
+              onClick={() => void refetchStats()}
               className="text-xs text-[#2563EB] hover:text-[#0B3C6D] flex items-center gap-1 transition-colors"
-              disabled={batchesLoading}
+              disabled={statsLoading}
             >
-              <RefreshCw className={clsx('w-3 h-3', batchesLoading && 'animate-spin')} />
+              <RefreshCw className={clsx('w-3 h-3', statsLoading && 'animate-spin')} />
               Refresh
             </button>
           </div>
-          <p className="text-xs text-gray-500 mb-2">
-            Every approved capsule is included in a Merkle tree — this root represents all anchored evidence.
-            Independently verifiable via Hedera HashScan.
-          </p>
-          <div className="bg-gray-50 rounded p-3 space-y-2">
-            <div className="flex gap-2 text-xs">
-              <span className="text-gray-500 flex-shrink-0">Merkle Root:</span>
-              <code className="font-mono text-gray-700 break-all leading-relaxed">
-                {latestBatch.merkleRoot}
-              </code>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
+            <div>
+              <p className="text-xs text-gray-500 mb-0.5">Hedera Network</p>
+              <p className="font-mono font-medium text-gray-900">{stats.hederaNetwork || '—'}</p>
             </div>
-            {latestBatch.hederaTransactionId && (
-              <div className="flex gap-2 items-center text-xs">
-                <span className="text-gray-500 flex-shrink-0">Hedera Tx:</span>
-                <code className="font-mono text-gray-700">{latestBatch.hederaTransactionId}</code>
-                {latestBatch.hederaExplorerUrl && (
-                  <a
-                    href={latestBatch.hederaExplorerUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#2563EB] hover:underline flex items-center gap-0.5 ml-1"
-                    aria-label="View on HashScan"
-                  >
-                    HashScan <ExternalLink className="w-3 h-3" />
-                  </a>
-                )}
-              </div>
-            )}
-            {latestBatch.rfc3161SigningTime && (
-              <div className="flex gap-2 text-xs">
-                <span className="text-gray-500 flex-shrink-0">RFC 3161 Timestamp:</span>
-                <span className="text-gray-700">{new Date(latestBatch.rfc3161SigningTime).toLocaleString()}</span>
-              </div>
-            )}
-            {latestBatch.anchoredAt && (
-              <p className="text-xs text-gray-400">
-                Batch anchored {new Date(latestBatch.anchoredAt).toLocaleString()} ·{' '}
-                {latestBatch.leafCount} capsule{latestBatch.leafCount !== 1 ? 's' : ''}
-              </p>
-            )}
+            <div>
+              <p className="text-xs text-gray-500 mb-0.5">RFC 3161 TSA</p>
+              <p className="font-mono font-medium text-gray-900 truncate text-xs">{stats.tsaUrl || '—'}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-0.5">Pending Queue</p>
+              <p className="font-mono font-medium text-gray-900">{stats.pendingQueue}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-0.5">Partial Anchored</p>
+              <p className="font-mono font-medium text-amber-700">{stats.partialAnchored}</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-0.5">Batch Interval</p>
+              <p className="font-mono font-medium text-gray-900">60 seconds</p>
+            </div>
           </div>
         </div>
       )}
@@ -287,62 +269,29 @@ function TrustLedgerPageContent(): React.JSX.Element {
         </div>
       </div>
 
-      {/* Recent Anchor Batches */}
+      {/* Anchor Batch Summary */}
       <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
         <div className="px-5 py-4 border-b border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-900">Recent Anchor Batches</h3>
+          <h3 className="text-sm font-semibold text-gray-900">Anchor Batch Summary</h3>
           <p className="text-xs text-gray-500 mt-0.5">
-            Each batch anchors multiple capsules via a Merkle tree to Hedera Consensus Service + RFC 3161 TSA
+            Each batch anchors multiple capsules via a Merkle tree to Hedera Consensus Service + RFC 3161 TSA.
+            Use the verification tool below to inspect individual capsule proofs.
           </p>
         </div>
-        {batchesLoading ? (
-          <div className="p-8 text-center text-gray-400 text-sm">Loading batches…</div>
-        ) : !batches || batches.length === 0 ? (
-          <div className="p-8 text-center">
-            <Lock className="w-10 h-10 text-gray-200 mx-auto mb-3" />
-            <p className="text-sm font-medium text-gray-500">No anchor batches yet</p>
-            <p className="text-xs text-gray-400 mt-1">
-              Anchor batches are created every 60 seconds when approved capsules are queued.
-            </p>
-          </div>
+        {statsLoading ? (
+          <div className="p-8 text-center text-gray-400 text-sm">Loading…</div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {batches.slice(0, 10).map((batch) => (
-              <div key={batch.id} className="px-5 py-3 flex items-center justify-between gap-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className={clsx(
-                      'inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full',
-                      batch.status === 'ANCHORED' ? 'bg-emerald-100 text-emerald-700' :
-                      batch.status === 'PENDING' ? 'bg-amber-100 text-amber-700' :
-                      'bg-gray-100 text-gray-600',
-                    )}>
-                      {batch.status === 'ANCHORED' && <CheckCircle2 className="w-3 h-3" />}
-                      {batch.status}
-                    </span>
-                    <span className="text-xs text-gray-500">{batch.leafCount} capsule{batch.leafCount !== 1 ? 's' : ''}</span>
-                  </div>
-                  <p className="font-mono text-xs text-gray-500 truncate mt-0.5">
-                    Root: {batch.merkleRoot.slice(0, 24)}…
-                  </p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-xs text-gray-500">
-                    {batch.anchoredAt
-                      ? new Date(batch.anchoredAt).toLocaleString()
-                      : new Date(batch.batchedAt).toLocaleString()}
-                  </p>
-                  {batch.hederaExplorerUrl && (
-                    <a
-                      href={batch.hederaExplorerUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-[#2563EB] hover:underline flex items-center gap-0.5 justify-end mt-0.5"
-                    >
-                      HashScan <ExternalLink className="w-2.5 h-2.5" />
-                    </a>
-                  )}
-                </div>
+            {[
+              { label: 'Total Batches Processed', value: (stats?.totalBatches ?? 0).toLocaleString(), color: 'text-gray-900' },
+              { label: 'Dual-Anchored Batches (Hedera + RFC 3161)', value: (stats?.dualAnchored ?? 0).toLocaleString(), color: 'text-emerald-700' },
+              { label: 'Partial-Anchored Batches (one method only)', value: (stats?.partialAnchored ?? 0).toLocaleString(), color: 'text-amber-700' },
+              { label: 'Total Capsules Anchored (Merkle leaves)', value: (stats?.totalLeaves ?? 0).toLocaleString(), color: 'text-gray-900' },
+              { label: 'Capsules Pending in Queue', value: (stats?.pendingQueue ?? 0).toLocaleString(), color: 'text-gray-500' },
+            ].map(({ label, value, color }) => (
+              <div key={label} className="px-5 py-3 flex items-center justify-between">
+                <span className="text-sm text-gray-600">{label}</span>
+                <span className={clsx('text-sm font-bold font-mono', color)}>{value}</span>
               </div>
             ))}
           </div>

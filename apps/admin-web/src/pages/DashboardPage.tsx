@@ -115,16 +115,15 @@ function DashboardContent(): React.JSX.Element {
     staleTime: 5 * 60 * 1000, // 5 min — NEC data doesn't change often
   });
 
-  // Trust anchor batches — latest batch shows anchor health
-  const { data: trustBatches } = useQuery({
-    queryKey: ['trust-batches'],
-    queryFn: trustApi.getBatches,
+  // Trust anchor stats — aggregate counts from Trust Service
+  const { data: trustStats } = useQuery({
+    queryKey: ['trust-stats'],
+    queryFn: trustApi.getStats,
     retry: 1,
     staleTime: 30 * 1000,
   });
-  const latestBatch = Array.isArray(trustBatches) ? trustBatches[0] : null;
-  const ledgerDigest = latestBatch
-    ? { ledger: 'vote-capsule-trust', digest: latestBatch.merkleRoot, at: latestBatch.anchoredAt ?? latestBatch.batchedAt }
+  const ledgerDigest = trustStats && trustStats.totalBatches > 0
+    ? { ledger: 'vote-capsule-trust', digest: `${trustStats.dualAnchored} dual-anchored / ${trustStats.totalBatches} batches` }
     : null;
 
   // AI Service stats — advisory only
@@ -244,10 +243,10 @@ function DashboardContent(): React.JSX.Element {
         />
         <MetricCard
           title="Trust Anchors"
-          value="0"
+          value={trustStats ? formatNumber(trustStats.totalLeaves) : '0'}
           subtitle={
-            ledgerDigest
-              ? `Ledger: ${ledgerDigest.ledger} · Active`
+            trustStats && trustStats.totalBatches > 0
+              ? `${trustStats.totalBatches} batches · ${trustStats.dualAnchored} dual-anchored`
               : 'Trust ledger: awaiting capsules'
           }
           icon={Lock}
