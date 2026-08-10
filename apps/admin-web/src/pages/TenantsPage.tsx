@@ -220,7 +220,7 @@ function TenantsPageContent(): React.JSX.Element {
         )}
 
         {/* Pagination */}
-        {data && data.meta.totalPages > 1 && (
+        {data?.meta && data.meta.totalPages > 1 && (
           <div className="px-5 py-3 border-t border-gray-100 flex items-center justify-between">
             <span className="text-sm text-gray-500">
               Page {data.meta.page} of {data.meta.totalPages} ({data.meta.total} total)

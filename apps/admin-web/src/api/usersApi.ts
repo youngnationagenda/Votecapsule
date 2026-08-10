@@ -10,19 +10,35 @@ export interface User {
   createdAt: string;
 }
 
+/**
+ * Unwrap an optional { success, data: <payload> } API Gateway envelope.
+ * The identity service returns plain objects — this handles both shapes.
+ */
+function unwrap<T>(body: unknown): T {
+  if (
+    body !== null &&
+    typeof body === 'object' &&
+    'success' in (body as object) &&
+    'data' in (body as object)
+  ) {
+    return (body as { data: T }).data;
+  }
+  return body as T;
+}
+
 export const usersApi = {
   findAll: async (params?: PaginationQuery): Promise<PaginatedResponse<User>> => {
     const { data } = await identityClient.get('/users', { params });
-    return (data.data ?? data) as PaginatedResponse<User>;
+    return unwrap<PaginatedResponse<User>>(data);
   },
 
   findById: async (id: string): Promise<User> => {
     const { data } = await identityClient.get(`/users/${id}`);
-    return (data.data ?? data) as User;
+    return unwrap<User>(data);
   },
 
   update: async (id: string, payload: { status?: string }): Promise<User> => {
     const { data } = await identityClient.patch(`/users/${id}`, payload);
-    return (data.data ?? data) as User;
+    return unwrap<User>(data);
   },
 };

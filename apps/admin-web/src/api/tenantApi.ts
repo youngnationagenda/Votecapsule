@@ -25,25 +25,51 @@ export interface CreateTenantPayload {
   primaryColor?: string;
 }
 
+/**
+ * Normalise the response body from the tenant service.
+ *
+ * The NestJS tenant controller returns plain objects (no ApiResponse envelope):
+ *   GET /tenants       → PaginatedResponse<Tenant>  { data: Tenant[], meta: {...} }
+ *   GET /tenants/:id   → Tenant
+ *   POST /tenants      → Tenant
+ *   PATCH /tenants/:id → Tenant
+ *   GET /tenants/stats → Record<string, number>
+ *
+ * Some routes go through an API Gateway transform layer that may wrap them in
+ * { success, data: <actual payload> }.  This helper unwraps that outer envelope
+ * when present while leaving already-correct shapes untouched.
+ */
+function unwrap<T>(body: unknown): T {
+  if (
+    body !== null &&
+    typeof body === 'object' &&
+    'success' in (body as object) &&
+    'data' in (body as object)
+  ) {
+    return (body as { data: T }).data;
+  }
+  return body as T;
+}
+
 export const tenantApi = {
   findAll: async (params?: { page?: number; limit?: number }): Promise<PaginatedResponse<Tenant>> => {
     const { data } = await tenantClient.get('/tenants', { params });
-    return (data.data ?? data) as PaginatedResponse<Tenant>;
+    return unwrap<PaginatedResponse<Tenant>>(data);
   },
 
   findById: async (id: string): Promise<Tenant> => {
     const { data } = await tenantClient.get(`/tenants/${id}`);
-    return (data.data ?? data) as Tenant;
+    return unwrap<Tenant>(data);
   },
 
   create: async (payload: CreateTenantPayload): Promise<Tenant> => {
     const { data } = await tenantClient.post('/tenants', payload);
-    return (data.data ?? data) as Tenant;
+    return unwrap<Tenant>(data);
   },
 
   update: async (id: string, payload: Partial<CreateTenantPayload>): Promise<Tenant> => {
     const { data } = await tenantClient.patch(`/tenants/${id}`, payload);
-    return (data.data ?? data) as Tenant;
+    return unwrap<Tenant>(data);
   },
 
   delete: async (id: string): Promise<void> => {
@@ -52,21 +78,21 @@ export const tenantApi = {
 
   getStats: async (): Promise<Record<string, number>> => {
     const { data } = await tenantClient.get('/tenants/stats');
-    return (data.data ?? data) as Record<string, number>;
+    return unwrap<Record<string, number>>(data);
   },
 
   getMembers: async (tenantId: string) => {
     const { data } = await tenantClient.get(`/tenants/${tenantId}/members`);
-    return data.data ?? data;
+    return unwrap(data);
   },
 
   getSettings: async (tenantId: string) => {
     const { data } = await tenantClient.get(`/tenants/${tenantId}/settings`);
-    return data.data ?? data;
+    return unwrap(data);
   },
 
   getSubscription: async (tenantId: string) => {
     const { data } = await tenantClient.get(`/tenants/${tenantId}/subscription`);
-    return data.data ?? data;
+    return unwrap(data);
   },
 };
