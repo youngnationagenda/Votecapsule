@@ -75,21 +75,21 @@ export function BillingAdminPage(): React.JSX.Element {
 
   const { data: plans, isLoading: plansLoading } = useQuery<Plan[]>({
     queryKey: ['billing-plans'],
-    queryFn: () => billingClient.get<Plan[]>('/plans').then(r => r.data?.data ?? r.data ?? []),
+    queryFn: () => billingClient.get<{ data: Plan[] } | Plan[]>('/plans').then(r => (Array.isArray(r.data) ? r.data : (r.data as { data: Plan[] }).data ?? [])),
     retry: 1,
     staleTime: 5 * 60_000,
   });
 
   const { data: subscriptions, isLoading: subsLoading } = useQuery<Subscription[]>({
     queryKey: ['billing-subscriptions'],
-    queryFn: () => billingClient.get<Subscription[]>('/subscriptions').then(r => r.data?.data ?? r.data ?? []),
+    queryFn: () => billingClient.get<{ data: Subscription[] } | Subscription[]>('/subscriptions').then(r => (Array.isArray(r.data) ? r.data : (r.data as { data: Subscription[] }).data ?? [])),
     retry: 1,
     staleTime: 60_000,
   });
 
   const { data: invoices, isLoading: invLoading } = useQuery<Invoice[]>({
     queryKey: ['billing-invoices'],
-    queryFn: () => billingClient.get<Invoice[]>('/invoices').then(r => r.data?.data ?? r.data ?? []),
+    queryFn: () => billingClient.get<{ data: Invoice[] } | Invoice[]>('/invoices').then(r => (Array.isArray(r.data) ? r.data : (r.data as { data: Invoice[] }).data ?? [])),
     retry: 1,
     staleTime: 60_000,
   });

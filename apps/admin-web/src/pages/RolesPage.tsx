@@ -23,7 +23,7 @@ export function RolesPage(): React.JSX.Element {
                 <Shield className="w-3.5 h-3.5 text-[#0B3C6D]" />
               </div>
               <span className="text-sm font-mono text-gray-800">{role.name}</span>
-              <Lock className="w-3 h-3 text-gray-300 ml-auto" title="System role — cannot be deleted" />
+              <Lock className="w-3 h-3 text-gray-300 ml-auto" aria-label="System role — cannot be deleted" />
             </div>
           ))}
         </div>

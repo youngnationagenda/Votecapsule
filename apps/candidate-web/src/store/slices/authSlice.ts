@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-interface AuthUser { id: string; email: string; roles: string[]; candidateId?: string; position?: string; countyCode?: string; constituencyCode?: string; }
-interface AuthState { isAuthenticated: boolean; user: AuthUser | null; accessToken: string | null; isLoading: boolean; error: string | null; }
+export interface AuthUser { id: string; email: string; roles: string[]; candidateId?: string; position?: string; countyCode?: string; constituencyCode?: string; }
+export interface AuthState { isAuthenticated: boolean; user: AuthUser | null; accessToken: string | null; isLoading: boolean; error: string | null; }
 const stored = localStorage.getItem('vc_candidate_token');
 const storedUser = localStorage.getItem('vc_candidate_user');
 const initialState: AuthState = { isAuthenticated: !!stored, user: storedUser ? JSON.parse(storedUser) : null, accessToken: stored, isLoading: false, error: null };

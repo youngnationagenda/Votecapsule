@@ -1,13 +1,13 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-interface Toast {
+export interface Toast {
   id: string;
   type: 'success' | 'error' | 'warning' | 'info';
   title: string;
   message?: string;
 }
 
-interface UiState {
+export interface UiState {
   sidebarCollapsed: boolean;
   toasts: Toast[];
 }

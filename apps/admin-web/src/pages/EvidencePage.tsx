@@ -50,7 +50,7 @@ export function EvidencePage(): React.JSX.Element {
   // County dropdown from Geography Service (NEC)
   const { data: counties } = useQuery({
     queryKey: ['counties'],
-    queryFn: geographyApi.getCounties,
+    queryFn: () => geographyApi.getCounties(),
     staleTime: 10 * 60 * 1000,
     retry: 1,
   });
@@ -227,7 +227,7 @@ export function EvidencePage(): React.JSX.Element {
                           {statusCfg.label}
                         </span>
                         {capsule.aiFlagged && (
-                          <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" title="AI flagged" />
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" aria-label="AI flagged" />
                         )}
                       </div>
                     </td>

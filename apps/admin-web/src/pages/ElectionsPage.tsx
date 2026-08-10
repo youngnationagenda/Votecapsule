@@ -68,7 +68,7 @@ export function ElectionsPage(): React.JSX.Element {
 
   const { data: elections, isLoading } = useQuery<Election[]>({
     queryKey: ['elections'],
-    queryFn: () => electionClient.get<Election[]>('/elections').then(r => r.data?.data ?? r.data ?? []),
+    queryFn: () => electionClient.get<{ data: Election[] } | Election[]>('/elections').then(r => (Array.isArray(r.data) ? r.data : (r.data as { data: Election[] }).data ?? [])),
     retry: 1,
     staleTime: 30_000,
   });

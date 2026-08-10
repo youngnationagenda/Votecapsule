@@ -30,7 +30,7 @@ export function TenantCreatePage(): React.JSX.Element {
   // Real county data from Geography Service (NEC)
   const { data: counties, isLoading: countiesLoading } = useQuery({
     queryKey: ['counties'],
-    queryFn: geographyApi.getCounties,
+    queryFn: () => geographyApi.getCounties(),
     staleTime: 10 * 60 * 1000, // 10 min
     retry: 1,
   });
