@@ -46,6 +46,7 @@ Thumbs.db
 # AWS CDK
 cdk.out/
 *.d.ts
+!**/vite-env.d.ts
 *.js.map
 
 # Temporary

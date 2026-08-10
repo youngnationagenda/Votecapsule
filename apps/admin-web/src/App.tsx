@@ -3,84 +3,93 @@
  *
  * Handles routing for the complete platform admin interface.
  * Route protection: all admin routes require PLATFORM_SUPER_ADMIN role.
+ * Code-split: all pages are lazy-loaded; Login + Dashboard are eager
+ * (always needed on first paint or immediately after hydration).
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense, lazy } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AdminLayout } from './layouts/AdminLayout';
-import { LoginPage } from './pages/LoginPage';
-import { DashboardPage } from './pages/DashboardPage';
-import { TenantsPage } from './pages/TenantsPage';
-import { TenantDetailPage } from './pages/TenantDetailPage';
-import { TenantCreatePage } from './pages/TenantCreatePage';
-import { TenantMembersPage } from './pages/TenantMembersPage';
-import { TenantSubscriptionPage } from './pages/TenantSubscriptionPage';
-import { UsersPage } from './pages/UsersPage';
-import { UserDetailPage } from './pages/UserDetailPage';
-import { RolesPage } from './pages/RolesPage';
-import { TrustLedgerPage } from './pages/TrustLedgerPage';
-import { SecurityPage } from './pages/SecurityPage';
-import { AuditLogPage } from './pages/AuditLogPage';
-import { ConfigurationPage } from './pages/ConfigurationPage';
-import { SettingsPage } from './pages/SettingsPage';
-import { EvidencePage } from './pages/EvidencePage';
-import { ElectionsPage } from './pages/ElectionsPage';
-import { AiOperationsPage } from './pages/AiOperationsPage';
-import { BillingAdminPage } from './pages/BillingAdminPage';
-import { ComingSoonPage } from './pages/ComingSoonPage';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { useAppSelector, useAppDispatch } from './store/hooks';
 import { loginSuccess, logout } from './store/slices/authSlice';
 import { identityClient } from './api/apiClient';
 
+// ── Eagerly loaded — always needed on first paint ─────────────────────────────
+import { LoginPage } from './pages/LoginPage';
+import { DashboardPage } from './pages/DashboardPage';
+
+// ── Lazy-loaded page chunks ───────────────────────────────────────────────────
+// Tenant management
+const TenantsPage            = lazy(() => import('./pages/TenantsPage').then(m => ({ default: m.TenantsPage })));
+const TenantDetailPage       = lazy(() => import('./pages/TenantDetailPage').then(m => ({ default: m.TenantDetailPage })));
+const TenantCreatePage       = lazy(() => import('./pages/TenantCreatePage').then(m => ({ default: m.TenantCreatePage })));
+const TenantMembersPage      = lazy(() => import('./pages/TenantMembersPage').then(m => ({ default: m.TenantMembersPage })));
+const TenantSubscriptionPage = lazy(() => import('./pages/TenantSubscriptionPage').then(m => ({ default: m.TenantSubscriptionPage })));
+
+// User management
+const UsersPage              = lazy(() => import('./pages/UsersPage').then(m => ({ default: m.UsersPage })));
+const UserDetailPage         = lazy(() => import('./pages/UserDetailPage').then(m => ({ default: m.UserDetailPage })));
+
+// Platform management
+const RolesPage              = lazy(() => import('./pages/RolesPage').then(m => ({ default: m.RolesPage })));
+const TrustLedgerPage        = lazy(() => import('./pages/TrustLedgerPage').then(m => ({ default: m.TrustLedgerPage })));
+const SecurityPage           = lazy(() => import('./pages/SecurityPage').then(m => ({ default: m.SecurityPage })));
+const AuditLogPage           = lazy(() => import('./pages/AuditLogPage').then(m => ({ default: m.AuditLogPage })));
+const ConfigurationPage      = lazy(() => import('./pages/ConfigurationPage').then(m => ({ default: m.ConfigurationPage })));
+const SettingsPage           = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })));
+
+// Election operations
+const EvidencePage           = lazy(() => import('./pages/EvidencePage').then(m => ({ default: m.EvidencePage })));
+const ElectionsPage          = lazy(() => import('./pages/ElectionsPage').then(m => ({ default: m.ElectionsPage })));
+const AiOperationsPage       = lazy(() => import('./pages/AiOperationsPage').then(m => ({ default: m.AiOperationsPage })));
+const BillingAdminPage       = lazy(() => import('./pages/BillingAdminPage').then(m => ({ default: m.BillingAdminPage })));
+const ComingSoonPage         = lazy(() => import('./pages/ComingSoonPage').then(m => ({ default: m.ComingSoonPage })));
+
+// ── Page-level Suspense fallback ─────────────────────────────────────────────
+function PageLoader(): React.JSX.Element {
+  return (
+    <div className="flex items-center justify-center h-64">
+      <div className="w-8 h-8 border-4 border-[#0B3C6D]/20 border-t-[#0B3C6D] rounded-full animate-spin" />
+    </div>
+  );
+}
+
+// ── Session hydration ────────────────────────────────────────────────────────
 /**
- * Session hydration — validates stored token on app load.
- * Prevents the "blink and disappear" bug where expired tokens
- * pass the initial isAuthenticated check, fire API calls that all
- * 401, and then the interceptor kills the session mid-render.
+ * Validates the stored token on app load.
+ * Prevents "blink" where expired tokens pass the initial isAuthenticated
+ * check, fire API calls that all 401, then the interceptor kills the session.
  */
 function useSessionHydration() {
   const dispatch = useAppDispatch();
   const token = useAppSelector((s) => s.auth.accessToken);
-  const user = useAppSelector((s) => s.auth.user);
+  const user  = useAppSelector((s) => s.auth.user);
   const [hydrating, setHydrating] = useState(!!token && !user);
 
   useEffect(() => {
-    if (!token) {
-      setHydrating(false);
-      return;
-    }
-    if (user) {
-      // Already hydrated (e.g. just logged in)
-      setHydrating(false);
-      return;
-    }
+    if (!token) { setHydrating(false); return; }
+    if (user)   { setHydrating(false); return; }
 
-    // Token exists but user is null — validate & hydrate
+    // Token present but user null — validate & hydrate
     let cancelled = false;
     identityClient
       .get('/users/me')
       .then(({ data }) => {
         if (cancelled) return;
-        const me = data.data ?? data;
+        const me = (data as { data?: { id: string; email: string; roles: string[]; tenantId?: string } }).data ?? data as { id: string; email: string; roles: string[]; tenantId?: string };
         dispatch(loginSuccess({
           user: {
-            id: me.id ?? '',
-            email: me.email ?? '',
-            roles: me.roles ?? ['PLATFORM_SUPER_ADMIN'],
+            id:       me.id       ?? '',
+            email:    me.email    ?? '',
+            roles:    me.roles    ?? ['PLATFORM_SUPER_ADMIN'],
             tenantId: me.tenantId,
           },
           accessToken: token,
         }));
       })
-      .catch(() => {
-        if (cancelled) return;
-        // Token is invalid/expired — log out gracefully (no blink)
-        dispatch(logout());
-      })
-      .finally(() => {
-        if (!cancelled) setHydrating(false);
-      });
+      .catch(() => { if (!cancelled) dispatch(logout()); })
+      .finally(() => { if (!cancelled) setHydrating(false); });
 
     return () => { cancelled = true; };
   }, [token, user, dispatch]);
@@ -88,16 +97,16 @@ function useSessionHydration() {
   return hydrating;
 }
 
+// ── App ──────────────────────────────────────────────────────────────────────
 export default function App(): React.JSX.Element {
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const hydrating = useSessionHydration();
 
-  // Show loading state while validating stored token
   if (hydrating) {
     return (
       <div className="min-h-screen bg-[#F5F7FA] flex items-center justify-center">
         <div className="text-center">
-          <div className="w-10 h-10 border-3 border-[#0B3C6D] border-t-transparent rounded-full animate-spin mx-auto" />
+          <div className="w-10 h-10 border-4 border-[#0B3C6D]/20 border-t-[#0B3C6D] rounded-full animate-spin mx-auto" />
           <p className="text-sm text-gray-500 mt-3">Verifying session…</p>
         </div>
       </div>
@@ -106,48 +115,80 @@ export default function App(): React.JSX.Element {
 
   return (
     <Routes>
-      {/* Public routes */}
+      {/* Public */}
       <Route path="/login" element={isAuthenticated ? <Navigate to="/dashboard" replace /> : <LoginPage />} />
 
       {/* Protected admin routes */}
       <Route element={<ProtectedRoute />}>
         <Route element={<AdminLayout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+          {/* Dashboard — eager (immediate first-paint after login) */}
           <Route path="/dashboard" element={<DashboardPage />} />
 
           {/* Tenants */}
-          <Route path="/tenants" element={<TenantsPage />} />
-          <Route path="/tenants/new" element={<TenantCreatePage />} />
-          <Route path="/tenants/:id" element={<TenantDetailPage />} />
-          <Route path="/tenants/:id/members" element={<TenantMembersPage />} />
-          <Route path="/tenants/:id/subscription" element={<TenantSubscriptionPage />} />
+          <Route path="/tenants" element={
+            <Suspense fallback={<PageLoader />}><TenantsPage /></Suspense>
+          } />
+          <Route path="/tenants/new" element={
+            <Suspense fallback={<PageLoader />}><TenantCreatePage /></Suspense>
+          } />
+          <Route path="/tenants/:id" element={
+            <Suspense fallback={<PageLoader />}><TenantDetailPage /></Suspense>
+          } />
+          <Route path="/tenants/:id/members" element={
+            <Suspense fallback={<PageLoader />}><TenantMembersPage /></Suspense>
+          } />
+          <Route path="/tenants/:id/subscription" element={
+            <Suspense fallback={<PageLoader />}><TenantSubscriptionPage /></Suspense>
+          } />
 
           {/* Users */}
-          <Route path="/users" element={<UsersPage />} />
-          <Route path="/users/:id" element={<UserDetailPage />} />
+          <Route path="/users" element={
+            <Suspense fallback={<PageLoader />}><UsersPage /></Suspense>
+          } />
+          <Route path="/users/:id" element={
+            <Suspense fallback={<PageLoader />}><UserDetailPage /></Suspense>
+          } />
 
           {/* Platform management */}
-          <Route path="/roles" element={<RolesPage />} />
-          <Route path="/trust-ledger" element={<TrustLedgerPage />} />
-          <Route path="/security" element={<SecurityPage />} />
-          <Route path="/audit" element={<AuditLogPage />} />
-          <Route path="/configuration" element={<ConfigurationPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/roles" element={
+            <Suspense fallback={<PageLoader />}><RolesPage /></Suspense>
+          } />
+          <Route path="/trust-ledger" element={
+            <Suspense fallback={<PageLoader />}><TrustLedgerPage /></Suspense>
+          } />
+          <Route path="/security" element={
+            <Suspense fallback={<PageLoader />}><SecurityPage /></Suspense>
+          } />
+          <Route path="/audit" element={
+            <Suspense fallback={<PageLoader />}><AuditLogPage /></Suspense>
+          } />
+          <Route path="/configuration" element={
+            <Suspense fallback={<PageLoader />}><ConfigurationPage /></Suspense>
+          } />
+          <Route path="/settings" element={
+            <Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>
+          } />
 
-          {/* Evidence Capsules — now with real data from Evidence Service */}
-          <Route path="/evidence" element={<EvidencePage />} />
-
-          {/* Elections — full lifecycle management */}
-          <Route path="/elections" element={<ElectionsPage />} />
-
-          {/* AI Operations — verification monitoring */}
-          <Route path="/ai-operations" element={<AiOperationsPage />} />
-
-          {/* Billing — plans, subscriptions, invoices */}
-          <Route path="/billing" element={<BillingAdminPage />} />
-
-          {/* Support — coming soon */}
-          <Route path="/support" element={<ComingSoonPage title="Support" description="Support ticket overview. Coming soon." />} />
+          {/* Election operations */}
+          <Route path="/evidence" element={
+            <Suspense fallback={<PageLoader />}><EvidencePage /></Suspense>
+          } />
+          <Route path="/elections" element={
+            <Suspense fallback={<PageLoader />}><ElectionsPage /></Suspense>
+          } />
+          <Route path="/ai-operations" element={
+            <Suspense fallback={<PageLoader />}><AiOperationsPage /></Suspense>
+          } />
+          <Route path="/billing" element={
+            <Suspense fallback={<PageLoader />}><BillingAdminPage /></Suspense>
+          } />
+          <Route path="/support" element={
+            <Suspense fallback={<PageLoader />}>
+              <ComingSoonPage title="Support" description="Support ticket overview. Coming soon." />
+            </Suspense>
+          } />
         </Route>
       </Route>
 

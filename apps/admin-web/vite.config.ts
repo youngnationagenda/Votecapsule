@@ -54,12 +54,22 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: true,
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom', 'react-router-dom'],
+          // React runtime — always needed, cache forever
+          vendor: ['react', 'react-dom'],
+          // Routing
+          router: ['react-router-dom'],
+          // State management
           redux: ['@reduxjs/toolkit', 'react-redux'],
+          // Data fetching
+          query: ['@tanstack/react-query'],
+          // Charts — heavy, only loaded on chart-bearing pages
           charts: ['recharts'],
+          // Utilities
+          utils: ['axios', 'date-fns', 'clsx', 'tailwind-merge', 'lucide-react'],
         },
       },
     },
