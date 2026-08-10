@@ -12,6 +12,10 @@ out/
 # Turbo
 .turbo/
 
+# TypeScript incremental build info
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
 # Environment variables
 .env
 .env.local
