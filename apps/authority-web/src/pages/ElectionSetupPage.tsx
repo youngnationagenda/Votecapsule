@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Vote, Calendar, Settings, ChevronRight } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function ElectionSetupPage(): React.JSX.Element {
+function ElectionSetupPageContent(): React.JSX.Element {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', electionType: 'GENERAL', nominationStart: '', nominationEnd: '', electionDate: '', description: '' });
@@ -104,5 +105,13 @@ export function ElectionSetupPage(): React.JSX.Element {
         </div>
       )}
     </div>
+  );
+}
+
+export function ElectionSetupPage() {
+  return (
+    <PageErrorBoundary page="Election Setup">
+      <ElectionSetupPageContent />
+    </PageErrorBoundary>
   );
 }

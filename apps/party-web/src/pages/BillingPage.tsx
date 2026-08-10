@@ -4,8 +4,9 @@ import { CreditCard, Download, CheckCircle, AlertTriangle, ArrowRight } from 'lu
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../api/apiClient';
 import { useAppSelector } from '../store/hooks';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function BillingPage(): React.JSX.Element {
+function BillingPageContent(): React.JSX.Element {
   const user = useAppSelector((s: any) => s.auth.user);
   const tenantId = user?.tenantId ?? '';
   const navigate = useNavigate();
@@ -92,5 +93,13 @@ export function BillingPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function BillingPage() {
+  return (
+    <PageErrorBoundary page="Billing">
+      <BillingPageContent />
+    </PageErrorBoundary>
   );
 }

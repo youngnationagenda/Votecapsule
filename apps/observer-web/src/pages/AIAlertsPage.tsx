@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Brain, AlertTriangle, Info, ShieldAlert } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 function confidenceBadge(score: number | undefined): string {
   if (score === undefined || score === null) return 'bg-gray-100 text-gray-500';
@@ -17,7 +18,7 @@ function confidenceLabel(score: number | undefined): string {
   return `${(score * 100).toFixed(0)}% (High)`;
 }
 
-export function AIAlertsPage(): React.JSX.Element {
+function AIAlertsPageContent(): React.JSX.Element {
   const { data: flagged, isLoading } = useQuery({
     queryKey: ['observer', 'ai-flagged'],
     queryFn: () => apiClient.get('/ai/jobs/flagged').then(r => r.data?.data ?? []),
@@ -92,5 +93,13 @@ export function AIAlertsPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function AIAlertsPage() {
+  return (
+    <PageErrorBoundary page="A I Alerts">
+      <AIAlertsPageContent />
+    </PageErrorBoundary>
   );
 }

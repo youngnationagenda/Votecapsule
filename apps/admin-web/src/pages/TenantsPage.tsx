@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { tenantApi, type Tenant } from '../api/tenantApi';
 import { clsx } from 'clsx';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 const TENANT_TYPE_LABELS: Record<string, string> = {
   election_authority: 'Election Authority',
@@ -31,7 +32,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
   pending: { label: 'Pending', color: 'text-blue-700 bg-blue-50', icon: Clock },
 };
 
-export function TenantsPage(): React.JSX.Element {
+function TenantsPageContent(): React.JSX.Element {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -244,5 +245,13 @@ export function TenantsPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function TenantsPage() {
+  return (
+    <PageErrorBoundary page="Tenants">
+      <TenantsPageContent />
+    </PageErrorBoundary>
   );
 }

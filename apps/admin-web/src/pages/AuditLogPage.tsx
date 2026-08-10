@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { FileText, Search, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
 import { clsx } from 'clsx';
 import { auditClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 interface AuditLog {
   id: string;
@@ -35,7 +36,7 @@ const METHOD_COLORS: Record<string, string> = {
   DELETE: 'text-red-700 bg-red-50',
 };
 
-export function AuditLogPage(): React.JSX.Element {
+function AuditLogPageContent(): React.JSX.Element {
   const [serviceFilter, setServiceFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [search, setSearch] = useState('');
@@ -149,5 +150,13 @@ export function AuditLogPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function AuditLogPage() {
+  return (
+    <PageErrorBoundary page="Audit Log">
+      <AuditLogPageContent />
+    </PageErrorBoundary>
   );
 }

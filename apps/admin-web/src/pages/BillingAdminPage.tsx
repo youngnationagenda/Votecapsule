@@ -12,6 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import { CreditCard, Package, CheckCircle2, Clock, XCircle, Search } from 'lucide-react';
 import { clsx } from 'clsx';
 import { billingClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 interface Plan {
   id: string;
@@ -69,7 +70,7 @@ const PLAN_COLORS: Record<string, string> = {
   platform:     'border-emerald-300',
 };
 
-export function BillingAdminPage(): React.JSX.Element {
+function BillingAdminPageContent(): React.JSX.Element {
   const [searchSub, setSearchSub] = useState('');
   const [tab, setTab] = useState<'plans' | 'subscriptions' | 'invoices'>('plans');
 
@@ -247,5 +248,13 @@ export function BillingAdminPage(): React.JSX.Element {
         </div>
       )}
     </div>
+  );
+}
+
+export function BillingAdminPage() {
+  return (
+    <PageErrorBoundary page="Billing Admin">
+      <BillingAdminPageContent />
+    </PageErrorBoundary>
   );
 }

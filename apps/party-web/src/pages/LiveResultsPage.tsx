@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart3, TrendingUp, RefreshCw, Info } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 const PCT_BAR_COLORS: Record<string, string> = {
   LEADING: 'bg-violet-500',
@@ -9,7 +10,7 @@ const PCT_BAR_COLORS: Record<string, string> = {
   TRAILING: 'bg-gray-300',
 };
 
-export function LiveResultsPage(): React.JSX.Element {
+function LiveResultsPageContent(): React.JSX.Element {
   const { data: results, refetch, isFetching, isLoading } = useQuery({
     queryKey: ['party', 'live-results'],
     queryFn: () => apiClient.get('/reporting/reports/results').then(r => r.data?.data ?? []),
@@ -92,5 +93,13 @@ export function LiveResultsPage(): React.JSX.Element {
         ))
       )}
     </div>
+  );
+}
+
+export function LiveResultsPage() {
+  return (
+    <PageErrorBoundary page="Live Results">
+      <LiveResultsPageContent />
+    </PageErrorBoundary>
   );
 }

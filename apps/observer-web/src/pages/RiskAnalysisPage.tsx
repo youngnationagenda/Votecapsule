@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, TrendingDown, ShieldAlert, Brain } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 const SEVERITY_BADGE: Record<string, string> = {
   HIGH: 'bg-red-100 text-red-700',
@@ -16,7 +17,7 @@ function confidenceBadge(score: number | undefined): string {
   return 'bg-emerald-100 text-emerald-700';
 }
 
-export function RiskAnalysisPage(): React.JSX.Element {
+function RiskAnalysisPageContent(): React.JSX.Element {
   const { data: flagged, isLoading } = useQuery({
     queryKey: ['observer', 'risk-flagged'],
     queryFn: () => apiClient.get('/ai/jobs/flagged').then(r => r.data?.data ?? []),
@@ -106,5 +107,13 @@ export function RiskAnalysisPage(): React.JSX.Element {
         ))
       )}
     </div>
+  );
+}
+
+export function RiskAnalysisPage() {
+  return (
+    <PageErrorBoundary page="Risk Analysis">
+      <RiskAnalysisPageContent />
+    </PageErrorBoundary>
   );
 }

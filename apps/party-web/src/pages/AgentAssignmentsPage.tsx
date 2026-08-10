@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { MapPin, Plus, User } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
 import { useAppSelector } from '../store/hooks';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function AgentAssignmentsPage(): React.JSX.Element {
+function AgentAssignmentsPageContent(): React.JSX.Element {
   const qc = useQueryClient();
   const user = useAppSelector(s => s.auth.user);
   const tenantId = user?.tenantId ?? '';
@@ -103,5 +104,13 @@ export function AgentAssignmentsPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function AgentAssignmentsPage() {
+  return (
+    <PageErrorBoundary page="Agent Assignments">
+      <AgentAssignmentsPageContent />
+    </PageErrorBoundary>
   );
 }

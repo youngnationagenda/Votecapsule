@@ -51,6 +51,8 @@ cdk.out/
 # Temporary
 *.tmp
 *.temp
+build-output.txt
+typecheck-out.txt
 
 # Firebase / GCP service account keys — NEVER commit
 firebase-service-account.json

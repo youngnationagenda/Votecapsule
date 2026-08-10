@@ -2,7 +2,8 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { CreditCard, Download } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
-export function BillingPage(): React.JSX.Element {
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
+function BillingPageContent(): React.JSX.Element {
   const { data: invoices } = useQuery({ queryKey: ['candidate','billing'], queryFn: () => apiClient.get('/billing/invoices').then(r => r.data?.data ?? []) });
   return (
     <div className="space-y-6">
@@ -18,5 +19,13 @@ export function BillingPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function BillingPage() {
+  return (
+    <PageErrorBoundary page="Billing">
+      <BillingPageContent />
+    </PageErrorBoundary>
   );
 }

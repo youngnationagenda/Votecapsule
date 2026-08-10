@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { electionClient, candidateClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 interface Election {
   id: string;
@@ -54,7 +55,7 @@ const LIFECYCLE_TRANSITIONS: Record<string, { label: string; action: string; col
   RESULTS_PUBLISHED: { label: 'Archive',          action: 'close',             color: 'bg-gray-600 hover:bg-gray-700' },
 };
 
-export function ElectionsPage(): React.JSX.Element {
+function ElectionsPageContent(): React.JSX.Element {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({
@@ -454,5 +455,13 @@ function PartyNominationsOverview({ elections }: { elections: Election[] }) {
         </p>
       </div>
     </div>
+  );
+}
+
+export function ElectionsPage() {
+  return (
+    <PageErrorBoundary page="Elections">
+      <ElectionsPageContent />
+    </PageErrorBoundary>
   );
 }

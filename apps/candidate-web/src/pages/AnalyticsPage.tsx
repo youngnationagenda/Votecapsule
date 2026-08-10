@@ -2,8 +2,9 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, Activity, Info, MapPin } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function AnalyticsPage(): React.JSX.Element {
+function AnalyticsPageContent(): React.JSX.Element {
   const { data: analytics, isLoading: loadingAnalytics } = useQuery({
     queryKey: ['candidate', 'analytics'],
     queryFn: () => apiClient.get('/reporting/reports/analytics').then(r => r.data?.data ?? {}),
@@ -108,5 +109,13 @@ export function AnalyticsPage(): React.JSX.Element {
         </>
       )}
     </div>
+  );
+}
+
+export function AnalyticsPage() {
+  return (
+    <PageErrorBoundary page="Analytics">
+      <AnalyticsPageContent />
+    </PageErrorBoundary>
   );
 }

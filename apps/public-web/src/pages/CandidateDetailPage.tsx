@@ -2,8 +2,9 @@ import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, User, MapPin, Award } from 'lucide-react';
 import { getCandidateById } from '../lib/api';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function CandidateDetailPage() {
+function CandidateDetailPageContent() {
   const { id } = useParams<{ id: string }>();
 
   const { data: candidate, isLoading, error } = useQuery({
@@ -106,5 +107,13 @@ export function CandidateDetailPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+export function CandidateDetailPage() {
+  return (
+    <PageErrorBoundary page="Candidate Detail">
+      <CandidateDetailPageContent />
+    </PageErrorBoundary>
   );
 }

@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { UserCheck, Plus, Mail } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function CoordinatorsPage(): React.JSX.Element {
+function CoordinatorsPageContent(): React.JSX.Element {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ email: '', name: '', region: '', role: 'CAMPAIGN_COORDINATOR' });
@@ -52,5 +53,13 @@ export function CoordinatorsPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function CoordinatorsPage() {
+  return (
+    <PageErrorBoundary page="Coordinators">
+      <CoordinatorsPageContent />
+    </PageErrorBoundary>
   );
 }

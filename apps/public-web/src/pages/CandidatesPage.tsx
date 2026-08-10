@@ -4,8 +4,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Users, User, ChevronRight } from 'lucide-react';
 import { SearchInput } from '../components/SearchInput';
 import { getCandidates } from '../lib/api';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function CandidatesPage() {
+function CandidatesPageContent() {
   const [search, setSearch] = useState('');
   const [partyFilter, setPartyFilter] = useState('');
   const [positionFilter, setPositionFilter] = useState('');
@@ -114,5 +115,13 @@ export function CandidatesPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export function CandidatesPage() {
+  return (
+    <PageErrorBoundary page="Candidates">
+      <CandidatesPageContent />
+    </PageErrorBoundary>
   );
 }

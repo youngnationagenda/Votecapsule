@@ -2,8 +2,9 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { BarChart3, Calendar, ChevronRight } from 'lucide-react';
 import { getElections } from '../lib/api';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function ResultsPage() {
+function ResultsPageContent() {
   const { data: elections, isLoading, error } = useQuery({
     queryKey: ['elections'],
     queryFn: getElections,
@@ -88,5 +89,13 @@ export function ResultsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export function ResultsPage() {
+  return (
+    <PageErrorBoundary page="Results">
+      <ResultsPageContent />
+    </PageErrorBoundary>
   );
 }

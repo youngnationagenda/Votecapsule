@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { MapPin, ChevronRight, Activity } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function RegionalMonitoringPage(): React.JSX.Element {
+function RegionalMonitoringPageContent(): React.JSX.Element {
   const [selectedCounty, setSelectedCounty] = useState<string | null>(null);
   const [selectedCountyName, setSelectedCountyName] = useState<string>('');
 
@@ -113,5 +114,13 @@ export function RegionalMonitoringPage(): React.JSX.Element {
         </div>
       </div>
     </div>
+  );
+}
+
+export function RegionalMonitoringPage() {
+  return (
+    <PageErrorBoundary page="Regional Monitoring">
+      <RegionalMonitoringPageContent />
+    </PageErrorBoundary>
   );
 }

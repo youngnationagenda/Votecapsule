@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { MapPin, ChevronRight, Search } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function GeographyPage(): React.JSX.Element {
+function GeographyPageContent(): React.JSX.Element {
   const [level, setLevel] = useState<'counties' | 'constituencies' | 'wards'>('counties');
   const [search, setSearch] = useState('');
 
@@ -73,5 +74,13 @@ export function GeographyPage(): React.JSX.Element {
         {filtered.length > 100 && <p className="text-xs text-gray-400 mt-3 text-center">Showing first 100 of {filtered.length}</p>}
       </div>
     </div>
+  );
+}
+
+export function GeographyPage() {
+  return (
+    <PageErrorBoundary page="Geography">
+      <GeographyPageContent />
+    </PageErrorBoundary>
   );
 }

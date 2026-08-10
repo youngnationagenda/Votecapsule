@@ -18,6 +18,7 @@ import { clsx } from 'clsx';
 import { evidenceApi, type EvidenceCapsule } from '../api/evidenceApi';
 import { geographyApi } from '../api/geographyApi';
 import { CapsuleDetailModal } from '../components/evidence/CapsuleDetailModal';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
   DRAFT:              { label: 'Draft',              color: 'text-gray-600 bg-gray-50',    icon: Clock },
@@ -42,7 +43,7 @@ const POSITION_LABELS: Record<string, string> = {
   MCA:        'MCA',
 };
 
-export function EvidencePage(): React.JSX.Element {
+function EvidencePageContent(): React.JSX.Element {
   const [selectedCounty, setSelectedCounty] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedCapsuleId, setSelectedCapsuleId] = useState<string | null>(null);
@@ -274,5 +275,13 @@ export function EvidencePage(): React.JSX.Element {
         />
       )}
     </div>
+  );
+}
+
+export function EvidencePage() {
+  return (
+    <PageErrorBoundary page="Evidence">
+      <EvidencePageContent />
+    </PageErrorBoundary>
   );
 }

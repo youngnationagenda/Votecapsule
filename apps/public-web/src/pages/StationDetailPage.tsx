@@ -3,8 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, MapPin, Users, Building2, CheckCircle } from 'lucide-react';
 import { getStationByCode, getPublicResults } from '../lib/api';
 import { ResultsTable } from '../components/ResultsTable';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function StationDetailPage() {
+function StationDetailPageContent() {
   const { code } = useParams<{ code: string }>();
 
   const { data: station, isLoading: stationLoading, error: stationError } = useQuery({
@@ -120,5 +121,13 @@ export function StationDetailPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export function StationDetailPage() {
+  return (
+    <PageErrorBoundary page="Station Detail">
+      <StationDetailPageContent />
+    </PageErrorBoundary>
   );
 }

@@ -13,8 +13,9 @@ import {
 } from 'lucide-react';
 import { verifyCapsule } from '../lib/api';
 import { VerificationBadge } from '../components/VerificationBadge';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function VerifyPage() {
+function VerifyPageContent() {
   const { capsuleId: paramCapsuleId } = useParams<{ capsuleId: string }>();
   const navigate = useNavigate();
   const [inputValue, setInputValue] = useState(paramCapsuleId ?? '');
@@ -258,5 +259,13 @@ function ProofRow({
         </dd>
       </div>
     </div>
+  );
+}
+
+export function VerifyPage() {
+  return (
+    <PageErrorBoundary page="Verify">
+      <VerifyPageContent />
+    </PageErrorBoundary>
   );
 }

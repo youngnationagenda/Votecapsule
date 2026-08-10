@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useStationExplorer, type SortField } from '../lib/useStationExplorer';
 import type { PollingStation } from '../lib/api';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -285,7 +286,7 @@ function StationRow({ station }: { station: PollingStation }) {
 
 // ── Main Page ────────────────────────────────────────────────────────────────
 
-export function StationsPage() {
+function StationsPageContent() {
   const { state, actions } = useStationExplorer(50);
 
   const showResults = state.isSearchMode || !!state.countyCode;
@@ -551,5 +552,13 @@ export function StationsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export function StationsPage() {
+  return (
+    <PageErrorBoundary page="Stations">
+      <StationsPageContent />
+    </PageErrorBoundary>
   );
 }

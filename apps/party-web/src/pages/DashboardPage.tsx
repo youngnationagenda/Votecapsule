@@ -2,8 +2,9 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Users, MapPin, BarChart3, TrendingUp, CheckCircle, Clock, Activity } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function DashboardPage(): React.JSX.Element {
+function DashboardPageContent(): React.JSX.Element {
   const { data: candidates } = useQuery({ queryKey: ['party','candidates'], queryFn: () => apiClient.get('/candidate/candidates').then(r => r.data?.data ?? []) });
   const { data: reporting } = useQuery({ queryKey: ['party','dashboard'], queryFn: () => apiClient.get('/reporting/reports/dashboard').then(r => r.data?.data ?? {}) });
 
@@ -67,5 +68,13 @@ export function DashboardPage(): React.JSX.Element {
         </div>
       </div>
     </div>
+  );
+}
+
+export function DashboardPage() {
+  return (
+    <PageErrorBoundary page="Dashboard">
+      <DashboardPageContent />
+    </PageErrorBoundary>
   );
 }

@@ -2,8 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Activity, MapPin, CheckCircle, Clock } from 'lucide-react';
 import { StatsCard } from '../components/StatsCard';
 import { getReportingProgress } from '../lib/api';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function ProgressPage() {
+function ProgressPageContent() {
   const { data: progress, isLoading, error } = useQuery({
     queryKey: ['reporting-progress'],
     queryFn: getReportingProgress,
@@ -170,5 +171,13 @@ export function ProgressPage() {
         </>
       )}
     </div>
+  );
+}
+
+export function ProgressPage() {
+  return (
+    <PageErrorBoundary page="Progress">
+      <ProgressPageContent />
+    </PageErrorBoundary>
   );
 }

@@ -1,10 +1,11 @@
 import React from 'react';
 import { Shield, Lock } from 'lucide-react';
 import { SystemRole } from '@vote-capsule/types';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 const SYSTEM_ROLES = Object.values(SystemRole).map((name) => ({ name, isSystem: true }));
 
-export function RolesPage(): React.JSX.Element {
+function RolesPageContent(): React.JSX.Element {
   return (
     <div className="space-y-6">
       <div>
@@ -29,5 +30,13 @@ export function RolesPage(): React.JSX.Element {
         </div>
       </div>
     </div>
+  );
+}
+
+export function RolesPage() {
+  return (
+    <PageErrorBoundary page="Roles">
+      <RolesPageContent />
+    </PageErrorBoundary>
   );
 }

@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Eye, Mail, Plus, CheckCircle } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function ObserverCoordinationPage(): React.JSX.Element {
+function ObserverCoordinationPageContent(): React.JSX.Element {
   const qc = useQueryClient();
   const [showInvite, setShowInvite] = useState(false);
   const [inviteForm, setInviteForm] = useState({ email: '', organization: '', accessLevel: 'NATIONAL' });
@@ -86,5 +87,13 @@ export function ObserverCoordinationPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function ObserverCoordinationPage() {
+  return (
+    <PageErrorBoundary page="Observer Coordination">
+      <ObserverCoordinationPageContent />
+    </PageErrorBoundary>
   );
 }

@@ -3,8 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Bell, CheckCircle } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
 import { useAppSelector } from '../store/hooks';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function NotificationsPage(): React.JSX.Element {
+function NotificationsPageContent(): React.JSX.Element {
   const user = useAppSelector((s: any) => s.auth.user);
   const { data: notifications } = useQuery({ queryKey: ['candidate','notifications'], queryFn: () => apiClient.get(`/notification/user/\${user?.id ?? ''}`).then(r => r.data?.items ?? r.data?.data ?? r.data ?? []) });
 
@@ -29,5 +30,13 @@ export function NotificationsPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function NotificationsPage() {
+  return (
+    <PageErrorBoundary page="Notifications">
+      <NotificationsPageContent />
+    </PageErrorBoundary>
   );
 }

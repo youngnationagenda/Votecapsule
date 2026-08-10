@@ -1,7 +1,8 @@
 import React from 'react';
 import { AlertCircle, Shield } from 'lucide-react';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function SecurityPage(): React.JSX.Element {
+function SecurityPageContent(): React.JSX.Element {
   return (
     <div className="space-y-6">
       <div>
@@ -17,5 +18,13 @@ export function SecurityPage(): React.JSX.Element {
         </p>
       </div>
     </div>
+  );
+}
+
+export function SecurityPage() {
+  return (
+    <PageErrorBoundary page="Security">
+      <SecurityPageContent />
+    </PageErrorBoundary>
   );
 }

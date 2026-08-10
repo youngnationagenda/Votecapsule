@@ -15,6 +15,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Bot, AlertTriangle, CheckCircle2, Clock, Search } from 'lucide-react';
 import { clsx } from 'clsx';
 import { aiApi, type AiVerificationJob } from '../api/aiApi';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 const ROUTING_CONFIG: Record<string, { label: string; color: string }> = {
   AUTO_APPROVE:  { label: 'Auto-Approve',  color: 'text-emerald-700 bg-emerald-50' },
@@ -46,7 +47,7 @@ function ConfidenceBar({ score }: { score: number | null }) {
   );
 }
 
-export function AiOperationsPage(): React.JSX.Element {
+function AiOperationsPageContent(): React.JSX.Element {
   const [search, setSearch] = useState('');
 
   const { data: stats, isLoading: statsLoading } = useQuery({
@@ -199,5 +200,13 @@ export function AiOperationsPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function AiOperationsPage() {
+  return (
+    <PageErrorBoundary page="Ai Operations">
+      <AiOperationsPageContent />
+    </PageErrorBoundary>
   );
 }

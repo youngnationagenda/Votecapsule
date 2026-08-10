@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Settings, CheckCircle, AlertTriangle, Info } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
 import { useAppSelector } from '../store/hooks';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 const PLAN_FEATURES: Record<string, string[]> = {
   STANDARD: [
@@ -30,7 +31,7 @@ const PLAN_FEATURES: Record<string, string[]> = {
   ],
 };
 
-export function SubscriptionPage(): React.JSX.Element {
+function SubscriptionPageContent(): React.JSX.Element {
   const user = useAppSelector((s: any) => s.auth.user);
   const tenantId = user?.tenantId ?? '';
 
@@ -108,5 +109,13 @@ export function SubscriptionPage(): React.JSX.Element {
         </div>
       </div>
     </div>
+  );
+}
+
+export function SubscriptionPage() {
+  return (
+    <PageErrorBoundary page="Subscription">
+      <SubscriptionPageContent />
+    </PageErrorBoundary>
   );
 }

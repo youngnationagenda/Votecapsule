@@ -11,6 +11,7 @@ import { geographyApi } from '../api/geographyApi';
 import { TenantType } from '@vote-capsule/types';
 import { useAppDispatch } from '../store/hooks';
 import { addToast } from '../store/slices/uiSlice';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 const TENANT_TYPES = [
   { value: TenantType.ELECTION_AUTHORITY, label: 'Election Authority' },
@@ -22,7 +23,7 @@ const TENANT_TYPES = [
   { value: TenantType.GOVERNMENT_AGENCY, label: 'Government Agency' },
 ];
 
-export function TenantCreatePage(): React.JSX.Element {
+function TenantCreatePageContent(): React.JSX.Element {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const queryClient = useQueryClient();
@@ -266,5 +267,13 @@ export function TenantCreatePage(): React.JSX.Element {
         </div>
       </form>
     </div>
+  );
+}
+
+export function TenantCreatePage() {
+  return (
+    <PageErrorBoundary page="Tenant Create">
+      <TenantCreatePageContent />
+    </PageErrorBoundary>
   );
 }

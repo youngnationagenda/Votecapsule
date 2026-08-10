@@ -14,6 +14,7 @@ import {
   Info,
 } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -84,7 +85,7 @@ function computeMathCheck(
 
 // ── Main component ─────────────────────────────────────────────
 
-export function FormBEntryPage(): React.JSX.Element {
+function FormBEntryPageContent(): React.JSX.Element {
   const [position, setPosition]               = useState('PRESIDENT');
   const [countyCode, setCountyCode]           = useState('');
   const [constituencyCode, setConstCode]      = useState('');
@@ -549,5 +550,13 @@ export function FormBEntryPage(): React.JSX.Element {
 
       </form>
     </div>
+  );
+}
+
+export function FormBEntryPage() {
+  return (
+    <PageErrorBoundary page="Form B Entry">
+      <FormBEntryPageContent />
+    </PageErrorBoundary>
   );
 }

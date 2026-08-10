@@ -3,10 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { BarChart3, TrendingUp, RefreshCw } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 const COLORS = ['#059669', '#0B3C6D', '#7C3AED', '#D97706', '#DC2626', '#0369A1', '#6D28D9', '#047857'];
 
-export function LiveReportingPage(): React.JSX.Element {
+function LiveReportingPageContent(): React.JSX.Element {
   const { data: stats, refetch, isFetching } = useQuery({
     queryKey: ['reporting', 'live'],
     queryFn: () => apiClient.get('/reporting/reports/dashboard').then((r) => r.data?.data ?? r.data ?? {}),
@@ -78,5 +79,13 @@ export function LiveReportingPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function LiveReportingPage() {
+  return (
+    <PageErrorBoundary page="Live Reporting">
+      <LiveReportingPageContent />
+    </PageErrorBoundary>
   );
 }

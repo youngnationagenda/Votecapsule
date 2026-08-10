@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, Users, Search } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function CandidateManagementPage(): React.JSX.Element {
+function CandidateManagementPageContent(): React.JSX.Element {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ firstName: '', lastName: '', email: '', phone: '', position: 'MP', countyCode: '', constituencyCode: '' });
@@ -72,5 +73,13 @@ export function CandidateManagementPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function CandidateManagementPage() {
+  return (
+    <PageErrorBoundary page="Candidate Management">
+      <CandidateManagementPageContent />
+    </PageErrorBoundary>
   );
 }

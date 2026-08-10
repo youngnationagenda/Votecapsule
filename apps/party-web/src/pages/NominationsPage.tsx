@@ -24,6 +24,7 @@ import {
 import { clsx } from 'clsx';
 import { useAppSelector } from '../store/hooks';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -457,7 +458,7 @@ function NominationCard({
 
 // ── Main Page ─────────────────────────────────────────────────
 
-export function NominationsPage(): React.JSX.Element {
+function NominationsPageContent(): React.JSX.Element {
   const user = useAppSelector((s: any) => s.auth.user);
   const tenantId = user?.tenantId ?? '';
   const userId   = user?.id ?? '';
@@ -624,5 +625,13 @@ export function NominationsPage(): React.JSX.Element {
         </div>
       )}
     </div>
+  );
+}
+
+export function NominationsPage() {
+  return (
+    <PageErrorBoundary page="Nominations">
+      <NominationsPageContent />
+    </PageErrorBoundary>
   );
 }

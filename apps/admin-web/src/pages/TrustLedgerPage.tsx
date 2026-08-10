@@ -13,8 +13,9 @@ import { useQuery } from '@tanstack/react-query';
 import { Lock, CheckCircle2, Search, Shield, Hash, RefreshCw, AlertCircle, ExternalLink } from 'lucide-react';
 import { clsx } from 'clsx';
 import { trustApi, type VerificationResult, type TrustAnchorBatch } from '../api/trustApi';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function TrustLedgerPage(): React.JSX.Element {
+function TrustLedgerPageContent(): React.JSX.Element {
   const [verificationInput, setVerificationInput] = useState('');
   const [verificationResult, setVerificationResult] = useState<VerificationResult | 'not_found' | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -361,5 +362,13 @@ export function TrustLedgerPage(): React.JSX.Element {
         </p>
       </div>
     </div>
+  );
+}
+
+export function TrustLedgerPage() {
+  return (
+    <PageErrorBoundary page="Trust Ledger">
+      <TrustLedgerPageContent />
+    </PageErrorBoundary>
   );
 }

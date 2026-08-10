@@ -2,8 +2,9 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Brain, AlertTriangle, Eye } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function AIReviewPage(): React.JSX.Element {
+function AIReviewPageContent(): React.JSX.Element {
   const { data: flagged } = useQuery({
     queryKey: ['ai', 'flagged'],
     queryFn: () => apiClient.get('/evidence/capsules?aiFlag=true').then((r) => r.data?.data ?? []),
@@ -64,5 +65,13 @@ export function AIReviewPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function AIReviewPage() {
+  return (
+    <PageErrorBoundary page="A I Review">
+      <AIReviewPageContent />
+    </PageErrorBoundary>
   );
 }

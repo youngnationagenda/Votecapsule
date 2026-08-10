@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Users, Mail, Plus, CheckCircle, UserPlus } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 const ROLES = ['CAMPAIGN_COORDINATOR', 'CAPSULE_AGENT'];
 
@@ -10,7 +11,7 @@ const ROLE_BADGE: Record<string, string> = {
   CAPSULE_AGENT: 'bg-sky-100 text-sky-700',
 };
 
-export function TeamManagementPage(): React.JSX.Element {
+function TeamManagementPageContent(): React.JSX.Element {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', email: '', role: 'CAPSULE_AGENT' });
@@ -116,5 +117,13 @@ export function TeamManagementPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function TeamManagementPage() {
+  return (
+    <PageErrorBoundary page="Team Management">
+      <TeamManagementPageContent />
+    </PageErrorBoundary>
   );
 }

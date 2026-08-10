@@ -2,6 +2,7 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Image, ShieldCheck, Clock, Brain } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 const STATUS_BADGE: Record<string, string> = {
   UPLOADED: 'bg-blue-100 text-blue-700',
@@ -12,7 +13,7 @@ const STATUS_BADGE: Record<string, string> = {
   REJECTED: 'bg-red-100 text-red-700',
 };
 
-export function EvidenceCapsulesPage(): React.JSX.Element {
+function EvidenceCapsulesPageContent(): React.JSX.Element {
   const { data: capsules, isLoading } = useQuery({
     queryKey: ['candidate', 'evidence-capsules'],
     queryFn: () => apiClient.get('/evidence/capsules').then(r => r.data?.data ?? []),
@@ -101,5 +102,13 @@ export function EvidenceCapsulesPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function EvidenceCapsulesPage() {
+  return (
+    <PageErrorBoundary page="Evidence Capsules">
+      <EvidenceCapsulesPageContent />
+    </PageErrorBoundary>
   );
 }

@@ -2,8 +2,9 @@ import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, CheckCircle, Clock } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function StationProgressPage(): React.JSX.Element {
+function StationProgressPageContent(): React.JSX.Element {
   const { data: progress } = useQuery({ queryKey: ['candidate','station-progress'], queryFn: () => apiClient.get('/reporting/public/progress').then(r => r.data?.data ?? []) });
 
   const submitted = (progress ?? []).filter((s: any) => s.hasSubmitted).length;
@@ -46,5 +47,13 @@ export function StationProgressPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function StationProgressPage() {
+  return (
+    <PageErrorBoundary page="Station Progress">
+      <StationProgressPageContent />
+    </PageErrorBoundary>
   );
 }

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Users, Search, CheckCircle2, XCircle, Clock, ChevronRight } from 'lucide-react';
 import { usersApi, type User } from '../api/usersApi';
 import { clsx } from 'clsx';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 const STATUS_CONFIG: Record<string, { color: string; icon: React.ElementType }> = {
   active: { color: 'text-emerald-700 bg-emerald-50', icon: CheckCircle2 },
@@ -11,7 +12,7 @@ const STATUS_CONFIG: Record<string, { color: string; icon: React.ElementType }> 
   deactivated: { color: 'text-red-700 bg-red-50', icon: XCircle },
 };
 
-export function UsersPage(): React.JSX.Element {
+function UsersPageContent(): React.JSX.Element {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -106,5 +107,13 @@ export function UsersPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function UsersPage() {
+  return (
+    <PageErrorBoundary page="Users">
+      <UsersPageContent />
+    </PageErrorBoundary>
   );
 }

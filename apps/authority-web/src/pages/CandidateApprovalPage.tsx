@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle, XCircle, Clock, Search, Filter } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function CandidateApprovalPage(): React.JSX.Element {
+function CandidateApprovalPageContent(): React.JSX.Element {
   const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('PENDING_NOMINATION');
@@ -105,5 +106,13 @@ export function CandidateApprovalPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function CandidateApprovalPage() {
+  return (
+    <PageErrorBoundary page="Candidate Approval">
+      <CandidateApprovalPageContent />
+    </PageErrorBoundary>
   );
 }

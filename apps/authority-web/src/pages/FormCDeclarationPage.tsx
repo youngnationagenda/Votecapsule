@@ -13,6 +13,7 @@ import {
   Award, CheckCircle, AlertTriangle, Info, Crown,
 } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -154,7 +155,7 @@ function aggregateFormBs(formBs: FormBSummary[]): AggregatedTotals {
 
 // ── Main component ─────────────────────────────────────────────
 
-export function FormCDeclarationPage(): React.JSX.Element {
+function FormCDeclarationPageContent(): React.JSX.Element {
   const [position, setPosition]           = useState('PRESIDENT');
   const [countyCode, setCountyCode]       = useState('');
   const [declaringOfficer, setOfficer]    = useState('');
@@ -529,5 +530,13 @@ export function FormCDeclarationPage(): React.JSX.Element {
 
       </form>
     </div>
+  );
+}
+
+export function FormCDeclarationPage() {
+  return (
+    <PageErrorBoundary page="Form C Declaration">
+      <FormCDeclarationPageContent />
+    </PageErrorBoundary>
   );
 }

@@ -3,8 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { MapPin, ChevronRight } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
 import { useAppSelector } from '../store/hooks';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function AssignedRegionPage(): React.JSX.Element {
+function AssignedRegionPageContent(): React.JSX.Element {
   const user = useAppSelector((s: any) => s.auth.user);
   const { data: stations } = useQuery({ queryKey: ['candidate','stations'], queryFn: () => apiClient.get('/geography/polling-stations').then(r => r.data?.items ?? r.data?.data ?? r.data ?? []) });
   const { data: profile } = useQuery({ queryKey: ['candidate','profile'], queryFn: () => apiClient.get(`/candidate/candidates/\${user?.id ?? ''}`).then(r => r.data?.data ?? r.data ?? {}) });
@@ -35,5 +36,13 @@ export function AssignedRegionPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function AssignedRegionPage() {
+  return (
+    <PageErrorBoundary page="Assigned Region">
+      <AssignedRegionPageContent />
+    </PageErrorBoundary>
   );
 }

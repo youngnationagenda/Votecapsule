@@ -3,8 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { BarChart3, TrendingUp, RefreshCw, Info } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
 import { useAppSelector } from '../store/hooks';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function LiveResultsPage(): React.JSX.Element {
+function LiveResultsPageContent(): React.JSX.Element {
   const user = useAppSelector((s: any) => s.auth.user);
   const positionCode = user?.positionCode ?? 'PRESIDENT';
 
@@ -96,5 +97,13 @@ export function LiveResultsPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function LiveResultsPage() {
+  return (
+    <PageErrorBoundary page="Live Results">
+      <LiveResultsPageContent />
+    </PageErrorBoundary>
   );
 }

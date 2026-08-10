@@ -3,8 +3,9 @@ import { useQuery } from '@tanstack/react-query';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { BarChart3, RefreshCw } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function LiveReportingPage(): React.JSX.Element {
+function LiveReportingPageContent(): React.JSX.Element {
   const { data: results, refetch, isFetching } = useQuery({ queryKey: ['observer','live'], queryFn: () => apiClient.get('/reporting/public/results?electionYear=2027&positionCode=PRESIDENT').then(r => r.data?.data ?? []), refetchInterval: 30_000 });
 
   return (
@@ -30,5 +31,13 @@ export function LiveReportingPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function LiveReportingPage() {
+  return (
+    <PageErrorBoundary page="Live Reporting">
+      <LiveReportingPageContent />
+    </PageErrorBoundary>
   );
 }

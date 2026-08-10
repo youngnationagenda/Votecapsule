@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileText, Plus, AlertTriangle } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function IncidentTrackingPage(): React.JSX.Element {
+function IncidentTrackingPageContent(): React.JSX.Element {
   const qc = useQueryClient();
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', pollingStationCode: '', severity: 'MEDIUM' });
@@ -55,5 +56,13 @@ export function IncidentTrackingPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function IncidentTrackingPage() {
+  return (
+    <PageErrorBoundary page="Incident Tracking">
+      <IncidentTrackingPageContent />
+    </PageErrorBoundary>
   );
 }

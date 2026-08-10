@@ -3,8 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, Users, UserPlus } from 'lucide-react';
 import { tenantApi } from '../api/tenantApi';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function TenantMembersPage(): React.JSX.Element {
+function TenantMembersPageContent(): React.JSX.Element {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: members, isLoading } = useQuery({
@@ -40,5 +41,13 @@ export function TenantMembersPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function TenantMembersPage() {
+  return (
+    <PageErrorBoundary page="Tenant Members">
+      <TenantMembersPageContent />
+    </PageErrorBoundary>
   );
 }

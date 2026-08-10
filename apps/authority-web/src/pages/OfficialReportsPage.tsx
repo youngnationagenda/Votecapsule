@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { FileText, Download, BarChart3, Loader2, CheckCircle } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 interface ReportTemplate {
   name: string;
@@ -21,7 +22,7 @@ const REPORT_TEMPLATES: ReportTemplate[] = [
   { name: 'Observer Access Report', description: 'Observer activity log', format: 'PDF', type: 'OBSERVER_ACCESS' },
 ];
 
-export function OfficialReportsPage(): React.JSX.Element {
+function OfficialReportsPageContent(): React.JSX.Element {
   const qc = useQueryClient();
   const [generating, setGenerating] = useState<string | null>(null);
 
@@ -155,5 +156,13 @@ export function OfficialReportsPage(): React.JSX.Element {
         </div>
       )}
     </div>
+  );
+}
+
+export function OfficialReportsPage() {
+  return (
+    <PageErrorBoundary page="Official Reports">
+      <OfficialReportsPageContent />
+    </PageErrorBoundary>
   );
 }

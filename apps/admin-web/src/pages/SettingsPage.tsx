@@ -1,8 +1,9 @@
 import React from 'react';
 import { Settings } from 'lucide-react';
 import { useAppSelector } from '../store/hooks';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function SettingsPage(): React.JSX.Element {
+function SettingsPageContent(): React.JSX.Element {
   const user = useAppSelector((state) => state.auth.user);
   return (
     <div className="space-y-6 max-w-2xl">
@@ -24,5 +25,13 @@ export function SettingsPage(): React.JSX.Element {
         </dl>
       </div>
     </div>
+  );
+}
+
+export function SettingsPage() {
+  return (
+    <PageErrorBoundary page="Settings">
+      <SettingsPageContent />
+    </PageErrorBoundary>
   );
 }

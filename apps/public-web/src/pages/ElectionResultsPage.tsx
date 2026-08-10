@@ -4,10 +4,11 @@ import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft, ChevronRight, MapPin } from 'lucide-react';
 import { getPublicResults } from '../lib/api';
 import { ResultsTable } from '../components/ResultsTable';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 type GeoLevel = 'national' | 'county' | 'constituency' | 'ward';
 
-export function ElectionResultsPage() {
+function ElectionResultsPageContent() {
   const { electionId } = useParams<{ electionId: string }>();
   const [geoLevel, setGeoLevel] = useState<GeoLevel>('national');
   const [selectedGeoCode, setSelectedGeoCode] = useState<string | undefined>();
@@ -140,5 +141,13 @@ export function ElectionResultsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export function ElectionResultsPage() {
+  return (
+    <PageErrorBoundary page="Election Results">
+      <ElectionResultsPageContent />
+    </PageErrorBoundary>
   );
 }

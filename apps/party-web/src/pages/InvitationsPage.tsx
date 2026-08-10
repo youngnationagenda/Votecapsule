@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Mail, Plus } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 const ROLES = ['CAMPAIGN_COORDINATOR', 'CAPSULE_AGENT', 'PARTY_ADMIN'];
 
-export function InvitationsPage(): React.JSX.Element {
+function InvitationsPageContent(): React.JSX.Element {
   const [form, setForm] = useState({ email: '', role: 'CAPSULE_AGENT', name: '' });
   const [sent, setSent] = useState<string[]>([]);
 
@@ -37,5 +38,13 @@ export function InvitationsPage(): React.JSX.Element {
         </div>
       )}
     </div>
+  );
+}
+
+export function InvitationsPage() {
+  return (
+    <PageErrorBoundary page="Invitations">
+      <InvitationsPageContent />
+    </PageErrorBoundary>
   );
 }

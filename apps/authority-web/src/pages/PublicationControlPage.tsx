@@ -2,8 +2,9 @@ import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { BookOpen, Globe, Lock, AlertTriangle } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function PublicationControlPage(): React.JSX.Element {
+function PublicationControlPageContent(): React.JSX.Element {
   const qc = useQueryClient();
 
   const { data: readyToPublish } = useQuery({
@@ -67,5 +68,13 @@ export function PublicationControlPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function PublicationControlPage() {
+  return (
+    <PageErrorBoundary page="Publication Control">
+      <PublicationControlPageContent />
+    </PageErrorBoundary>
   );
 }

@@ -5,6 +5,7 @@ import {
   XCircle, Eye, RefreshCw, Info,
 } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -112,7 +113,7 @@ function AlertStatusBadge({ status }: { status: string }) {
 
 // ── Main component ─────────────────────────────────────────────
 
-export function ValidationMonitorPage(): React.JSX.Element {
+function ValidationMonitorPageContent(): React.JSX.Element {
   const queryClient = useQueryClient();
   const [alertFilter, setAlertFilter] = useState<{ severity?: string; status?: string; position?: string }>({});
   const [formBFilter, setFormBFilter] = useState<{ positionCode?: string; reconciliationStatus?: string }>({});
@@ -623,5 +624,13 @@ export function ValidationMonitorPage(): React.JSX.Element {
       </section>
 
     </div>
+  );
+}
+
+export function ValidationMonitorPage() {
+  return (
+    <PageErrorBoundary page="Validation Monitor">
+      <ValidationMonitorPageContent />
+    </PageErrorBoundary>
   );
 }

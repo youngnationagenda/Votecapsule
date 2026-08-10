@@ -2,8 +2,9 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Shield, Search, ShieldCheck, ExternalLink, Clock } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-export function EvidenceViewerPage(): React.JSX.Element {
+function EvidenceViewerPageContent(): React.JSX.Element {
   const [search, setSearch] = useState('');
 
   const { data: capsules, isLoading } = useQuery({
@@ -94,5 +95,13 @@ export function EvidenceViewerPage(): React.JSX.Element {
         )}
       </div>
     </div>
+  );
+}
+
+export function EvidenceViewerPage() {
+  return (
+    <PageErrorBoundary page="Evidence Viewer">
+      <EvidenceViewerPageContent />
+    </PageErrorBoundary>
   );
 }

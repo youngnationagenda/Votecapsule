@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FileText, Download, Info } from 'lucide-react';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
 const REPORTS = [
   { name: 'Party Results Summary', desc: 'All party candidates\' results grouped by position and county', format: 'PDF' },
@@ -8,7 +9,7 @@ const REPORTS = [
   { name: 'Station Coverage', desc: 'Stations with and without submitted capsules across your regions', format: 'Excel' },
 ];
 
-export function ReportsPage(): React.JSX.Element {
+function ReportsPageContent(): React.JSX.Element {
   const [toast, setToast] = useState<string | null>(null);
 
   const handleDownload = (name: string) => {
@@ -60,5 +61,13 @@ export function ReportsPage(): React.JSX.Element {
         </p>
       </div>
     </div>
+  );
+}
+
+export function ReportsPage() {
+  return (
+    <PageErrorBoundary page="Reports">
+      <ReportsPageContent />
+    </PageErrorBoundary>
   );
 }
