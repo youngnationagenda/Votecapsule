@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Component, type ReactNode } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Vote, MapPin, CheckSquare, AlertTriangle, TrendingUp, Users, Clock, Activity } from 'lucide-react';
 import { apiClient } from '../api/apiClient';
@@ -22,7 +22,60 @@ function StatCard({ label, value, sub, icon: Icon, color, bg }: StatCard) {
   );
 }
 
+// ── Error Boundary — prevents blank page on runtime errors ───────────────────
+class DashboardErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="space-y-4 p-6">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-5">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
+              <div>
+                <h2 className="text-sm font-semibold text-red-800">Dashboard failed to render</h2>
+                <p className="text-sm text-red-700 mt-1">
+                  One or more backend services returned unexpected data. Other pages should work normally.
+                </p>
+                <pre className="text-xs text-red-600 mt-2 bg-red-100 p-2 rounded overflow-auto max-h-24">
+                  {this.state.error?.message}
+                </pre>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="mt-3 px-3 py-1.5 text-xs font-medium bg-red-100 hover:bg-red-200 text-red-700 rounded transition-colors"
+                >
+                  Reload page
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export function DashboardPage(): React.JSX.Element {
+  return (
+    <DashboardErrorBoundary>
+      <DashboardContent />
+    </DashboardErrorBoundary>
+  );
+}
+
+function DashboardContent(): React.JSX.Element {
   const { data: geoStats } = useQuery({
     queryKey: ['geography', 'stats'],
     queryFn: () => apiClient.get('/geography/stats').then((r) => r.data?.data ?? r.data),

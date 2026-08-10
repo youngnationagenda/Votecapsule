@@ -10,7 +10,8 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noEmit": true,
-    "allowImportingTsExtensions": true
+    "allowImportingTsExtensions": true,
+    "types": ["vite/client"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
