@@ -10,7 +10,7 @@
  * Evidence capsule stats remain 0 until Evidence Service is fully operational.
  */
 
-import React, { useCallback } from 'react';
+import React, { useCallback, Component, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -24,6 +24,7 @@ import {
   Activity,
   Plus,
   ArrowRight,
+  AlertTriangle,
 } from 'lucide-react';
 import { MetricCard } from '../components/dashboard/MetricCard';
 import { PlatformHealthIndicator } from '../components/dashboard/PlatformHealthIndicator';
@@ -36,7 +37,60 @@ import { trustApi } from '../api/trustApi';
 import { aiApi } from '../api/aiApi';
 import { workflowApi } from '../api/workflowApi';
 
+// ── Error Boundary — prevents blank page on runtime errors ──────────────────
+class DashboardErrorBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="space-y-4 p-6">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-5">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
+              <div>
+                <h2 className="text-sm font-semibold text-red-800">Dashboard failed to render</h2>
+                <p className="text-sm text-red-700 mt-1">
+                  One or more backend services returned unexpected data. Other pages should work normally.
+                </p>
+                <pre className="text-xs text-red-600 mt-2 bg-red-100 p-2 rounded overflow-auto max-h-24">
+                  {this.state.error?.message}
+                </pre>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="mt-3 px-3 py-1.5 text-xs font-medium bg-red-100 hover:bg-red-200 text-red-700 rounded transition-colors"
+                >
+                  Reload page
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export function DashboardPage(): React.JSX.Element {
+  return (
+    <DashboardErrorBoundary>
+      <DashboardContent />
+    </DashboardErrorBoundary>
+  );
+}
+
+function DashboardContent(): React.JSX.Element {
   const navigate = useNavigate();
 
   // Real data from backend services
@@ -68,8 +122,9 @@ export function DashboardPage(): React.JSX.Element {
     retry: 1,
     staleTime: 30 * 1000,
   });
-  const ledgerDigest = trustBatches?.[0]
-    ? { ledger: 'vote-capsule-trust', digest: trustBatches[0].merkleRoot, at: trustBatches[0].anchoredAt ?? trustBatches[0].batchedAt }
+  const latestBatch = Array.isArray(trustBatches) ? trustBatches[0] : null;
+  const ledgerDigest = latestBatch
+    ? { ledger: 'vote-capsule-trust', digest: latestBatch.merkleRoot, at: latestBatch.anchoredAt ?? latestBatch.batchedAt }
     : null;
 
   // AI Service stats — advisory only
@@ -89,7 +144,7 @@ export function DashboardPage(): React.JSX.Element {
   });
 
   const totalTenants = tenantStats
-    ? Object.values(tenantStats).reduce((a, b) => a + b, 0)
+    ? Object.values(tenantStats).reduce((a, b) => a + (typeof b === 'number' ? b : 0), 0)
     : 0;
 
   const formatNumber = (n: number): string =>
@@ -137,7 +192,7 @@ export function DashboardPage(): React.JSX.Element {
         />
         <MetricCard
           title="Platform Users"
-          value={usersLoading ? '—' : formatNumber(usersData?.meta.total ?? 0)}
+          value={usersLoading ? '—' : formatNumber(usersData?.meta?.total ?? 0)}
           subtitle="Across all tenants"
           icon={Users}
           iconColor="text-emerald-600"
@@ -159,7 +214,7 @@ export function DashboardPage(): React.JSX.Element {
             workflowStats && workflowStats.overdue > 0
               ? `${workflowStats.overdue} workflows overdue`
               : aiStats && aiStats.total > 0
-                ? `${aiStats.breakdown.filter(b => b.routingDecision === 'ESCALATE').reduce((a, b) => a + parseInt(b.count, 10), 0)} flagged`
+                ? `${(aiStats.breakdown ?? []).filter(b => b.routingDecision === 'ESCALATE').reduce((a, b) => a + parseInt(b.count, 10), 0)} flagged`
                 : 'Phase 3'
           }
           icon={Shield}
