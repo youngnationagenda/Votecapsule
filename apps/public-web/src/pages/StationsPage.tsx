@@ -16,7 +16,7 @@ import { Link } from 'react-router-dom';
 import {
   MapPin, Building2, Search, ChevronRight, ChevronLeft,
   Users, Loader2, XCircle, ChevronDown,
-  ArrowUpDown, ArrowUp, ArrowDown, RotateCcw, Hash,
+  ArrowUpDown, ArrowUp, ArrowDown, RotateCcw, Hash, AlertTriangle,
 } from 'lucide-react';
 import { useStationExplorer, type SortField } from '../lib/useStationExplorer';
 import type { PollingStation } from '../lib/api';
@@ -342,6 +342,27 @@ function StationsPageContent() {
           </p>
         )}
       </div>
+
+      {/* ── API Error Banner ───────────────────────────────────────────────── */}
+      {state.countiesError && (
+        <div className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4 flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-red-800">Could not load county data</p>
+            <p className="text-xs text-red-600 mt-1">
+              The geography service returned an error. This usually means the API Gateway is
+              requiring authentication for public routes.
+            </p>
+            <code className="block text-xs text-red-500 mt-2 bg-red-100 px-2 py-1.5 rounded font-mono break-all">
+              {state.countiesError.message}
+            </code>
+            <p className="text-xs text-red-500 mt-2">
+              Check: <strong>GET /api/v1/geography/counties</strong> must be publicly accessible
+              (no JWT required in API Gateway route config).
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── Cascading Location Filters ─────────────────────────────────────── */}
       {!state.isSearchMode && (

@@ -57,6 +57,9 @@ export interface StationExplorerState {
   stationsLoading: boolean;
   searchLoading: boolean;
 
+  // Errors
+  countiesError: Error | null;
+
   // Search
   searchQuery: string;
   activeSearchQuery: string;
@@ -145,10 +148,12 @@ export function useStationExplorer(pageSize = DEFAULT_PAGE_SIZE) {
   const {
     data: counties = [],
     isLoading: countiesLoading,
-  } = useQuery<County[]>({
+    error: countiesError,
+  } = useQuery<County[], Error>({
     queryKey: ['nec-counties'],
     queryFn: getCounties,
     staleTime: Infinity,
+    retry: 2,
   });
 
   // Constituencies — loaded when a county is selected
@@ -298,6 +303,7 @@ export function useStationExplorer(pageSize = DEFAULT_PAGE_SIZE) {
     wardsLoading,
     stationsLoading: browseLoading,
     searchLoading,
+    countiesError: countiesError ?? null,
     searchQuery,
     activeSearchQuery,
     isSearchMode,
