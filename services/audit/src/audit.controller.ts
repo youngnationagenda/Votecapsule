@@ -36,35 +36,11 @@ export class AuditController {
     return this.auditService.findLogs(query);
   }
 
-  // ── GET /audit/logs/:id — Get single log ────────────────────
-
-  @Get('logs/:id')
-  async getLogById(@Param('id', ParseUUIDPipe) id: string) {
-    return this.auditService.getLogById(id);
-  }
-
-  // ── GET /audit/logs/resource/:type/:id — Logs by resource ───
-
-  @Get('logs/resource/:type/:id')
-  async getLogsByResource(
-    @Param('type') resourceType: string,
-    @Param('id') resourceId: string,
-  ) {
-    return this.auditService.getLogsByResource(resourceType, resourceId);
-  }
-
-  // ── GET /audit/security-summary — Security KPI counts ───────
-  //
-  // Returns pre-aggregated auth failures, access denials, error counts,
-  // per-service error rates and top suspicious IPs for the Security page.
-  // Much cheaper than sending 200 raw logs to the client for aggregation.
-
-  @Get('security-summary')
-  async getSecuritySummary(@Query() query: SecuritySummaryQueryDto) {
-    return this.auditService.getSecuritySummary(query.dateFrom, query.dateTo);
-  }
-
   // ── GET /audit/logs/security — Pre-filtered security event logs
+  //
+  // MUST be declared BEFORE @Get('logs/:id') — NestJS matches routes
+  // in declaration order. If :id comes first, "security" is treated as
+  // a UUID param → 400 "Validation failed (uuid is expected)".
   //
   // Returns audit logs filtered to status=failure|denied|error
   // plus successful DELETEs, ordered newest first.
@@ -81,6 +57,39 @@ export class AuditController {
       dateTo,
       limit ? parseInt(limit, 10) : 200,
     );
+  }
+
+  // ── GET /audit/logs/resource/:type/:id — Logs by resource ───
+  //
+  // MUST be declared BEFORE @Get('logs/:id') for the same reason —
+  // "resource" would otherwise match :id and fail UUID validation.
+
+  @Get('logs/resource/:type/:id')
+  async getLogsByResource(
+    @Param('type') resourceType: string,
+    @Param('id') resourceId: string,
+  ) {
+    return this.auditService.getLogsByResource(resourceType, resourceId);
+  }
+
+  // ── GET /audit/logs/:id — Get single log ────────────────────
+  //
+  // Parametric route — declared AFTER all static sub-routes above.
+
+  @Get('logs/:id')
+  async getLogById(@Param('id', ParseUUIDPipe) id: string) {
+    return this.auditService.getLogById(id);
+  }
+
+  // ── GET /audit/security-summary — Security KPI counts ───────
+  //
+  // Returns pre-aggregated auth failures, access denials, error counts,
+  // per-service error rates and top suspicious IPs for the Security page.
+  // Much cheaper than sending 200 raw logs to the client for aggregation.
+
+  @Get('security-summary')
+  async getSecuritySummary(@Query() query: SecuritySummaryQueryDto) {
+    return this.auditService.getSecuritySummary(query.dateFrom, query.dateTo);
   }
 
   // ── GET /audit/stats/:serviceName — Stats grouped by action ─
