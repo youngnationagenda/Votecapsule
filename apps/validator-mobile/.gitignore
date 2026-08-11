@@ -1,0 +1,20 @@
+# Expo / React Native build artifacts
+.expo/
+android/
+ios/
+*.apk
+*.aab
+*.ipa
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
