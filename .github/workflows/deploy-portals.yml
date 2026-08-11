@@ -147,36 +147,41 @@ jobs:
       - name: Configure CloudFront SPA error routing + invalidate cache
         if: matrix.portal.cf_dist != ''
         run: |
-          # Add SPA error page config so React Router deep links return 200 not 404/403
           DIST_ID="${{ matrix.portal.cf_dist }}"
-          # Get current distribution config (need ETag for updates)
+
+          # Fetch current ETag and config
           ETAG=$(aws cloudfront get-distribution-config --id "$DIST_ID" --query 'ETag' --output text)
-          # Update error responses for SPA routing (403 + 404 → /index.html with 200)
           aws cloudfront get-distribution-config --id "$DIST_ID" --query 'DistributionConfig' \
             > /tmp/dist-config.json
-          # Inject error responses using Python
-          python3 << 'PYEOF'
-          import json, sys
-          with open('/tmp/dist-config.json') as f:
-              cfg = json.load(f)
-          cfg['CustomErrorResponses'] = {
-              'Quantity': 2,
-              'Items': [
-                  {'ErrorCode': 403, 'ResponseCode': 200, 'ResponsePagePath': '/index.html', 'ErrorCachingMinTTL': 0},
-                  {'ErrorCode': 404, 'ResponseCode': 200, 'ResponsePagePath': '/index.html', 'ErrorCachingMinTTL': 0},
-              ]
-          }
-          cfg['DefaultRootObject'] = 'index.html'
-          with open('/tmp/dist-config-updated.json', 'w') as f:
-              json.dump(cfg, f)
-          PYEOF
+
+          # Write Python patch script to a file — avoids heredoc indentation issues
+          cat > /tmp/patch-cf.py << 'EOF'
+import json
+with open('/tmp/dist-config.json') as f:
+    cfg = json.load(f)
+cfg['CustomErrorResponses'] = {
+    'Quantity': 2,
+    'Items': [
+        {'ErrorCode': 403, 'ResponseCode': 200, 'ResponsePagePath': '/index.html', 'ErrorCachingMinTTL': 0},
+        {'ErrorCode': 404, 'ResponseCode': 200, 'ResponsePagePath': '/index.html', 'ErrorCachingMinTTL': 0},
+    ]
+}
+cfg['DefaultRootObject'] = 'index.html'
+with open('/tmp/dist-config-updated.json', 'w') as f:
+    json.dump(cfg, f)
+EOF
+
+          python3 /tmp/patch-cf.py
+
           aws cloudfront update-distribution \
             --id "$DIST_ID" \
             --distribution-config "file:///tmp/dist-config-updated.json" \
             --if-match "$ETAG" \
-            --query 'Distribution.Status' --output text || echo "⚠️  CF config update failed (may already be set)"
-          # Invalidate cache
+            --query 'Distribution.Status' --output text \
+            || echo "⚠️  CF config update skipped (already set or no change)"
+
           aws cloudfront create-invalidation \
             --distribution-id "$DIST_ID" \
             --paths "/*"
-          echo "✅ CloudFront updated + cache invalidated for ${{ matrix.portal.name }} ($DIST_ID)"
+
+          echo "✅ CloudFront invalidated for ${{ matrix.portal.name }} ($DIST_ID)"

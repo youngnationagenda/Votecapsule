@@ -10,6 +10,9 @@ name: Test Suite
 #     are optional — job skips gracefully when not configured
 #     so the test suite never blocks a PR just because the live
 #     environment is not wired up yet.
+#  4. push trigger now scoped to services/** and packages/** so
+#     portal-only or landing page commits do not spin up 13
+#     unit-test matrix jobs unnecessarily.
 # ============================================================
 
 on:
@@ -17,6 +20,9 @@ on:
     branches: [main, master]
   push:
     branches: [main, master]
+    paths:
+      - 'services/**'
+      - 'packages/**'
 
 jobs:
   # ──────────────────────────────────────────────────────────
