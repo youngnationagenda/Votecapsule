@@ -136,25 +136,42 @@ export async function uploadCapsule(
     longitude?:      number;
     altitude?:       number;
     accuracyMeters?: number;
+    // Multi-image metadata
+    totalPages?:     number;
+    pageHashes?:     string;  // comma-separated SHA-256 for each page
   },
   tallyData?: object | null,
+  /** Additional pages (page 2, 3, …) */
+  additionalPages?: Array<{ uri: string; name: string; type: string }>,
 ): Promise<{ id: string; status: string }> {
   const formData = new FormData();
 
-  // React Native's FormData accepts the {uri, name, type} shape for files
+  // Page 1 — always present
   formData.append('image', {
     uri:  imageUri,
     name: imageName,
     type: 'image/jpeg',
   } as any);
 
+  // Pages 2+ — appended as image_2, image_3, …
+  if (additionalPages?.length) {
+    additionalPages.forEach((p, i) => {
+      formData.append(`image_${i + 2}`, {
+        uri:  p.uri,
+        name: p.name,
+        type: p.type,
+      } as any);
+    });
+  }
+
+  // All scalar fields
   Object.entries(fields).forEach(([key, value]) => {
     if (value !== undefined && value !== null) {
       formData.append(key, String(value));
     }
   });
 
-  // Include tally data as JSON string if present
+  // Tally data
   formData.append('tallyData', JSON.stringify(tallyData ?? null));
 
   const res = await api.post<{ id: string; status: string }>(

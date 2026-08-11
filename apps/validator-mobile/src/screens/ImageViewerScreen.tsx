@@ -10,7 +10,7 @@ import {
   View, StyleSheet, Dimensions, Animated,
   PanResponder, TouchableOpacity, Text,
 } from 'react-native';
-import { Image } from 'expo-image';
+import { Image } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 
@@ -106,8 +106,7 @@ export default function ImageViewerScreen({ route, navigation }: Props) {
           <Image
             source={{ uri: imageUrl }}
             style={styles.image}
-            contentFit="contain"
-            transition={200}
+            resizeMode="contain"
           />
         </TouchableOpacity>
       </Animated.View>

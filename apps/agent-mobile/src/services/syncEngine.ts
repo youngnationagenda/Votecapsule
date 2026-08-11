@@ -118,28 +118,36 @@ async function uploadOneCapsule(capsule: LocalCapsule): Promise<void> {
     return;
   }
 
-  // Apply back-off delay based on attempt number (skip on first attempt)
+  // Apply back-off delay
   if (capsule.syncAttempts > 0) {
     const delayIdx = Math.min(capsule.syncAttempts - 1, RETRY_DELAY_MS.length - 1);
     await sleep(RETRY_DELAY_MS[delayIdx]);
   }
 
-  // Check image file still exists on device
-  const fileInfo = await FileSystem.getInfoAsync(capsule.imageUri);
-  if (!fileInfo.exists) {
-    await updateCapsule(capsule.localId, {
-      status:        'FAILED',
-      lastSyncError: `Image file no longer exists on device: ${capsule.imageUri}`,
-    });
-    return;
+  // Build pages array (support legacy single-image capsules)
+  const pages = capsule.pages?.length
+    ? capsule.pages
+    : [{ pageNumber: 1, imageUri: capsule.imageUri, imageSha256: capsule.imageSha256, imageSizeBytes: capsule.imageSizeBytes, capturedAt: capsule.capturedAt }];
+
+  // Check all page files exist
+  for (const page of pages) {
+    const fileInfo = await FileSystem.getInfoAsync(page.imageUri);
+    if (!fileInfo.exists) {
+      await updateCapsule(capsule.localId, {
+        status:        'FAILED',
+        lastSyncError: `Page ${page.pageNumber} file no longer exists: ${page.imageUri}`,
+      });
+      return;
+    }
   }
 
   await updateCapsule(capsule.localId, { status: 'UPLOADING' });
 
   try {
     const result = await uploadCapsule(
-      capsule.imageUri,
-      `capsule_${capsule.localId}.jpg`,
+      // Primary image (page 1) — required field
+      pages[0]!.imageUri,
+      `capsule_${capsule.localId}_p1.jpg`,
       {
         tenantId:        capsule.tenantId,
         iebcStationCode: capsule.iebcStationCode,
@@ -152,11 +160,19 @@ async function uploadOneCapsule(capsule: LocalCapsule): Promise<void> {
         longitude:       capsule.gps?.longitude,
         altitude:        capsule.gps?.altitude ?? undefined,
         accuracyMeters:  capsule.gps?.accuracyMeters ?? undefined,
+        // Multi-image metadata
+        totalPages:      pages.length,
+        pageHashes:      pages.map(p => p.imageSha256).join(','),
       },
       capsule.tallyData ?? null,
+      // Additional pages (page 2+)
+      pages.slice(1).map((p, i) => ({
+        uri:  p.imageUri,
+        name: `capsule_${capsule.localId}_p${i + 2}.jpg`,
+        type: 'image/jpeg',
+      })),
     );
 
-    // Upload successful — record server ID and mark UPLOADED
     await updateCapsule(capsule.localId, {
       serverId:      result.id,
       status:        'UPLOADED',

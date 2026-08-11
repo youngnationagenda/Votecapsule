@@ -39,6 +39,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ProvisionUserDto } from './dto/provision-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -94,6 +95,15 @@ export class UsersController {
   @ApiResponse({ status: 409, description: 'Email already in use' })
   create(@Body() dto: CreateUserDto) {
     return this.usersService.create(dto);
+  }
+
+  @Post('provision')
+  @Roles(SystemRole.PLATFORM_SUPER_ADMIN)
+  @ApiOperation({ summary: 'Provision a full user (Cognito + DB) — Super Admin only' })
+  @ApiResponse({ status: 201, description: 'User provisioned with Cognito account, DB record, and roles' })
+  @ApiResponse({ status: 409, description: 'Email already exists' })
+  provision(@Body() dto: ProvisionUserDto) {
+    return this.usersService.provisionUser(dto);
   }
 
   @Get(':id')

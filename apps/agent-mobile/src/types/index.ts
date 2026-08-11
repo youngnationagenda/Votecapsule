@@ -30,8 +30,28 @@ export interface GpsCoords {
 }
 
 /**
+ * A single captured page/image within a capsule.
+ */
+export interface CapsulePage {
+  /** Page number — 1-indexed */
+  pageNumber: number;
+  /** Local file:// URI */
+  imageUri: string;
+  /** SHA-256 of raw image bytes for this page */
+  imageSha256: string;
+  /** File size in bytes */
+  imageSizeBytes: number;
+  /** ISO 8601 UTC — when this page was captured */
+  capturedAt: string;
+}
+
+/**
  * A locally stored evidence capsule — lives in AsyncStorage until
  * successfully uploaded to the server.
+ *
+ * Multi-image support: a capsule can have 1–N pages (images).
+ * The primary/first image is still exposed as `imageUri` / `imageSha256`
+ * for backwards compatibility. Additional pages are in `pages[]`.
  */
 export interface LocalCapsule {
   /** UUID generated on device at capture time */
@@ -44,20 +64,26 @@ export interface LocalCapsule {
   positionCode: PositionCode;
   electionYear: number;
 
-  /** SHA-256(imageSHA256 + sortedMetadataJSON + captureTimestamp) — LOCKED formula */
+  /** SHA-256(imageSHA256 + sortedMetadataJSON + captureTimestamp) — LOCKED formula (first page) */
   sha256Hash: string;
-  /** SHA-256 of the raw image bytes */
+  /** SHA-256 of the raw image bytes (first page — backwards compat) */
   imageSha256: string;
 
-  /** ISO 8601 UTC — when the shutter was pressed on device */
+  /** ISO 8601 UTC — when the first page was captured */
   capturedAt: string;
 
-  /** Local file:// URI of the captured image */
+  /** Local file:// URI of the FIRST captured image (backwards compat) */
   imageUri: string;
-  /** MIME type — always image/jpeg for Form 35A scans */
+  /** MIME type — always image/jpeg */
   imageMimeType: string;
-  /** File size in bytes */
+  /** File size in bytes (first page) */
   imageSizeBytes: number;
+
+  /**
+   * All captured pages — always has at least 1 entry.
+   * Additional pages (page 2, 3…) are added via "Add Page" in CaptureScreen.
+   */
+  pages: CapsulePage[];
 
   partyOrg: string | null;
   gps: GpsCoords | null;

@@ -11,13 +11,22 @@ import {
   ConflictException,
   Inject,
   Logger,
+  BadRequestException,
 } from '@nestjs/common';
 import { Pool } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  CognitoIdentityProviderClient,
+  AdminCreateUserCommand,
+  AdminSetUserPasswordCommand,
+  AdminUpdateUserAttributesCommand,
+  MessageActionType,
+} from '@aws-sdk/client-cognito-identity-provider';
 import { DATABASE_POOL } from '../database/database.module';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ProvisionUserDto } from './dto/provision-user.dto';
 import { PaginationQuery, PaginatedResponse } from '@vote-capsule/types';
 
 export interface User {
@@ -57,6 +66,9 @@ export interface AuthEventPayload {
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
+
+  private readonly cognito = new CognitoIdentityProviderClient({ region: process.env['AWS_REGION'] ?? 'us-east-1' });
+  private readonly userPoolId = process.env['COGNITO_USER_POOL_ID'] ?? 'us-east-1_i3N2tg34A';
 
   constructor(@Inject(DATABASE_POOL) private readonly db: Pool) {}
 
@@ -192,6 +204,33 @@ export class UsersService {
       [id, dto.status ?? null],
     );
 
+    // Handle role update if provided
+    if (dto.roles !== undefined) {
+      await this.updateRoles(id, dto.roles);
+    }
+
+    // Handle tenant reassignment
+    if (dto.tenantId !== undefined) {
+      try {
+        await this.db.query(
+          `INSERT INTO tenant_members (id, tenant_id, user_id, status, joined_at)
+           VALUES ($1, $2, $3, 'active', NOW())
+           ON CONFLICT (tenant_id, user_id) DO UPDATE SET status = 'active'`,
+          [uuidv4(), dto.tenantId, id],
+        );
+        // Update Cognito tenantId
+        if (user.cognitoSub) {
+          await this.cognito.send(new AdminUpdateUserAttributesCommand({
+            UserPoolId: this.userPoolId,
+            Username: user.email,
+            UserAttributes: [{ Name: 'custom:tenantId', Value: dto.tenantId }],
+          })).catch(e => this.logger.warn(`Cognito tenantId update failed: ${e}`));
+        }
+      } catch (e) {
+        this.logger.warn(`Tenant assignment failed: ${e}`);
+      }
+    }
+
     return result.rows[0]!;
   }
 
@@ -226,6 +265,163 @@ export class UsersService {
         dto.language ?? null, dto.timezone ?? null,
       ],
     );
+  }
+
+  /**
+   * Full user provisioning — creates Cognito user + DB record atomically.
+   * Used by Superadmin to provision agents, validators, observers, etc.
+   *
+   * Steps:
+   *   1. Check email not already in DB
+   *   2. AdminCreateUser in Cognito (SUPPRESS email)
+   *   3. AdminSetUserPassword (permanent — no challenge)
+   *   4. AdminUpdateUserAttributes (custom:roles, custom:tenantId, name)
+   *   5. INSERT into DB users table
+   *   6. Create empty user_profile
+   *   7. If tenantId supplied → INSERT into tenant_members
+   */
+  async provisionUser(dto: ProvisionUserDto): Promise<User> {
+    // 1. Check duplicate in DB
+    const existing = await this.findByEmail(dto.email);
+    if (existing) {
+      throw new ConflictException(`User with email ${dto.email} already exists`);
+    }
+
+    const userId       = uuidv4();
+    const rolesJson    = JSON.stringify(dto.roles ?? []);
+    const displayName  = [dto.firstName, dto.lastName].filter(Boolean).join(' ') || dto.email.split('@')[0];
+
+    let cognitoSub: string | null = null;
+
+    try {
+      // 2. Create Cognito user
+      const createResp = await this.cognito.send(new AdminCreateUserCommand({
+        UserPoolId:     this.userPoolId,
+        Username:       dto.email.toLowerCase(),
+        MessageAction:  MessageActionType.SUPPRESS,   // Don't send welcome email
+        TemporaryPassword: dto.password,
+        UserAttributes: [
+          { Name: 'email',              Value: dto.email.toLowerCase() },
+          { Name: 'email_verified',     Value: 'true' },
+          { Name: 'name',               Value: displayName },
+          { Name: 'custom:userId',      Value: userId },
+          { Name: 'custom:roles',       Value: rolesJson },
+          ...(dto.tenantId ? [{ Name: 'custom:tenantId', Value: dto.tenantId }] : []),
+        ],
+      }));
+
+      cognitoSub = createResp.User?.Attributes?.find(a => a.Name === 'sub')?.Value ?? null;
+
+      // 3. Set permanent password (no FORCE_CHANGE_PASSWORD challenge)
+      await this.cognito.send(new AdminSetUserPasswordCommand({
+        UserPoolId: this.userPoolId,
+        Username:   dto.email.toLowerCase(),
+        Password:   dto.password,
+        Permanent:  true,
+      }));
+
+    } catch (cognitoErr: unknown) {
+      const msg = cognitoErr instanceof Error ? cognitoErr.message : String(cognitoErr);
+      // UsernameExistsException — already in Cognito but not DB (partial state)
+      if (msg.includes('UsernameExistsException') || msg.includes('already exists')) {
+        throw new ConflictException(`A Cognito account already exists for ${dto.email}`);
+      }
+      throw new BadRequestException(`Cognito error: ${msg}`);
+    }
+
+    // 4. Create DB user record
+    const result = await this.db.query<User>(
+      `INSERT INTO users (id, email, cognito_sub, status, email_verified)
+       VALUES ($1, $2, $3, 'active', true)
+       RETURNING id, email, email_verified as "emailVerified", cognito_sub as "cognitoSub",
+                 status, last_login_at as "lastLoginAt", created_at as "createdAt",
+                 updated_at as "updatedAt", deleted_at as "deletedAt"`,
+      [userId, dto.email.toLowerCase(), cognitoSub],
+    );
+    const user = result.rows[0];
+    if (!user) throw new Error('Failed to create user record');
+
+    // 5. Create profile
+    await this.db.query(
+      `INSERT INTO user_profiles (id, user_id, first_name, last_name)
+       VALUES ($1, $2, $3, $4)`,
+      [uuidv4(), userId, dto.firstName ?? null, dto.lastName ?? null],
+    );
+
+    // 6. Assign role in DB if roles specified
+    if (dto.roles && dto.roles.length > 0) {
+      for (const roleName of dto.roles) {
+        try {
+          await this.db.query(
+            `INSERT INTO user_roles (id, user_id, role_id, tenant_id, assigned_at)
+             SELECT $1, $2, r.id, $3, NOW()
+             FROM roles r WHERE r.name = $4
+             ON CONFLICT DO NOTHING`,
+            [uuidv4(), userId, dto.tenantId ?? null, roleName],
+          );
+        } catch (e) {
+          // Role may not exist in DB — continue
+          this.logger.warn(`Could not assign role ${roleName} to user ${userId}: ${e}`);
+        }
+      }
+    }
+
+    // 7. Add to tenant if specified
+    if (dto.tenantId) {
+      try {
+        await this.db.query(
+          `INSERT INTO tenant_members (id, tenant_id, user_id, status, joined_at)
+           VALUES ($1, $2, $3, 'active', NOW())
+           ON CONFLICT DO NOTHING`,
+          [uuidv4(), dto.tenantId, userId],
+        );
+      } catch (e) {
+        this.logger.warn(`Could not add user ${userId} to tenant ${dto.tenantId}: ${e}`);
+      }
+    }
+
+    this.logger.log(`Provisioned user: ${dto.email} (${dto.roles?.join(',')})`);
+    return user;
+  }
+
+  /**
+   * Update a user's roles in both Cognito and DB.
+   */
+  async updateRoles(userId: string, roles: string[]): Promise<void> {
+    const user = await this.findById(userId);
+    if (!user) throw new NotFoundException(`User ${userId} not found`);
+
+    // Update Cognito
+    if (user.cognitoSub) {
+      try {
+        await this.cognito.send(new AdminUpdateUserAttributesCommand({
+          UserPoolId:     this.userPoolId,
+          Username:       user.email,
+          UserAttributes: [
+            { Name: 'custom:roles', Value: JSON.stringify(roles) },
+          ],
+        }));
+      } catch (e) {
+        this.logger.warn(`Could not update Cognito roles for ${user.email}: ${e}`);
+      }
+    }
+
+    // Update DB: remove existing, add new
+    await this.db.query(`DELETE FROM user_roles WHERE user_id = $1`, [userId]);
+
+    for (const roleName of roles) {
+      try {
+        await this.db.query(
+          `INSERT INTO user_roles (id, user_id, role_id, assigned_at)
+           SELECT $1, $2, r.id, NOW()
+           FROM roles r WHERE r.name = $3
+           ON CONFLICT DO NOTHING`,
+          [uuidv4(), userId, roleName],
+        );
+      } catch (e) {
+        this.logger.warn(`Could not assign role ${roleName}: ${e}`);
+      }
+    }
   }
 
   async updateLastLogin(email: string): Promise<void> {

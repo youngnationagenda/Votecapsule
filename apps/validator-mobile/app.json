@@ -15,7 +15,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ke.co.votecapsule.validator",
-      "buildNumber": "1"
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "VoteCapsule Validator requires camera access to scan barcodes on evidence capsules."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -23,16 +26,27 @@
         "backgroundColor": "#0B3C6D"
       },
       "package": "ke.co.votecapsule.validator",
-      "versionCode": 1
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE"
+      ]
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro",
+      "output": "single",
+      "name": "VoteCapsule Validator"
     },
     "extra": {
-      "apiGatewayUrl":      "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
-      "cognitoDomain":      "https://vote-capsule.auth.us-east-1.amazoncognito.com",
-      "cognitoClientId":    "5qv2glumv6kd2652hqdrs6ufp",
-      "cognitoUserPoolId":  "us-east-1_i3N2tg34A"
-    }
+      "apiGatewayUrl": "https://483uyy43nc.execute-api.us-east-1.amazonaws.com",
+      "cognitoDomain": "https://vote-capsule.auth.us-east-1.amazoncognito.com",
+      "cognitoClientId": "5qv2glumv6kd2652hqdrs6ufp",
+      "cognitoUserPoolId": "us-east-1_i3N2tg34A",
+      "eas": {
+        "projectId": "87e42ca3-94a1-4344-a7ac-76e2737e6797"
+      }
+    },
+    "owner": "ynakenya"
   }
 }

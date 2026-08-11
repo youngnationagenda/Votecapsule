@@ -15,7 +15,7 @@ import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, ActivityIndicator, Dimensions, Platform,
 } from 'react-native';
-import { Image } from 'expo-image';
+import { Image } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { RootStackParamList, ValidationDecision } from '../types';
 import { useValidationStore } from '../store/validationStore';
@@ -103,8 +103,7 @@ export default function CapsuleReviewScreen({ route, navigation }: Props) {
             <Image
               source={{ uri: currentCapsule.imageUrl }}
               style={styles.evidenceImage}
-              contentFit="contain"
-              transition={200}
+              resizeMode="contain"
             />
             <View style={styles.imageOverlay}>
               <Text style={styles.imageLabel}>Tap to zoom</Text>

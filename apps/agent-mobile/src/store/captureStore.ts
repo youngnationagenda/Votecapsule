@@ -3,26 +3,34 @@
 // apps/agent-mobile/src/store/captureStore.ts
 //
 // Manages the in-progress capture session state.
-// A "session" is: station selected + position selected →
-// camera open → photo taken → hash computed → queued.
+//
+// MULTI-IMAGE FLOW:
+//   1. Agent selects station + position
+//   2. Opens camera → shoots page 1 → processs as first page
+//   3. Review screen shows page 1 thumbnail + "Add Page 2" button
+//   4. Agent shoots page 2 → appended to pages[]
+//   5. Up to MAX_PAGES (5) images per capsule
+//   6. All pages uploaded as image_1, image_2, … to the server
 // ============================================================
 import { create } from 'zustand';
-import { PollingStation, PositionCode, LocalCapsule, GpsCoords, FormTallyData } from '../types';
-import { saveCapsule } from '../utils/storage';
+import { PollingStation, PositionCode, LocalCapsule, GpsCoords, FormTallyData, CapsulePage } from '../types';
+import { saveCapsule, updateCapsule, getCapsule } from '../utils/storage';
 import { computeCapsuleHash, sha256Bytes } from '../utils/crypto';
 import { enqueueAndSync } from '../services/syncEngine';
 import * as FileSystem from 'expo-file-system';
+
+export const MAX_PAGES = 5;
 
 interface CaptureSession {
   station:       PollingStation | null;
   positionCode:  PositionCode | null;
   electionYear:  number;
-  imageUri:      string | null;
-  imageSha256:   string | null;
-  capturedAt:    string | null;
   gps:           GpsCoords | null;
   partyOrg:      string | null;
   tallyData:     FormTallyData | null;
+
+  // Current capsule being built (null until first page captured)
+  activeCapsuleId: string | null;
 }
 
 interface CaptureState {
@@ -37,21 +45,34 @@ interface CaptureState {
   setGps:          (coords: GpsCoords | null) => void;
   setPartyOrg:     (org: string | null) => void;
   setTallyData:    (data: FormTallyData) => void;
-  captureImage:    (imageUri: string, tenantId: string, userId: string) => Promise<string | null>;
+
+  /**
+   * Capture the FIRST page — creates the capsule record.
+   * Returns localId on success, null on failure.
+   */
+  captureFirstPage: (imageUri: string, tenantId: string, userId: string) => Promise<string | null>;
+
+  /**
+   * Capture an ADDITIONAL page and append to existing capsule.
+   * Returns true on success.
+   */
+  captureAdditionalPage: (localId: string, imageUri: string) => Promise<boolean>;
+
   resetSession:    () => void;
   clearError:      () => void;
+
+  // Legacy alias — calls captureFirstPage
+  captureImage:    (imageUri: string, tenantId: string, userId: string) => Promise<string | null>;
 }
 
 const defaultSession: CaptureSession = {
-  station:      null,
-  positionCode: null,
-  electionYear: 2027,
-  imageUri:     null,
-  imageSha256:  null,
-  capturedAt:   null,
-  gps:          null,
-  partyOrg:     null,
-  tallyData:    null,
+  station:         null,
+  positionCode:    null,
+  electionYear:    2027,
+  gps:             null,
+  partyOrg:        null,
+  tallyData:       null,
+  activeCapsuleId: null,
 };
 
 export const useCaptureStore = create<CaptureState>((set, get) => ({
@@ -67,17 +88,7 @@ export const useCaptureStore = create<CaptureState>((set, get) => ({
   setTallyData:    (tallyData)    => set((s) => ({ session: { ...s.session, tallyData } })),
   clearError:      ()             => set({ error: null }),
 
-  /**
-   * Process a captured image:
-   * 1. Read image bytes
-   * 2. Compute SHA-256 of image bytes
-   * 3. Compute composite capsule hash (LOCKED FORMULA)
-   * 4. Persist LocalCapsule to AsyncStorage
-   * 5. Enqueue for upload
-   *
-   * Returns localId on success, null on failure.
-   */
-  captureImage: async (imageUri: string, tenantId: string, userId: string): Promise<string | null> => {
+  captureFirstPage: async (imageUri: string, tenantId: string, userId: string): Promise<string | null> => {
     const { session } = get();
     if (!session.station || !session.positionCode) {
       set({ error: 'Station and position must be selected before capture' });
@@ -87,20 +98,16 @@ export const useCaptureStore = create<CaptureState>((set, get) => ({
     set({ isProcessing: true, error: null });
 
     try {
-      // 1. Read image file as base64, convert to bytes
-      const base64 = await FileSystem.readAsStringAsync(imageUri, {
+      // 1. Read image + compute hashes
+      const base64   = await FileSystem.readAsStringAsync(imageUri, {
         encoding: FileSystem.EncodingType.Base64,
       });
-      const fileInfo = await FileSystem.getInfoAsync(imageUri, { size: true });
+      const fileInfo  = await FileSystem.getInfoAsync(imageUri, { size: true });
       const imageBytes = base64ToUint8Array(base64);
-
-      // 2. SHA-256 of raw image bytes
       const imageSha256 = await sha256Bytes(imageBytes);
+      const capturedAt  = new Date().toISOString();
 
-      // 3. Capture timestamp — NOW, ISO 8601 UTC
-      const capturedAt = new Date().toISOString();
-
-      // 4. Compute LOCKED composite hash
+      // 2. Compute composite capsule hash (LOCKED formula — first page)
       const metadata = {
         iebcStationCode: session.station.iebcCode,
         positionCode:    session.positionCode,
@@ -109,11 +116,20 @@ export const useCaptureStore = create<CaptureState>((set, get) => ({
       };
       const sha256Hash = await computeCapsuleHash(imageSha256, metadata, capturedAt);
 
-      // 5. Create LocalCapsule
+      // 3. Build first page
+      const firstPage: CapsulePage = {
+        pageNumber:     1,
+        imageUri,
+        imageSha256,
+        imageSizeBytes: (fileInfo as any).size ?? 0,
+        capturedAt,
+      };
+
+      // 4. Create LocalCapsule with pages array
       const localId = generateUUID();
       const capsule: LocalCapsule = {
         localId,
-        serverId:       null,
+        serverId:        null,
         tenantId,
         iebcStationCode: session.station.iebcCode,
         positionCode:    session.positionCode,
@@ -121,9 +137,10 @@ export const useCaptureStore = create<CaptureState>((set, get) => ({
         sha256Hash,
         imageSha256,
         capturedAt,
-        imageUri,
+        imageUri,               // first page — backwards compat
         imageMimeType:   'image/jpeg',
         imageSizeBytes:  (fileInfo as any).size ?? 0,
+        pages:           [firstPage],
         partyOrg:        session.partyOrg,
         gps:             session.gps,
         tallyData:       session.tallyData ?? undefined,
@@ -134,11 +151,13 @@ export const useCaptureStore = create<CaptureState>((set, get) => ({
         updatedAt:       capturedAt,
       };
 
-      // 6. Persist + enqueue
+      // 5. Persist + track active capsule (DO NOT enqueue yet — more pages may come)
       await saveCapsule(capsule);
-      await enqueueAndSync(localId);
+      set((s) => ({
+        isProcessing: false,
+        session: { ...s.session, activeCapsuleId: localId },
+      }));
 
-      set({ isProcessing: false });
       return localId;
 
     } catch (err: unknown) {
@@ -148,12 +167,69 @@ export const useCaptureStore = create<CaptureState>((set, get) => ({
     }
   },
 
+  captureAdditionalPage: async (localId: string, imageUri: string): Promise<boolean> => {
+    set({ isProcessing: true, error: null });
+
+    try {
+      // Load existing capsule
+      const capsule = await getCapsule(localId);
+      if (!capsule) throw new Error('Capsule not found');
+
+      const currentPageCount = capsule.pages?.length ?? 1;
+      if (currentPageCount >= MAX_PAGES) {
+        set({ isProcessing: false, error: `Maximum ${MAX_PAGES} pages per capsule` });
+        return false;
+      }
+
+      // Hash the new image
+      const base64   = await FileSystem.readAsStringAsync(imageUri, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      const fileInfo  = await FileSystem.getInfoAsync(imageUri, { size: true });
+      const imageBytes = base64ToUint8Array(base64);
+      const imageSha256 = await sha256Bytes(imageBytes);
+      const capturedAt  = new Date().toISOString();
+
+      const newPage: CapsulePage = {
+        pageNumber:     currentPageCount + 1,
+        imageUri,
+        imageSha256,
+        imageSizeBytes: (fileInfo as any).size ?? 0,
+        capturedAt,
+      };
+
+      const updatedPages = [...(capsule.pages ?? [{ pageNumber: 1, imageUri: capsule.imageUri, imageSha256: capsule.imageSha256, imageSizeBytes: capsule.imageSizeBytes, capturedAt: capsule.capturedAt }]), newPage];
+
+      await updateCapsule(localId, { pages: updatedPages });
+
+      set({ isProcessing: false });
+      return true;
+
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Page capture failed';
+      set({ isProcessing: false, error: msg });
+      return false;
+    }
+  },
+
+  /** Finalise the capsule — enqueue for upload (called when agent is done adding pages) */
+
   resetSession: () => set({ session: defaultSession, error: null, isProcessing: false }),
+
+  // Legacy alias
+  captureImage: async (imageUri: string, tenantId: string, userId: string): Promise<string | null> => {
+    const localId = await get().captureFirstPage(imageUri, tenantId, userId);
+    if (localId) {
+      // Auto-enqueue (single-page backwards-compat mode)
+      await enqueueAndSync(localId);
+    }
+    return localId;
+  },
 }));
 
-// ── Helpers ───────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────
 
-function generateUUID(): string {
+export function generateUUID(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
     const r = (Math.random() * 16) | 0;
     const v = c === 'x' ? r : (r & 0x3) | 0x8;

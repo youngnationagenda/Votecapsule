@@ -6,6 +6,11 @@
 // - Injects Cognito JWT (access token) on every request
 // - Handles 401 -> token refresh -> retry once
 // - Validation-specific endpoints for review queue
+//
+// NOTE: Uses Cognito InitiateAuth (USER_PASSWORD_AUTH) directly
+// — NOT /oauth2/token. The mobile client has
+// AllowedOAuthFlowsUserPoolClient=false so the hosted UI
+// OAuth endpoint will return "unsupported_grant_type".
 // ============================================================
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosError } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -18,16 +23,17 @@ import {
   ValidatorStats,
 } from '../types';
 
-const API_BASE_URL =
-  Constants.expoConfig?.extra?.apiGatewayUrl ??
+const API_BASE_URL: string =
+  (Constants.expoConfig?.extra?.apiGatewayUrl as string | undefined) ??
   'https://483uyy43nc.execute-api.us-east-1.amazonaws.com';
 
-const COGNITO_DOMAIN =
-  Constants.expoConfig?.extra?.cognitoDomain ??
-  'https://vote-capsule.auth.us-east-1.amazoncognito.com';
+// Cognito InitiateAuth endpoint (AWS service — NOT hosted UI /oauth2/token)
+const COGNITO_REGION = 'us-east-1';
+const COGNITO_IDP_URL = `https://cognito-idp.${COGNITO_REGION}.amazonaws.com`;
 
-const COGNITO_CLIENT_ID =
-  Constants.expoConfig?.extra?.cognitoClientId ?? '5qv2glumv6kd2652hqdrs6ufp';
+const COGNITO_CLIENT_ID: string =
+  (Constants.expoConfig?.extra?.cognitoClientId as string | undefined) ??
+  '5qv2glumv6kd2652hqdrs6ufp'; // Mobile client (not admin client)
 
 // -- Storage Keys ----------------------------------------------
 
@@ -106,48 +112,91 @@ api.interceptors.response.use(
 );
 
 // -- Cognito Auth Endpoints ------------------------------------
+//
+// Uses InitiateAuth (USER_PASSWORD_AUTH / REFRESH_TOKEN_AUTH)
+// directly against the Cognito service endpoint.
+// This is the correct approach for mobile clients where the
+// hosted UI OAuth flows are disabled.
 
 export async function cognitoLogin(
   email: string,
   password: string,
 ): Promise<AuthTokens> {
-  const res = await axios.post(
-    `${COGNITO_DOMAIN}/oauth2/token`,
-    new URLSearchParams({
-      grant_type: 'password',
-      client_id: COGNITO_CLIENT_ID,
-      username: email,
-      password,
-      scope: 'openid profile email',
-    }).toString(),
-    { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
-  );
-  const { access_token, id_token, refresh_token, expires_in } = res.data;
-  return {
-    accessToken: access_token,
-    idToken: id_token,
-    refreshToken: refresh_token,
-    expiresAt: Date.now() + expires_in * 1000,
-  };
+  try {
+    const res = await axios.post(
+      COGNITO_IDP_URL,
+      {
+        AuthFlow: 'USER_PASSWORD_AUTH',
+        ClientId: COGNITO_CLIENT_ID,
+        AuthParameters: {
+          USERNAME: email,
+          PASSWORD: password,
+        },
+      },
+      {
+        headers: {
+          'Content-Type': 'application/x-amz-json-1.1',
+          'X-Amz-Target': 'AmazonCognitoIdentityProviderService.InitiateAuth',
+        },
+        timeout: 20_000,
+      },
+    );
+
+    const result = res.data?.AuthenticationResult;
+    if (!result) {
+      const challenge = res.data?.ChallengeName;
+      throw new Error(
+        challenge === 'NEW_PASSWORD_REQUIRED'
+          ? 'Your password must be changed. Contact your administrator.'
+          : challenge === 'SOFTWARE_TOKEN_MFA'
+          ? 'MFA code required — contact your administrator.'
+          : `Unexpected auth challenge: ${challenge ?? 'unknown'}`,
+      );
+    }
+
+    return {
+      accessToken:  result.AccessToken,
+      idToken:      result.IdToken,
+      refreshToken: result.RefreshToken,
+      expiresAt:    Date.now() + (result.ExpiresIn ?? 3600) * 1000,
+    };
+  } catch (err: unknown) {
+    if (axios.isAxiosError(err)) {
+      const code = err.response?.data?.__type ?? err.response?.data?.code ?? '';
+      const msg  = err.response?.data?.message ?? '';
+      if (code === 'NotAuthorizedException')    throw new Error('Incorrect email or password. Please try again.');
+      if (code === 'UserNotFoundException')     throw new Error('No account found for this email address.');
+      if (code === 'UserNotConfirmedException') throw new Error('Account not confirmed. Check your email.');
+      if (code === 'PasswordResetRequiredException') throw new Error('Password reset required. Contact your administrator.');
+      if (msg) throw new Error(msg);
+    }
+    throw err;
+  }
 }
 
 export async function cognitoRefresh(refreshToken: string): Promise<AuthTokens> {
   const res = await axios.post(
-    `${COGNITO_DOMAIN}/oauth2/token`,
-    new URLSearchParams({
-      grant_type: 'refresh_token',
-      client_id: COGNITO_CLIENT_ID,
-      refresh_token: refreshToken,
-    }).toString(),
-    { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+    COGNITO_IDP_URL,
+    {
+      AuthFlow: 'REFRESH_TOKEN_AUTH',
+      ClientId: COGNITO_CLIENT_ID,
+      AuthParameters: { REFRESH_TOKEN: refreshToken },
+    },
+    {
+      headers: {
+        'Content-Type': 'application/x-amz-json-1.1',
+        'X-Amz-Target': 'AmazonCognitoIdentityProviderService.InitiateAuth',
+      },
+      timeout: 20_000,
+    },
   );
-  const { access_token, id_token, expires_in } = res.data;
+  const result = res.data?.AuthenticationResult;
   const existing = await getStoredTokens();
   return {
-    accessToken: access_token,
-    idToken: id_token,
-    refreshToken: existing?.refreshToken ?? refreshToken,
-    expiresAt: Date.now() + expires_in * 1000,
+    accessToken:  result.AccessToken,
+    idToken:      result.IdToken,
+    refreshToken: result.RefreshToken ?? existing?.refreshToken ?? refreshToken,
+    expiresAt:    Date.now() + (result.ExpiresIn ?? 3600) * 1000,
   };
 }
 
