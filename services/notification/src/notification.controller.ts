@@ -20,10 +20,11 @@ import {
   ParseUUIDPipe, ParseIntPipe, DefaultValuePipe,
   Logger, BadRequestException,
 } from '@nestjs/common';
-import { NotificationService }                  from './notification.service';
+import { NotificationService }                      from './notification.service';
 import { SendNotificationDto, BulkNotificationDto } from './dto/send-notification.dto';
-import { RegisterDeviceDto, MarkReadDto }        from './dto/register-device.dto';
-import { EventBridgeEnvelopeDto }               from './dto/eventbridge-event.dto';
+import { RegisterDeviceDto, MarkReadDto }            from './dto/register-device.dto';
+import { EventBridgeEnvelopeDto }                   from './dto/eventbridge-event.dto';
+import { DemoRequestDto }                            from './dto/demo-request.dto';
 import type {
   EscalationCreatedDetail,
   WorkflowCompletedDetail,
@@ -174,5 +175,26 @@ export class NotificationController {
     }
     await this.notificationService.sendDirectEmail(to, subject, textBody);
     return { sent: true };
+  }
+
+  /**
+   * POST /notifications/demo-request
+   * PUBLIC — no authentication required.
+   * Accepts a submission from the VoteCapsule landing page Request Centre form.
+   * Sends:
+   *   • Internal alert email → demo@votecapsule.yna.co.ke (full details + reply-to)
+   *   • Confirmation email   → submitter's address
+   * Always returns 202 Accepted; email delivery errors are logged server-side
+   * but do not surface to the caller (avoids leaking internal state to the public).
+   */
+  @Post('demo-request')
+  @HttpCode(HttpStatus.ACCEPTED)
+  async submitDemoRequest(@Body() dto: DemoRequestDto) {
+    this.logger.log(
+      `Demo request received: type=${dto.requestType} product=${dto.product} ` +
+      `from="${dto.fullName}" <${dto.email}> timing=${dto.timing}`,
+    );
+    await this.notificationService.sendDemoRequest(dto);
+    return { received: true };
   }
 }

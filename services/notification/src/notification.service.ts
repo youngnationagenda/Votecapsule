@@ -21,6 +21,7 @@ import { NotificationDevice }                   from './entities/notification-de
 
 import { SendNotificationDto, BulkNotificationDto } from './dto/send-notification.dto';
 import { RegisterDeviceDto }                         from './dto/register-device.dto';
+import { DemoRequestDto }                            from './dto/demo-request.dto';
 import {
   EscalationCreatedDetail,
   WorkflowCompletedDetail,
@@ -342,6 +343,136 @@ export class NotificationService {
       throw new Error(`Failed to send email: ${result.error}`);
     }
     this.logger.log(`Direct email sent to ${to} (messageId=${result.messageId})`);
+  }
+
+  // ── Demo Request (Landing Page) ────────────────────────────
+
+  /**
+   * Handle a "Request Demo / Quote / Trial / Production Access" submission
+   * from the public VoteCapsule landing page.
+   *
+   * Sends two emails via SES:
+   *   1. Internal alert → demo@votecapsule.yna.co.ke  (full form details)
+   *   2. Auto-confirmation → submitter's email address
+   *
+   * Both fire-and-forget; a transient SES error does NOT block the HTTP 202.
+   * Errors are logged for ops visibility.
+   */
+  async sendDemoRequest(dto: DemoRequestDto): Promise<{ queued: boolean }> {
+    const DEMO_INBOX = this.config.get<string>(
+      'DEMO_REQUEST_EMAIL',
+      'demo@votecapsule.yna.co.ke',
+    );
+
+    const requestTypeLabel: Record<DemoRequestDto['requestType'], string> = {
+      demo:       'Guided Demo',
+      quote:      'Quote',
+      trial:      'Trial',
+      production: 'Production Access',
+    };
+    const productLabel: Record<DemoRequestDto['product'], string> = {
+      transparency: 'Election Transparency Platform',
+      authority:    'Authority Management Suite',
+      both:         'Full Platform (all portals)',
+    };
+
+    // ── 1. Internal alert ───────────────────────────────────
+    const internalSubject =
+      `[VoteCapsule] New ${requestTypeLabel[dto.requestType]} request — ${dto.fullName}` +
+      (dto.timing === 'urgent' ? ' 🚨 URGENT' : '');
+
+    const internalBody = [
+      `=== VoteCapsule™ Request Centre — New Submission ===`,
+      ``,
+      `Request type : ${requestTypeLabel[dto.requestType]}`,
+      `Product      : ${productLabel[dto.product]}`,
+      `Timing       : ${dto.timing === 'urgent' ? '🚨 URGENT' : 'Standard'}`,
+      ``,
+      `--- Submitter ---`,
+      `Name         : ${dto.fullName}`,
+      `Organization : ${dto.organization || '(not provided)'}`,
+      `Email        : ${dto.email}`,
+      `Phone        : ${dto.phone}`,
+      `Pref contact : ${dto.preferredContact}`,
+      ``,
+      `--- Coverage ---`,
+      `Role         : ${dto.role}`,
+      `Position     : ${dto.position || '(not provided)'}`,
+      `County       : ${dto.county || 'Nationwide'}`,
+      `Coverage notes:`,
+      dto.coverageNotes ? `  ${dto.coverageNotes}` : '  (none)',
+      ``,
+      `--- Message ---`,
+      dto.message ? dto.message : '(no additional message)',
+      ``,
+      `--- Consents ---`,
+      `Privacy policy accepted : ${dto.privacyConsent ? 'Yes' : 'No'}`,
+      `Contact consent         : ${dto.contactConsent ? 'Yes' : 'No'}`,
+      ``,
+      `Submitted at: ${new Date().toISOString()}`,
+      `Source: https://votecapsule.yna.co.ke`,
+    ].join('\n');
+
+    // ── 2. Submitter confirmation ───────────────────────────
+    const confirmSubject = `Your VoteCapsule ${requestTypeLabel[dto.requestType]} request has been received`;
+    const confirmBody = [
+      `Hi ${dto.fullName},`,
+      ``,
+      `Thank you for reaching out to VoteCapsule™.`,
+      ``,
+      `We've received your ${requestTypeLabel[dto.requestType].toLowerCase()} request for the`,
+      `${productLabel[dto.product]}.`,
+      ``,
+      `Our team will get back to you within one business day via your preferred`,
+      `contact method (${dto.preferredContact}).`,
+      ...(dto.timing === 'urgent'
+        ? [``, `You marked this request as URGENT — we'll prioritise your response.`]
+        : []),
+      ``,
+      `Details we received:`,
+      `  • Request type : ${requestTypeLabel[dto.requestType]}`,
+      `  • Product      : ${productLabel[dto.product]}`,
+      `  • Role         : ${dto.role}`,
+      ...(dto.county ? [`  • County       : ${dto.county}`] : []),
+      ``,
+      `If you need to reach us immediately:`,
+      `  Email : demo@votecapsule.yna.co.ke`,
+      ``,
+      `— The VoteCapsule™ Team`,
+      `https://votecapsule.yna.co.ke`,
+    ].join('\n');
+
+    // Fire both emails concurrently, non-blocking
+    const results = await Promise.allSettled([
+      this.ses.sendEmail({
+        to:       DEMO_INBOX,
+        subject:  internalSubject,
+        textBody: internalBody,
+        replyTo:  dto.email,
+      }),
+      this.ses.sendEmail({
+        to:       dto.email,
+        subject:  confirmSubject,
+        textBody: confirmBody,
+      }),
+    ]);
+
+    results.forEach((r, i) => {
+      const target = i === 0 ? DEMO_INBOX : dto.email;
+      if (r.status === 'fulfilled') {
+        if (!r.value.success) {
+          this.logger.error(
+            `Demo request email #${i + 1} to ${target} failed: ${r.value.error}`,
+          );
+        }
+      } else {
+        this.logger.error(
+          `Demo request email #${i + 1} to ${target} threw: ${String(r.reason)}`,
+        );
+      }
+    });
+
+    return { queued: true };
   }
 
   private async dispatch(notification: Notification): Promise<void> {
