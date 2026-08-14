@@ -707,19 +707,28 @@ function PartyManagementPageContent(): React.JSX.Element {
     return () => clearTimeout(timeout);
   }, [search]);
 
-  // Fetch parties
+  // Fetch all parties (98 total — small, fixed dataset)
+  // We fetch all at once for reliable client-side search by both name AND abbreviation/slug
   const { data: partiesResult, isLoading, error } = useQuery({
-    queryKey: ['parties', page, debouncedSearch, statusFilter],
+    queryKey: ['parties', statusFilter],
     queryFn: () => partyApi.findParties({
-      page,
-      limit: 20,
-      search: debouncedSearch || undefined,
+      page: 1,
+      limit: 100,
+      search: undefined,
       status: statusFilter !== 'all' ? statusFilter : undefined,
     }),
   });
 
-  // Fetch settings for each party to get abbreviations & colors
-  const parties = partiesResult?.data ?? [];
+  // Client-side filter by name, slug, OR abbreviation — server search doesn't cover slug
+  const allParties = partiesResult?.data ?? [];
+  const parties = debouncedSearch
+    ? allParties.filter(p => {
+        const term = debouncedSearch.toLowerCase();
+        return p.name.toLowerCase().includes(term) ||
+               (p.slug ?? '').toLowerCase().includes(term) ||
+               (p.settings?.abbreviation ?? '').toLowerCase().includes(term);
+      })
+    : allParties;
   const meta = partiesResult?.meta;
 
   // Fetch stats

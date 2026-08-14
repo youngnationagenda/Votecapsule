@@ -17,6 +17,8 @@ export interface Tenant {
 
 export interface CreateTenantPayload {
   name: string;
+  slug?: string;
+  abbreviation?: string;
   type: string;
   countryCode?: string;
   contactEmail?: string;

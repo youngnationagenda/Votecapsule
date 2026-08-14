@@ -39,13 +39,20 @@ function TenantsPageContent(): React.JSX.Element {
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
 
+  // When searching, fetch all tenants for client-side filtering by name/slug/abbreviation
+  // Otherwise, paginate normally at 20 per page
+  const fetchAll = !!(search || typeFilter || statusFilter);
   const { data, isLoading, error } = useQuery({
-    queryKey: ['tenants', page],
-    queryFn: () => tenantApi.findAll({ page, limit: 20 }),
+    queryKey: ['tenants', fetchAll ? 'all' : page],
+    queryFn: () => tenantApi.findAll({ page: fetchAll ? 1 : page, limit: fetchAll ? 200 : 20 }),
   });
 
   const filteredTenants = (data?.data ?? []).filter((tenant) => {
-    const matchesSearch = !search || tenant.name.toLowerCase().includes(search.toLowerCase());
+    const term = search.toLowerCase();
+    const matchesSearch = !search ||
+      tenant.name.toLowerCase().includes(term) ||
+      tenant.slug.toLowerCase().includes(term) ||
+      (tenant.contactEmail ?? '').toLowerCase().includes(term);
     const matchesType = !typeFilter || tenant.type === typeFilter;
     const matchesStatus = !statusFilter || tenant.status === statusFilter;
     return matchesSearch && matchesType && matchesStatus;
@@ -84,7 +91,7 @@ function TenantsPageContent(): React.JSX.Element {
             type="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search tenants…"
+            placeholder="Search by name or abbreviation…"
             className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0B3C6D]"
             aria-label="Search tenants"
           />

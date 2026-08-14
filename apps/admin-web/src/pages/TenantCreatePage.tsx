@@ -38,6 +38,7 @@ function TenantCreatePageContent(): React.JSX.Element {
 
   const [formData, setFormData] = useState({
     name: '',
+    abbreviation: '', // e.g., "YNAK" — used as slug and display abbreviation
     type: '' as TenantType | '',
     contactEmail: '',
     contactPhone: '',
@@ -84,6 +85,8 @@ function TenantCreatePageContent(): React.JSX.Element {
       if (!validate()) return;
       mutation.mutate({
         name: formData.name,
+        slug: formData.abbreviation.toLowerCase().replace(/[^a-z0-9]/g, '') || undefined,
+        abbreviation: formData.abbreviation.toUpperCase() || undefined,
         type: formData.type as TenantType,
         contactEmail: formData.contactEmail || undefined,
         contactPhone: formData.contactPhone || undefined,
@@ -134,7 +137,7 @@ function TenantCreatePageContent(): React.JSX.Element {
               value={formData.name}
               onChange={(e) => handleChange('name', e.target.value)}
               className={`vc-input ${errors['name'] ? 'border-red-300 focus:ring-red-300 focus:border-red-300' : ''}`}
-              placeholder="e.g., Independent Electoral and Boundaries Commission"
+              placeholder="e.g., Young Nation Agenda Kenya"
               required
               aria-required="true"
               aria-describedby={errors['name'] ? 'name-error' : undefined}
@@ -144,6 +147,27 @@ function TenantCreatePageContent(): React.JSX.Element {
                 <AlertCircle className="w-3 h-3" />{errors['name']}
               </p>
             )}
+          </div>
+
+          {/* Abbreviation */}
+          <div>
+            <label htmlFor="abbreviation" className="vc-label">
+              Abbreviation
+              <span className="ml-1 text-xs text-gray-400 font-normal">(used as party code &amp; slug)</span>
+            </label>
+            <input
+              id="abbreviation"
+              type="text"
+              value={formData.abbreviation}
+              onChange={(e) => handleChange('abbreviation', e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, ''))}
+              className="vc-input uppercase tracking-wider font-semibold"
+              placeholder="e.g., YNAK"
+              maxLength={10}
+              aria-describedby="abbreviation-hint"
+            />
+            <p id="abbreviation-hint" className="mt-1 text-xs text-gray-400">
+              Short code (2-10 characters). Used for display and search. Leave blank to auto-generate from name.
+            </p>
           </div>
 
           {/* Organization Type */}

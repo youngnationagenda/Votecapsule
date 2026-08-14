@@ -14,9 +14,10 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, CheckCircle2, XCircle, Clock, Shield,
-  Trash2, AlertTriangle, Plus, X as RemoveIcon,
+  Trash2, AlertTriangle, Plus, X as RemoveIcon, Building2,
 } from 'lucide-react';
 import { usersApi, ROLE_LABELS, MOBILE_ROLES } from '../api/usersApi';
+import { tenantApi } from '../api/tenantApi';
 import { clsx } from 'clsx';
 import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
@@ -34,11 +35,20 @@ function UserDetailPageContent(): React.JSX.Element {
   const [showAddRole, setShowAddRole]     = useState(false);
   const [roleToAdd, setRoleToAdd]         = useState('CAPSULE_AGENT');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showAssignTenant, setShowAssignTenant] = useState(false);
+  const [tenantToAssign, setTenantToAssign]     = useState('');
 
   const { data: user, isLoading } = useQuery({
     queryKey: ['user', id],
     queryFn: () => usersApi.findById(id!),
     enabled: !!id,
+  });
+
+  // Fetch tenants for assignment dropdown
+  const { data: tenantsData } = useQuery({
+    queryKey: ['tenants', 'all-for-assign'],
+    queryFn: () => tenantApi.findAll({ page: 1, limit: 200 }),
+    enabled: showAssignTenant,
   });
 
   // Status toggle mutation
@@ -47,10 +57,12 @@ function UserDetailPageContent(): React.JSX.Element {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['user', id] }),
   });
 
-  // Add role mutation
+  // Add role mutation — updates roles array and refreshes user
   const addRoleMutation = useMutation({
-    mutationFn: (roleName: string) =>
-      usersApi.update(id!, { roles: [...(user?.roles ?? []), roleName] }),
+    mutationFn: (roleName: string) => {
+      const newRoles = [...(user?.roles ?? []), roleName];
+      return usersApi.update(id!, { roles: newRoles });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['user', id] });
       setShowAddRole(false);
@@ -59,9 +71,21 @@ function UserDetailPageContent(): React.JSX.Element {
 
   // Remove role mutation
   const removeRoleMutation = useMutation({
-    mutationFn: (roleName: string) =>
-      usersApi.update(id!, { roles: (user?.roles ?? []).filter(r => r !== roleName) }),
+    mutationFn: (roleName: string) => {
+      const newRoles = (user?.roles ?? []).filter(r => r !== roleName);
+      return usersApi.update(id!, { roles: newRoles });
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['user', id] }),
+  });
+
+  // Assign tenant mutation
+  const assignTenantMutation = useMutation({
+    mutationFn: (tenantId: string) => usersApi.update(id!, { tenantId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['user', id] });
+      setShowAssignTenant(false);
+      setTenantToAssign('');
+    },
   });
 
   // Soft delete
@@ -122,12 +146,30 @@ function UserDetailPageContent(): React.JSX.Element {
               </dd>
             </div>
           )}
-          {user.tenantId && (
-            <div>
-              <dt className="text-gray-400">Tenant</dt>
-              <dd className="font-medium mt-1 text-gray-900 font-mono text-xs">{user.tenantId}</dd>
-            </div>
-          )}
+          <div>
+            <dt className="text-gray-400">Tenant</dt>
+            <dd className="font-medium mt-1 text-gray-900">
+              {user.tenantId ? (
+                <button
+                  onClick={() => navigate(`/tenants/${user.tenantId}`)}
+                  className="text-[#0B3C6D] hover:underline font-mono text-xs inline-flex items-center gap-1"
+                >
+                  <Building2 className="w-3 h-3" />
+                  {user.tenantId.slice(0, 8)}…
+                </button>
+              ) : (
+                <span className="text-gray-400 text-xs">
+                  None —{' '}
+                  <button
+                    onClick={() => setShowAssignTenant(true)}
+                    className="text-[#0B3C6D] hover:underline"
+                  >
+                    Assign tenant
+                  </button>
+                </span>
+              )}
+            </dd>
+          </div>
           <div>
             <dt className="text-gray-400">Last Login</dt>
             <dd className="font-medium mt-1 text-gray-900">
@@ -214,6 +256,37 @@ function UserDetailPageContent(): React.JSX.Element {
           </div>
         )}
       </div>
+
+      {/* ── Tenant Assignment (shown when "Assign tenant" clicked) */}
+      {showAssignTenant && (
+        <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Assign Tenant</h2>
+          <div className="flex gap-2 items-center">
+            <select
+              value={tenantToAssign}
+              onChange={(e) => setTenantToAssign(e.target.value)}
+              className="flex-1 py-1.5 px-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-[#0B3C6D] bg-white"
+            >
+              <option value="">Select a tenant…</option>
+              {(tenantsData?.data ?? []).map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name} ({t.slug})
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={() => tenantToAssign && assignTenantMutation.mutate(tenantToAssign)}
+              disabled={!tenantToAssign || assignTenantMutation.isPending}
+              className="vc-btn-primary text-xs py-1.5 px-3"
+            >
+              {assignTenantMutation.isPending ? 'Assigning…' : 'Assign'}
+            </button>
+            <button onClick={() => setShowAssignTenant(false)} className="text-gray-400 hover:text-gray-600">
+              <RemoveIcon className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Actions card ─────────────────────────────────── */}
       <div className="bg-white rounded-lg border border-gray-200 p-5 shadow-sm">

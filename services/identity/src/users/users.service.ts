@@ -88,11 +88,22 @@ export class UsersService {
     const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
 
     const result = await this.db.query<User>(
-      `SELECT id, email, email_verified as "emailVerified", cognito_sub as "cognitoSub",
-              status, last_login_at as "lastLoginAt", created_at as "createdAt",
-              updated_at as "updatedAt", deleted_at as "deletedAt"
-       FROM users WHERE deleted_at IS NULL
-       ORDER BY ${sortBy} ${sortOrder}
+      `SELECT u.id, u.email, u.email_verified as "emailVerified", u.cognito_sub as "cognitoSub",
+              u.status, u.last_login_at as "lastLoginAt", u.created_at as "createdAt",
+              u.updated_at as "updatedAt", u.deleted_at as "deletedAt",
+              COALESCE(
+                (SELECT json_agg(r.name)
+                 FROM user_roles ur
+                 JOIN roles r ON r.id = ur.role_id
+                 WHERE ur.user_id = u.id),
+                '[]'::json
+              ) as roles,
+              (SELECT t.id FROM tenant_members tm
+               JOIN tenants t ON t.id = tm.tenant_id
+               WHERE tm.user_id = u.id AND tm.status = 'active'
+               LIMIT 1) as "tenantId"
+       FROM users u WHERE u.deleted_at IS NULL
+       ORDER BY u.${sortBy} ${sortOrder}
        LIMIT $1 OFFSET $2`,
       [limit, offset],
     );
@@ -110,12 +121,29 @@ export class UsersService {
     };
   }
 
-  async findById(id: string): Promise<User | null> {
-    const result = await this.db.query<User>(
-      `SELECT id, email, email_verified as "emailVerified", cognito_sub as "cognitoSub",
-              status, last_login_at as "lastLoginAt", created_at as "createdAt",
-              updated_at as "updatedAt", deleted_at as "deletedAt"
-       FROM users WHERE id = $1 AND deleted_at IS NULL`,
+  async findById(id: string): Promise<(User & { roles: string[]; tenantId: string | null }) | null> {
+    const result = await this.db.query<User & { roles: string[]; tenantId: string | null }>(
+      `SELECT u.id, u.email,
+              u.email_verified as "emailVerified",
+              u.cognito_sub as "cognitoSub",
+              u.status,
+              u.last_login_at as "lastLoginAt",
+              u.created_at as "createdAt",
+              u.updated_at as "updatedAt",
+              u.deleted_at as "deletedAt",
+              COALESCE(
+                (SELECT json_agg(r.name)
+                 FROM user_roles ur
+                 JOIN roles r ON r.id = ur.role_id
+                 WHERE ur.user_id = u.id),
+                '[]'::json
+              ) as roles,
+              (SELECT t.id FROM tenant_members tm
+               JOIN tenants t ON t.id = tm.tenant_id
+               WHERE tm.user_id = u.id AND tm.status = 'active'
+               LIMIT 1) as "tenantId"
+       FROM users u
+       WHERE u.id = $1 AND u.deleted_at IS NULL`,
       [id],
     );
     return result.rows[0] ?? null;
@@ -231,7 +259,9 @@ export class UsersService {
       }
     }
 
-    return result.rows[0]!;
+    // Re-fetch with roles and tenantId so the response includes updated data
+    const updated = await this.findById(id);
+    return updated ?? result.rows[0]!;
   }
 
   async softDelete(id: string): Promise<void> {

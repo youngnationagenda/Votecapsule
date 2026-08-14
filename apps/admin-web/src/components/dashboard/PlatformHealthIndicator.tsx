@@ -18,7 +18,7 @@ const MOCK_SERVICES: ServiceHealth[] = [
   { name: 'Trust Anchor (Hybrid)', status: 'operational', latencyMs: 45 },
   { name: 'AI Service', status: 'operational', latencyMs: 32 },
   { name: 'Workflow Engine', status: 'operational', latencyMs: 18 },
-  { name: 'Evidence Service', status: 'degraded' },  // Phase 3 — wired, database needed
+  { name: 'Evidence Service', status: 'operational', latencyMs: 22 },
   { name: 'Database (Aurora)', status: 'operational', latencyMs: 3 },
 ];
 
