@@ -153,6 +153,7 @@ describe('EvidenceService', () => {
   let configService: any;
   let httpService: any;
   let searchService: any;
+  let geoValidationService: any;
 
   // Realistic Kenya election numbers
   const validTallyDto = {
@@ -268,6 +269,15 @@ describe('EvidenceService', () => {
       indexCapsule: vi.fn().mockResolvedValue(undefined),
     };
 
+    geoValidationService = {
+      validateCaptureLocation: vi.fn().mockResolvedValue({
+        validated: false,
+        passed: true,
+        geoWarning: false,
+        metadata: { skipReason: 'NO_ASSIGNMENT' },
+      }),
+    };
+
     // Direct instantiation — avoids NestJS DI token-identity issues in pnpm monorepo
     service = new EvidenceService(
       capsuleRepo,
@@ -278,6 +288,7 @@ describe('EvidenceService', () => {
       configService,
       httpService,
       searchService,
+      geoValidationService,
     );
   });
 
