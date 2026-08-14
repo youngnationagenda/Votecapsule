@@ -66,3 +66,30 @@ Votecapsule backup/
 
 # k6 load test raw results (large JSON)
 infrastructure/load-tests/results/
+
+# Expo local state — never commit
+.expo/
+expo-*.log
+expo-*.pid
+serve-web.log
+serve-web.js
+poll-build.js
+
+# PID / runtime files
+*.pid
+
+# Android Gradle build cache
+android/.gradle/
+android/build/
+android/app/build/
+
+# Turbo build logs (local only)
+.turbo/
+
+# OWNER.md — internal docs, not for repo
+OWNER.md
+
+# Dev helper scripts (local only)
+dev-portals.bat
+check-imports.js
+check-package-exports.js
