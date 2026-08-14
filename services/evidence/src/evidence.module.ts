@@ -18,6 +18,7 @@ import { OpenSearchClientService }   from './search/opensearch.client';
 import { EvidenceSearchService }     from './search/evidence-search.service';
 import { ReconciliationService }     from './reconciliation/reconciliation.service';
 import { ReconciliationController }  from './reconciliation/reconciliation.controller';
+import { GeoValidationService }      from './geo/geo-validation.service';
 
 @Module({
   imports: [
@@ -35,7 +36,13 @@ import { ReconciliationController }  from './reconciliation/reconciliation.contr
     ]),
   ],
   controllers: [EvidenceController, ReconciliationController],
-  providers:   [EvidenceService, OpenSearchClientService, EvidenceSearchService, ReconciliationService],
-  exports:     [EvidenceService, ReconciliationService],
+  providers: [
+    EvidenceService,
+    OpenSearchClientService,
+    EvidenceSearchService,
+    ReconciliationService,
+    GeoValidationService,   // Task 13: server-side geo-fence validation
+  ],
+  exports: [EvidenceService, ReconciliationService],
 })
 export class EvidenceModule {}

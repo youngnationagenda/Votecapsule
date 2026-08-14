@@ -24,6 +24,11 @@ const ReportsPage             = lazy(() => import('./pages/ReportsPage').then(m 
 const NominationsPage         = lazy(() => import('./pages/NominationsPage').then(m => ({ default: m.NominationsPage })));
 const SubscriptionPage        = lazy(() => import('./pages/SubscriptionPage').then(m => ({ default: m.SubscriptionPage })));
 const BillingPage             = lazy(() => import('./pages/BillingPage').then(m => ({ default: m.BillingPage })));
+const PartyProfilePage        = lazy(() => import('./pages/PartyProfilePage').then(m => ({ default: m.PartyProfilePage })));
+const PartyOfficialsPage      = lazy(() => import('./pages/PartyOfficialsPage').then(m => ({ default: m.PartyOfficialsPage })));
+const SocialMediaPage         = lazy(() => import('./pages/SocialMediaPage').then(m => ({ default: m.SocialMediaPage })));
+const PartyCandidatesPage     = lazy(() => import('./pages/PartyCandidatesPage').then(m => ({ default: m.PartyCandidatesPage })));
+const NominationDisputesPage  = lazy(() => import('./pages/NominationDisputesPage').then(m => ({ default: m.NominationDisputesPage })));
 
 function PageLoader(): React.JSX.Element {
   return (
@@ -74,6 +79,21 @@ export default function App(): React.JSX.Element {
           } />
           <Route path="/billing" element={
             <Suspense fallback={<PageLoader />}><BillingPage /></Suspense>
+          } />
+          <Route path="/profile" element={
+            <Suspense fallback={<PageLoader />}><PartyProfilePage /></Suspense>
+          } />
+          <Route path="/officials" element={
+            <Suspense fallback={<PageLoader />}><PartyOfficialsPage /></Suspense>
+          } />
+          <Route path="/social-media" element={
+            <Suspense fallback={<PageLoader />}><SocialMediaPage /></Suspense>
+          } />
+          <Route path="/party-candidates" element={
+            <Suspense fallback={<PageLoader />}><PartyCandidatesPage /></Suspense>
+          } />
+          <Route path="/disputes" element={
+            <Suspense fallback={<PageLoader />}><NominationDisputesPage /></Suspense>
           } />
         </Route>
       </Route>

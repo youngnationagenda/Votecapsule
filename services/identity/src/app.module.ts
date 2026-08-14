@@ -13,6 +13,7 @@ import { InvitationsModule } from './invitations/invitations.module';
 import { DevicesModule } from './devices/devices.module';
 import { DatabaseModule } from './database/database.module';
 import { CacheModule } from './cache/cache.module';
+import { AssignmentsModule } from './assignments/assignments.module';
 
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { AuditInterceptor } from './common/audit.interceptor';
@@ -56,6 +57,7 @@ import { AuditInterceptor } from './common/audit.interceptor';
     RolesModule,
     InvitationsModule,
     DevicesModule,
+    AssignmentsModule,
   ],
   providers: [
     {

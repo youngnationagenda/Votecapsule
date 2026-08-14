@@ -11,6 +11,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   Building2,
+  Flag,
   Vote,
   Users,
   Shield,
@@ -40,6 +41,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { label: 'Dashboard',     path: '/dashboard',    icon: LayoutDashboard },
   { label: 'Tenants',       path: '/tenants',      icon: Building2 },
+  { label: 'Parties',       path: '/parties',      icon: Flag },
   { label: 'Elections',     path: '/elections',    icon: Vote },
   { label: 'Evidence',      path: '/evidence',     icon: Camera },
   { label: 'Users',         path: '/users',        icon: Users },

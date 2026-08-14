@@ -57,6 +57,9 @@ typecheck-out.txt
 
 # Firebase / GCP service account keys — NEVER commit
 firebase-service-account.json
+
+# AWS backup folder — contains production credentials and database dumps
+Votecapsule backup/
 *-service-account.json
 *-service-account-key.json
 *.keyfile.json

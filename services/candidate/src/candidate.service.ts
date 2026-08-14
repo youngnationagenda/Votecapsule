@@ -972,6 +972,166 @@ export class CandidateService {
   }
 
   // ══════════════════════════════════════════════════════════
+  //  NOMINATION DISPUTES (Task 9)
+  // ══════════════════════════════════════════════════════════
+
+  async fileNominationDispute(data: {
+    nominationElectionId: string;
+    tenantId: string;
+    filedBy: string;
+    filedByName?: string;
+    againstCandidateId?: string;
+    againstCandidateName?: string;
+    category: string;
+    description: string;
+  }): Promise<Record<string, unknown>> {
+    await this.getElection(data.nominationElectionId); // validates election exists
+
+    const result = await this.dataSource.query(
+      `INSERT INTO candidate_nomination_disputes
+         (nomination_election_id, tenant_id, filed_by, filed_by_name,
+          against_candidate_id, against_candidate_name, category, description,
+          status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'FILED', NOW(), NOW())
+       RETURNING *`,
+      [
+        data.nominationElectionId,
+        data.tenantId,
+        data.filedBy,
+        data.filedByName ?? null,
+        data.againstCandidateId ?? null,
+        data.againstCandidateName ?? null,
+        data.category,
+        data.description,
+      ],
+    );
+    this.logger.log(`Dispute filed: ${result[0].id} for election ${data.nominationElectionId}`);
+    return result[0] as Record<string, unknown>;
+  }
+
+  async listNominationDisputes(opts: {
+    tenantId?: string;
+    status?: string;
+    nominationElectionId?: string;
+  }): Promise<Record<string, unknown>[]> {
+    const conditions: string[] = [];
+    const params: unknown[] = [];
+    let idx = 1;
+
+    if (opts.tenantId) {
+      conditions.push(`tenant_id = ${idx++}`);
+      params.push(opts.tenantId);
+    }
+    if (opts.status) {
+      conditions.push(`status = ${idx++}`);
+      params.push(opts.status);
+    }
+    if (opts.nominationElectionId) {
+      conditions.push(`nomination_election_id = ${idx++}`);
+      params.push(opts.nominationElectionId);
+    }
+
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const result = await this.dataSource.query(
+      `SELECT * FROM candidate_nomination_disputes ${where} ORDER BY created_at DESC`,
+      params,
+    );
+    return result as Record<string, unknown>[];
+  }
+
+  async getNominationDispute(id: string): Promise<Record<string, unknown>> {
+    const result = await this.dataSource.query(
+      'SELECT * FROM candidate_nomination_disputes WHERE id = $1',
+      [id],
+    );
+    if (!result.length) throw new NotFoundException(`Dispute ${id} not found`);
+    return result[0] as Record<string, unknown>;
+  }
+
+  async updateNominationDispute(
+    id: string,
+    data: { status?: string; resolution?: string; resolvedBy?: string },
+  ): Promise<Record<string, unknown>> {
+    await this.getNominationDispute(id); // validate exists
+
+    const sets: string[] = ['updated_at = NOW()'];
+    const params: unknown[] = [id];
+    let idx = 2;
+
+    if (data.status) {
+      sets.push(`status = ${idx++}`);
+      params.push(data.status);
+    }
+    if (data.resolution) {
+      sets.push(`resolution = ${idx++}`);
+      params.push(data.resolution);
+    }
+    if (data.resolvedBy) {
+      sets.push(`resolved_by = ${idx++}`);
+      params.push(data.resolvedBy);
+    }
+    const isResolved = data.status === 'RESOLVED' || data.status === 'DISMISSED';
+    if (isResolved) {
+      sets.push(`resolved_at = NOW()`);
+    }
+
+    const result = await this.dataSource.query(
+      `UPDATE candidate_nomination_disputes SET ${sets.join(', ')} WHERE id = $1 RETURNING *`,
+      params,
+    );
+    return result[0] as Record<string, unknown>;
+  }
+
+  async addDisputeEvidence(id: string, url: string, tenantId: string): Promise<Record<string, unknown>> {
+    const dispute = await this.getNominationDispute(id);
+    if ((dispute['tenant_id'] as string) !== tenantId) {
+      throw new BadRequestException('You do not have access to this dispute');
+    }
+    const result = await this.dataSource.query(
+      `UPDATE candidate_nomination_disputes
+       SET evidence_urls = evidence_urls || $2::text[], updated_at = NOW()
+       WHERE id = $1
+       RETURNING *`,
+      [id, `{${url}}`],
+    );
+    return result[0] as Record<string, unknown>;
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  CANDIDATE-PARTY BRIDGE (Task 10)
+  // ══════════════════════════════════════════════════════════
+
+  async getCandidateNominationOrigin(candidateId: string): Promise<Record<string, unknown> | null> {
+    const candidate = await this.getCandidate(candidateId);
+
+    // If no nomination election linked, candidate was directly sponsored
+    if (!candidate.nominationElectionId) return null;
+
+    const nominationElection = await this.getElection(candidate.nominationElectionId);
+
+    // Count all competitors in same nomination election + same position
+    const competitorsResult = await this.dataSource.query(
+      `SELECT COUNT(*) as count FROM candidate_candidates
+       WHERE election_id = $1 AND position_id = $2`,
+      [candidate.nominationElectionId, candidate.positionId],
+    );
+    const competitorsCount = parseInt(competitorsResult[0]?.count ?? '1', 10);
+
+    return {
+      nominationElectionId:   nominationElection.id,
+      nominationElectionName: nominationElection.name,
+      nominationDate:         nominationElection.nominationVotingDate ?? null,
+      electionYear:           nominationElection.electionYear,
+      partyId:                nominationElection.partyId,
+      competitorsCount:       competitorsCount,
+      votesReceived:          null, // Future: integrate with reporting service
+      totalVotes:             null,
+      promotedAt:             candidate.createdAt,
+      promotedFromCandidateId: candidate.promotedFromCandidateId ?? null,
+    };
+  }
+
+  // ══════════════════════════════════════════════════════════
   //  PRIVATE HELPERS
   // ══════════════════════════════════════════════════════════
 

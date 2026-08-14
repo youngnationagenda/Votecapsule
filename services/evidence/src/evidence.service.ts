@@ -30,6 +30,7 @@ import type { SubmitCapsuleDto }  from './dto/submit-capsule.dto';
 import type { SyncStatusDto }     from './dto/sync-status.dto';
 import type { SubmitTallyDto }    from './dto/submit-tally.dto';
 import { EvidenceSearchService }  from './search/evidence-search.service';
+import { GeoValidationService }   from './geo/geo-validation.service';
 
 // Geography Service integration contract
 // The full Geography Service is in services/geography/
@@ -78,6 +79,7 @@ export class EvidenceService {
     private readonly config: ConfigService,
     private readonly httpService: HttpService,
     private readonly evidenceSearchService: EvidenceSearchService,
+    private readonly geoValidationService: GeoValidationService,
   ) {
     this.s3 = new S3Client({ region: config.get('AWS_REGION', 'us-east-1') });
     this.bucket = config.get('S3_EVIDENCE_BUCKET', 'votecapsule-evidence');
@@ -125,6 +127,17 @@ export class EvidenceService {
 
     // Step 2: Duplicate check — one capsule per station+position+election
     await this.checkDuplicate(dto.iebcStationCode, dto.positionCode, dto.electionYear, agentUserId);
+
+    // Step 2b: Server-side geo-fence validation (Task 13)
+    // Validates capture GPS against the agent's assigned station geofence.
+    // Throws 422 if > 4× radius. Flags warning if > 1× radius. Skips if no assignment.
+    const geoValidation = await this.geoValidationService.validateCaptureLocation(
+      agentUserId,
+      dto.tenantId,
+      dto.iebcStationCode,
+      dto.latitude ?? null,
+      dto.longitude ?? null,
+    );
 
     // Step 3: Verify SHA-256 hash
     const hashVerified = verifyCompositeHash(
@@ -184,6 +197,9 @@ export class EvidenceService {
         captureLongitude:  dto.longitude ?? null,
         captureAltitude:   dto.altitude ?? null,
         captureAccuracyMeters: dto.accuracyMeters ?? null,
+        // Task 13: geo-fence validation result
+        geoWarning:        geoValidation.geoWarning,
+        geoValidationMetadata: geoValidation.metadata as Record<string, unknown>,
         status:            CapsuleStatus.UPLOADED,
         syncStatus:        SyncStatus.UPLOADED,
         syncAttempts:      1,

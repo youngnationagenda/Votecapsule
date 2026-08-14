@@ -1,0 +1,2071 @@
+[
+  {
+    "sno": 1,
+    "cert_no": "001",
+    "name": "People's Liberation Party",
+    "abbreviation": "PLP",
+    "slug": "plp",
+    "email": "plp@votecapsule.co.ke",
+    "password": "VCParty2027!plp",
+    "registration_date": "2012-03-19",
+    "symbol": "Purple Rose",
+    "colors": [
+      "Lilac",
+      "White",
+      "Purple"
+    ],
+    "primary_color": "#7c3aed",
+    "postal_address": "34200-00100 Nairobi",
+    "head_office": "NARC-Kenya House, Woodland Road, Off Lenana Road",
+    "slogan": "Unite, Liberate",
+    "former_names": [
+      "National Rainbow Coalition-Kenya (NARC-KENYA)"
+    ]
+  },
+  {
+    "sno": 2,
+    "cert_no": "002",
+    "name": "The National Vision Party",
+    "abbreviation": "NVP",
+    "slug": "nvp",
+    "email": "nvp@votecapsule.co.ke",
+    "password": "VCParty2027!nvp",
+    "registration_date": "2012-03-29",
+    "symbol": "Light House",
+    "colors": [
+      "Blue",
+      "Green"
+    ],
+    "primary_color": "#2563eb",
+    "postal_address": "29200-00100 Nairobi",
+    "head_office": "Big Tree Centre, Uhuru Garden Estate, Gate 1, Langata",
+    "slogan": "Haki, Umoja na Ustawi",
+    "former_names": []
+  },
+  {
+    "sno": 3,
+    "cert_no": "003",
+    "name": "Labour Party of Kenya",
+    "abbreviation": "LPK",
+    "slug": "lpk",
+    "email": "lpk@votecapsule.co.ke",
+    "password": "VCParty2027!lpk",
+    "registration_date": "2012-03-29",
+    "symbol": "Star",
+    "colors": [
+      "Red",
+      "Black",
+      "Yellow",
+      "Luminous Green"
+    ],
+    "primary_color": "#dc2626",
+    "postal_address": "46775-00100 Nairobi",
+    "head_office": "Kilimani Area, Shiko Road Off Elgeyo Marakwet Road",
+    "slogan": "Nyota ya Kenya",
+    "former_names": []
+  },
+  {
+    "sno": 4,
+    "cert_no": "005",
+    "name": "The Democratic Union",
+    "abbreviation": "TDU",
+    "slug": "tdu",
+    "email": "tdu@votecapsule.co.ke",
+    "password": "VCParty2027!tdu",
+    "registration_date": "2012-03-13",
+    "symbol": "House",
+    "colors": [
+      "Blue",
+      "Red"
+    ],
+    "primary_color": "#2563eb",
+    "postal_address": "10083-00400 Nairobi",
+    "head_office": "Victoria Plaza, 5th Floor, Parklands Road",
+    "slogan": "Makao ya Wakenya",
+    "former_names": [
+      "Mwangaza Tu Party (MTP)",
+      "Mwangaza (MWAP)"
+    ]
+  },
+  {
+    "sno": 5,
+    "cert_no": "007",
+    "name": "Party of Independent Candidate of Kenya",
+    "abbreviation": "PICK",
+    "slug": "pick",
+    "email": "pick@votecapsule.co.ke",
+    "password": "VCParty2027!pick",
+    "registration_date": "2012-03-29",
+    "symbol": "Child being lifted by both hands",
+    "colors": [
+      "Black",
+      "Red",
+      "Yellow",
+      "Green",
+      "White",
+      "Light Blue"
+    ],
+    "primary_color": "#1f2937",
+    "postal_address": "21812-00400 Nairobi",
+    "head_office": "Uganda House 2nd Floor Room 20 Kenyatta Avenue",
+    "slogan": "",
+    "former_names": []
+  },
+  {
+    "sno": 6,
+    "cert_no": "008",
+    "name": "Devolution Empowerment Party",
+    "abbreviation": "DEP",
+    "slug": "dep",
+    "email": "dep@votecapsule.co.ke",
+    "password": "VCParty2027!dep",
+    "registration_date": "2012-03-29",
+    "symbol": "Bus",
+    "colors": [
+      "Green",
+      "Black",
+      "Gold"
+    ],
+    "primary_color": "#16a34a",
+    "postal_address": "2670-30100 Eldoret",
+    "head_office": "Cedar Clinical Associates, Makasembo Road Eldoret",
+    "slogan": "Kenya Mpya",
+    "former_names": [
+      "Restore and Build Kenya"
+    ]
+  },
+  {
+    "sno": 7,
+    "cert_no": "009",
+    "name": "Kenya National Congress",
+    "abbreviation": "KNC",
+    "slug": "knc",
+    "email": "knc@votecapsule.co.ke",
+    "password": "VCParty2027!knc",
+    "registration_date": "2012-04-16",
+    "symbol": "Key",
+    "colors": [
+      "Blue",
+      "Green",
+      "Yellow"
+    ],
+    "primary_color": "#2563eb",
+    "postal_address": "76651-00508 Nairobi",
+    "head_office": "KEMA Building, 4th Floor, Off Shimo la Tewa Road, Industrial Area",
+    "slogan": "Wakenya Tujipange",
+    "former_names": []
+  },
+  {
+    "sno": 8,
+    "cert_no": "010",
+    "name": "Mazingira Green Party",
+    "abbreviation": "MGP",
+    "slug": "mgp",
+    "email": "mgp@votecapsule.co.ke",
+    "password": "VCParty2027!mgp",
+    "registration_date": "2012-04-20",
+    "symbol": "Tree",
+    "colors": [
+      "Red",
+      "Black",
+      "Green"
+    ],
+    "primary_color": "#dc2626",
+    "postal_address": "51855-00100 Nairobi",
+    "head_office": "Ruprani House, Room 302, Moktah Dadah Street, Nairobi",
+    "slogan": "Maisha Bora",
+    "former_names": []
+  },
+  {
+    "sno": 9,
+    "cert_no": "011",
+    "name": "Kenya Moja Movement Party",
+    "abbreviation": "KMM",
+    "slug": "kmm",
+    "email": "kmm@votecapsule.co.ke",
+    "password": "VCParty2027!kmm",
+    "registration_date": "2024-05-31",
+    "symbol": "K1",
+    "colors": [
+      "Purple",
+      "Black",
+      "Yellow"
+    ],
+    "primary_color": "#7c3aed",
+    "postal_address": "10446-00100 Nairobi",
+    "head_office": "Kiambu Road, directly Opposite Quickmart supermarket, behind bed palace",
+    "slogan": "Umoja nI Nguvu",
+    "former_names": [
+      "National Democratic Movement (NDM)"
+    ]
+  },
+  {
+    "sno": 10,
+    "cert_no": "012",
+    "name": "Wiper Patriotic Front",
+    "abbreviation": "WPF",
+    "slug": "wpf",
+    "email": "wpf@votecapsule.co.ke",
+    "password": "VCParty2027!wpf",
+    "registration_date": "2025-06-30",
+    "symbol": "Umbrella",
+    "colors": [
+      "Earth Red",
+      "Royal Blue",
+      "White"
+    ],
+    "primary_color": "#dc2626",
+    "postal_address": "403-00100 Nairobi",
+    "head_office": "Sunrise Court, Kufunga Road, off Langata Road, Karen",
+    "slogan": "Wiper",
+    "former_names": [
+      "Wiper Democratic Movement (WDM)"
+    ]
+  },
+  {
+    "sno": 11,
+    "cert_no": "013",
+    "name": "Democratic Party of Kenya",
+    "abbreviation": "DP",
+    "slug": "dp",
+    "email": "dp@votecapsule.co.ke",
+    "password": "VCParty2027!dp",
+    "registration_date": "2012-04-25",
+    "symbol": "Lantern",
+    "colors": [
+      "Green",
+      "Orange"
+    ],
+    "primary_color": "#16a34a",
+    "postal_address": "56395-00200 Nairobi",
+    "head_office": "Muhu Holdings, 3rd Floor, Mbagathi Road",
+    "slogan": "Umoja na Haki",
+    "former_names": []
+  },
+  {
+    "sno": 12,
+    "cert_no": "014",
+    "name": "Party of National Unity",
+    "abbreviation": "PNU",
+    "slug": "pnu",
+    "email": "pnu@votecapsule.co.ke",
+    "password": "VCParty2027!pnu",
+    "registration_date": "2012-04-25",
+    "symbol": "Two torches with flames",
+    "colors": [
+      "Blue",
+      "Red"
+    ],
+    "primary_color": "#2563eb",
+    "postal_address": "1235-00502 Nairobi",
+    "head_office": "Musa Gitau Lane, Musa Gitau Road Off Waiyaki Way",
+    "slogan": "Kazi Iendelee",
+    "former_names": []
+  },
+  {
+    "sno": 13,
+    "cert_no": "015",
+    "name": "United Democratic Alliance",
+    "abbreviation": "UDA",
+    "slug": "uda",
+    "email": "uda@votecapsule.co.ke",
+    "password": "VCParty2027!uda",
+    "registration_date": "2012-04-25",
+    "symbol": "Wheelbarrow",
+    "colors": [
+      "Green",
+      "Yellow"
+    ],
+    "primary_color": "#16a34a",
+    "postal_address": "37500-00100 Nairobi",
+    "head_office": "Transnational Plaza, 9th Floor",
+    "slogan": "Mabadiliko na Ustawi",
+    "former_names": [
+      "Party for Development and Reforms"
+    ]
+  },
+  {
+    "sno": 14,
+    "cert_no": "017",
+    "name": "Agano National Party",
+    "abbreviation": "ANP",
+    "slug": "anp",
+    "email": "anp@votecapsule.co.ke",
+    "password": "VCParty2027!anp",
+    "registration_date": "2012-04-16",
+    "symbol": "Lamb",
+    "colors": [
+      "Purple",
+      "White"
+    ],
+    "primary_color": "#7c3aed",
+    "postal_address": "40174-00100 Nairobi",
+    "head_office": "Morning Side Office Park, Unit No. B2, Wing A, L.R 2/704",
+    "slogan": "Njia Mpya, Mambo Mapya",
+    "former_names": [
+      "Agano Party"
+    ]
+  },
+  {
+    "sno": 15,
+    "cert_no": "019",
+    "name": "Kenya Social Congress",
+    "abbreviation": "KSC",
+    "slug": "ksc",
+    "email": "ksc@votecapsule.co.ke",
+    "password": "VCParty2027!ksc",
+    "registration_date": "2012-04-18",
+    "symbol": "Broom",
+    "colors": [
+      "White",
+      "Green",
+      "Yellow"
+    ],
+    "primary_color": "#6b7280",
+    "postal_address": "9211-00200 Nairobi",
+    "head_office": "Venture Building, next to Fahari Hotel, Benedicta Utawala Road, Utawala",
+    "slogan": "",
+    "former_names": []
+  },
+  {
+    "sno": 16,
+    "cert_no": "021",
+    "name": "Orange Democratic Movement",
+    "abbreviation": "ODM",
+    "slug": "odm",
+    "email": "odm@votecapsule.co.ke",
+    "password": "VCParty2027!odm",
+    "registration_date": "2012-04-18",
+    "symbol": "Ripe Orange",
+    "colors": [
+      "Orange"
+    ],
+    "primary_color": "#f97316",
+    "postal_address": "42242-00100 Nairobi",
+    "head_office": "Chungwa House, Loiyangalani Drive",
+    "slogan": "Mbele Pamoja",
+    "former_names": []
+  },
+  {
+    "sno": 17,
+    "cert_no": "022",
+    "name": "People's Party of Kenya",
+    "abbreviation": "PPK",
+    "slug": "ppk",
+    "email": "ppk@votecapsule.co.ke",
+    "password": "VCParty2027!ppk",
+    "registration_date": "2012-05-14",
+    "symbol": "Microphone",
+    "colors": [
+      "Blue",
+      "Red",
+      "Green",
+      "White"
+    ],
+    "primary_color": "#2563eb",
+    "postal_address": "1680-01000 Thika",
+    "head_office": "Witeithie House, 4th Floor, Room 413, Thika",
+    "slogan": "Usawa Haki Uhuru",
+    "former_names": []
+  },
+  {
+    "sno": 18,
+    "cert_no": "023",
+    "name": "Forum for Restoration of Democracy-Kenya",
+    "abbreviation": "FORD-KENYA",
+    "slug": "ford-kenya",
+    "email": "ford-kenya@votecapsule.co.ke",
+    "password": "VCParty2027!ford-kenya",
+    "registration_date": "2012-04-20",
+    "symbol": "Lion",
+    "colors": [
+      "Colourless"
+    ],
+    "primary_color": "#6b7280",
+    "postal_address": "43591-00100 Nairobi",
+    "head_office": "Ford-Kenya",
+    "slogan": "Ford-Kenya",
+    "former_names": []
+  },
+  {
+    "sno": 19,
+    "cert_no": "025",
+    "name": "Progressive Party of Kenya",
+    "abbreviation": "PPOK",
+    "slug": "ppok",
+    "email": "ppok@votecapsule.co.ke",
+    "password": "VCParty2027!ppok",
+    "registration_date": "2012-04-25",
+    "symbol": "Battery Torch",
+    "colors": [
+      "Green",
+      "Blue",
+      "Yellow"
+    ],
+    "primary_color": "#16a34a",
+    "postal_address": "49143-00100 Nairobi",
+    "head_office": "Utumishi Cooperative House, 4th Floor, Mamlaka Road, Off Nyerere Road",
+    "slogan": "Mwangaza (Mulika Maendeleo)",
+    "former_names": []
+  },
+  {
+    "sno": 20,
+    "cert_no": "027",
+    "name": "Jubilee Party",
+    "abbreviation": "JP",
+    "slug": "jp",
+    "email": "jp@votecapsule.co.ke",
+    "password": "VCParty2027!jp",
+    "registration_date": "2016-09-09",
+    "symbol": "Dove with an olive branch on its beak",
+    "colors": [
+      "Yellow",
+      "Black",
+      "Red"
+    ],
+    "primary_color": "#eab308",
+    "postal_address": "38601-00623 Nairobi",
+    "head_office": "Daraja House, State House Road",
+    "slogan": "Tuko Pamoja",
+    "former_names": []
+  },
+  {
+    "sno": 21,
+    "cert_no": "028",
+    "name": "Maendeleo Democratic Party",
+    "abbreviation": "MDP",
+    "slug": "mdp",
+    "email": "mdp@votecapsule.co.ke",
+    "password": "VCParty2027!mdp",
+    "registration_date": "2012-04-25",
+    "symbol": "Scissors",
+    "colors": [
+      "Grey",
+      "Red"
+    ],
+    "primary_color": "#6b7280",
+    "postal_address": "1980 Kakamega",
+    "head_office": "Maendeleo House, Kakamega-Mumias Rd, Plot 15, Kakamega",
+    "slogan": "Maendeleo kwa wote",
+    "former_names": []
+  },
+  {
+    "sno": 22,
+    "cert_no": "029",
+    "name": "National Rainbow Coalition",
+    "abbreviation": "NARC",
+    "slug": "narc",
+    "email": "narc@votecapsule.co.ke",
+    "password": "VCParty2027!narc",
+    "registration_date": "2012-04-27",
+    "symbol": "Traditional African Torch (Mwenge)",
+    "colors": [
+      "Colours of the Rainbow"
+    ],
+    "primary_color": "#6b7280",
+    "postal_address": "67138-00200 Nairobi",
+    "head_office": "Othaya Road, House No. 18",
+    "slogan": "Haki yetu sasa Inawezekana",
+    "former_names": []
+  },
+  {
+    "sno": 23,
+    "cert_no": "030",
+    "name": "Kenya African Democratic Union-Asili",
+    "abbreviation": "KADU-ASILI",
+    "slug": "kadu-asili",
+    "email": "kadu-asili@votecapsule.co.ke",
+    "password": "VCParty2027!kadu-asili",
+    "registration_date": "2012-04-27",
+    "symbol": "Coconut Tree",
+    "colors": [
+      "Green"
+    ],
+    "primary_color": "#16a34a",
+    "postal_address": "83229 Mombasa",
+    "head_office": "Dockworkers Union Building (Makuli Fagia) Mombasa",
+    "slogan": "Haki kwa Wote",
+    "former_names": []
+  },
+  {
+    "sno": 24,
+    "cert_no": "031",
+    "name": "Kenya Patriots Party",
+    "abbreviation": "KPP",
+    "slug": "kpp",
+    "email": "kpp@votecapsule.co.ke",
+    "password": "VCParty2027!kpp",
+    "registration_date": "2012-04-27",
+    "symbol": "Wheel",
+    "colors": [
+      "Black",
+      "Red"
+    ],
+    "primary_color": "#1f2937",
+    "postal_address": "37555-00100 Nairobi",
+    "head_office": "Ack Garden House, 5th Floor 1st Avenue, Ngong Road",
+    "slogan": "Umoja wa Wakenya",
+    "former_names": []
+  },
+  {
+    "sno": 25,
+    "cert_no": "032",
+    "name": "Communist Party of Kenya",
+    "abbreviation": "CPK",
+    "slug": "cpk",
+    "email": "cpk@votecapsule.co.ke",
+    "password": "VCParty2027!cpk",
+    "registration_date": "2012-04-27",
+    "symbol": "Hammer crossed with a sickel",
+    "colors": [
+      "Red",
+      "Black",
+      "Gold"
+    ],
+    "primary_color": "#dc2626",
+    "postal_address": "4403-00100 Nairobi",
+    "head_office": "Ring Road, Kileleshwa, Swiss Cottages, House No.8",
+    "slogan": "Capitalism has failed, Jawabu ni Usoshialisti",
+    "former_names": []
+  },
+  {
+    "sno": 26,
+    "cert_no": "033",
+    "name": "Kenya African National Union",
+    "abbreviation": "KANU",
+    "slug": "kanu",
+    "email": "kanu@votecapsule.co.ke",
+    "password": "VCParty2027!kanu",
+    "registration_date": "2012-04-27",
+    "symbol": "Cockerel",
+    "colors": [
+      "Black",
+      "Red",
+      "Green"
+    ],
+    "primary_color": "#1f2937",
+    "postal_address": "72394-00200 Nairobi",
+    "head_office": "Chania Avenue-Off Ring Road, Kilimani, behind Yaya Centre",
+    "slogan": "Mwanzo Mpya",
+    "former_names": []
+  },
+  {
+    "sno": 27,
+    "cert_no": "034",
+    "name": "Safina Party",
+    "abbreviation": "SAFINA",
+    "slug": "safina",
+    "email": "safina@votecapsule.co.ke",
+    "password": "VCParty2027!safina",
+    "registration_date": "2012-04-27",
+    "symbol": "Ark carrying animals and people",
+    "colors": [
+      "Green",
+      "Red",
+      "Black",
+      "White"
+    ],
+    "primary_color": "#16a34a",
+    "postal_address": "14746-00100 Nairobi",
+    "head_office": "View Park Towers, 12th Floor, Suite 12, Nairobi",
+    "slogan": "All Kenyans Deserve a Chance",
+    "former_names": []
+  },
+  {
+    "sno": 28,
+    "cert_no": "036",
+    "name": "Chama Cha Uzalendo",
+    "abbreviation": "CCU",
+    "slug": "ccu",
+    "email": "ccu@votecapsule.co.ke",
+    "password": "VCParty2027!ccu",
+    "registration_date": "2012-05-08",
+    "symbol": "Security Whistle",
+    "colors": [
+      "Heavy Leaf Green",
+      "Ivory White",
+      "Blood Red"
+    ],
+    "primary_color": "#16a34a",
+    "postal_address": "51871-00100 Nairobi",
+    "head_office": "Kwa Munuka Plaza, 1st Floor, Kagundo Road, Machakos Town",
+    "slogan": "Siasa ni Sera sio Fitina",
+    "former_names": []
+  },
+  {
+    "sno": 29,
+    "cert_no": "037",
+    "name": "National Agenda Party of Kenya",
+    "abbreviation": "NAP-K",
+    "slug": "nap-k",
+    "email": "nap-k@votecapsule.co.ke",
+    "password": "VCParty2027!nap-k",
+    "registration_date": "2017-05-08",
+    "symbol": "A teacher pointing at a blackboard with the Party Name",
+    "colors": [
+      "Blue",
+      "Black",
+      "White"
+    ],
+    "primary_color": "#2563eb",
+    "postal_address": "3308-00100 Nairobi",
+    "head_office": "Summit House, Moi Avenue",
+    "slogan": "Utu ni Bora",
+    "former_names": []
+  },
+  {
+    "sno": 30,
+    "cert_no": "038",
+    "name": "People's Empowerment Party",
+    "abbreviation": "PEP",
+    "slug": "pep",
+    "email": "pep@votecapsule.co.ke",
+    "password": "VCParty2027!pep",
+    "registration_date": "2012-05-09",
+    "symbol": "Elephant",
+    "colors": [
+      "Light Blue",
+      "Red",
+      "Light Green"
+    ],
+    "primary_color": "#2563eb",
+    "postal_address": "68452-00622 Nairobi",
+    "head_office": "Karen Estate, Near Shade Hotel Ngong Road",
+    "slogan": "Twende Mbele",
+    "former_names": []
+  },
+  {
+    "sno": 31,
+    "cert_no": "039",
+    "name": "Peoples Democratic Party",
+    "abbreviation": "PDP",
+    "slug": "pdp",
+    "email": "pdp@votecapsule.co.ke",
+    "password": "VCParty2027!pdp",
+    "registration_date": "2012-05-09",
+    "symbol": "Traditional African Banjo",
+    "colors": [
+      "Brown"
+    ],
+    "primary_color": "#92400e",
+    "postal_address": "10734-00100 Nairobi",
+    "head_office": "Cannon Annex 1st Floor Nairobi Parliament Lane",
+    "slogan": "Mamlaka kwa Mwananchi",
+    "former_names": []
+  },
+  {
+    "sno": 32,
+    "cert_no": "040",
+    "name": "The New Democrats",
+    "abbreviation": "TND",
+    "slug": "tnd",
+    "email": "tnd@votecapsule.co.ke",
+    "password": "VCParty2027!tnd",
+    "registration_date": "2012-05-09",
+    "symbol": "Bridge",
+    "colors": [
+      "Red",
+      "Brown",
+      "Blue"
+    ],
+    "primary_color": "#dc2626",
+    "postal_address": "43428-80100 Mombasa",
+    "head_office": "Safari Business Arcade, along USIU Road, behind Safari Park Hotel",
+    "slogan": "Together We Can",
+    "former_names": []
+  },
+  {
+    "sno": 33,
+    "cert_no": "041",
+    "name": "United Democratic Movement",
+    "abbreviation": "UDM",
+    "slug": "udm",
+    "email": "udm@votecapsule.co.ke",
+    "password": "VCParty2027!udm",
+    "registration_date": "2012-05-10",
+    "symbol": "Goat",
+    "colors": [
+      "Multicolor"
+    ],
+    "primary_color": "#6b7280",
+    "postal_address": "44820-00100 Nairobi",
+    "head_office": "Hurlingham, Sunbeam Place, Ground flr, Along Tigoni Rd, Nairobi",
+    "slogan": "Sauti ya Vitendo",
+    "former_names": []
+  },
+  {
+    "sno": 34,
+    "cert_no": "042",
+    "name": "Shirikisho Party of Kenya",
+    "abbreviation": "SPK",
+    "slug": "spk",
+    "email": "spk@votecapsule.co.ke",
+    "password": "VCParty2027!spk",
+    "registration_date": "2012-05-14",
+    "symbol": "Shark",
+    "colors": [
+      "Navy Blue",
+      "Green",
+      "White"
+    ],
+    "primary_color": "#1e3a5f",
+    "postal_address": "84056-80100 Mombasa",
+    "head_office": "Express Building, First Floor Kilindini Road, Mombasa",
+    "slogan": "Mwamko Mpya",
+    "former_names": []
+  },
+  {
+    "sno": 35,
+    "cert_no": "044",
+    "name": "Party of Democratic Unity",
+    "abbreviation": "PDU",
+    "slug": "pdu",
+    "email": "pdu@votecapsule.co.ke",
+    "password": "VCParty2027!pdu",
+    "registration_date": "2012-05-14",
+    "symbol": "Drum",
+    "colors": [
+      "Green",
+      "Black",
+      "Red",
+      "White",
+      "Brown"
+    ],
+    "primary_color": "#16a34a",
+    "postal_address": "51748-00200 Nairobi",
+    "head_office": "Kenya House Complex, 1st Floor Unit 5",
+    "slogan": "Let's Hold Our Hands",
+    "former_names": []
+  },
+  {
+    "sno": 36,
+    "cert_no": "045",
+    "name": "Umoja na Maendeleo Party",
+    "abbreviation": "UMP",
+    "slug": "ump",
+    "email": "ump@votecapsule.co.ke",
+    "password": "VCParty2027!ump",
+    "registration_date": "2012-05-21",
+    "symbol": "Factory",
+    "colors": [
+      "Green",
+      "Black"
+    ],
+    "primary_color": "#16a34a",
+    "postal_address": "3269-60200 Meru",
+    "head_office": "Kamuketha Building, Meru-Isiolo Road, Meru",
+    "slogan": "Kumepambazuka",
+    "former_names": [
+      "Millenium Party of Kenya"
+    ]
+  },
+  {
+    "sno": 37,
+    "cert_no": "046",
+    "name": "United Party of Independent Alliance",
+    "abbreviation": "UPIA",
+    "slug": "upia",
+    "email": "upia@votecapsule.co.ke",
+    "password": "VCParty2027!upia",
+    "registration_date": "2012-05-24",
+    "symbol": "Antelope",
+    "colors": [
+      "Green",
+      "Black"
+    ],
+    "primary_color": "#16a34a",
+    "postal_address": "51851-00100 Nairobi",
+    "head_office": "Ramshab Lane, along Ngong Road next to Nairobi Baptist Church",
+    "slogan": "Let the People Decide",
+    "former_names": [
+      "Frontier Alliance Party"
+    ]
+  },
+  {
+    "sno": 38,
+    "cert_no": "047",
+    "name": "Farmers Party",
+    "abbreviation": "FP",
+    "slug": "fp",
+    "email": "fp@votecapsule.co.ke",
+    "password": "VCParty2027!fp",
+    "registration_date": "2012-05-24",
+    "symbol": "Maize Plant",
+    "colors": [
+      "Green"
+    ],
+    "primary_color": "#16a34a",
+    "postal_address": "52828-00200 Nairobi",
+    "head_office": "Delta House, 5th Floor along University Way, Nairobi",
+    "slogan": "A touch of stomach",
+    "former_names": []
+  },
+  {
+    "sno": 39,
+    "cert_no": "048",
+    "name": "Economic Freedom Party",
+    "abbreviation": "EFP",
+    "slug": "efp",
+    "email": "efp@votecapsule.co.ke",
+    "password": "VCParty2027!efp",
+    "registration_date": "2012-05-24",
+    "symbol": "Acacia Tree",
+    "colors": [
+      "Blue",
+      "White",
+      "Black"
+    ],
+    "primary_color": "#2563eb",
+    "postal_address": "13521-00400 Nairobi",
+    "head_office": "Cool Waters Apartments, M3 Flat, Woodlane, Hurlingham",
+    "slogan": "Haki, Usawa na Amani",
+    "former_names": []
+  },
+  {
+    "sno": 40,
+    "cert_no": "049",
+    "name": "Federal Party of Kenya",
+    "abbreviation": "FPK",
+    "slug": "fpk",
+    "email": "fpk@votecapsule.co.ke",
+    "password": "VCParty2027!fpk",
+    "registration_date": "2012-05-24",
+    "symbol": "Fist",
+    "colors": [
+      "Black"
+    ],
+    "primary_color": "#1f2937",
+    "postal_address": "34463-00100 Nairobi",
+    "head_office": "Annex House, Ground Floor, Limuru Road",
+    "slogan": "Inawezekana Tukijipanga",
+    "former_names": []
+  },
+  {
+    "sno": 41,
+    "cert_no": "050",
+    "name": "Muungano Party",
+    "abbreviation": "MP",
+    "slug": "mp",
+    "email": "mp@votecapsule.co.ke",
+    "password": "VCParty2027!mp",
+    "registration_date": "2012-05-24",
+    "symbol": "Interlocked rings",
+    "colors": [
+      "Black",
+      "Green",
+      "White"
+    ],
+    "primary_color": "#1f2937",
+    "postal_address": "19080-00100 Nairobi",
+    "head_office": "Nyahururu House, Kilome Road",
+    "slogan": "Usawa na haki kwa wote",
+    "former_names": []
+  },
+  {
+    "sno": 42,
+    "cert_no": "051",
+    "name": "The National Party",
+    "abbreviation": "TNP",
+    "slug": "tnp",
+    "email": "tnp@votecapsule.co.ke",
+    "password": "VCParty2027!tnp",
+    "registration_date": "2012-05-24",
+    "symbol": "Helmet",
+    "colors": [
+      "Colorless"
+    ],
+    "primary_color": "#6b7280",
+    "postal_address": "2013-00200 Nairobi",
+    "head_office": "Imani House, Juja, 1st Floor, Room 2",
+    "slogan": "Our Rights Our Life",
+    "former_names": [
+      "National Party of Kenya"
+    ]
+  },
+  {
+    "sno": 43,
+    "cert_no": "052",
+    "name": "Jirani Mzalendo Asili Party of Kenya",
+    "abbreviation": "J-MAPK",
+    "slug": "j-mapk",
+    "email": "j-mapk@votecapsule.co.ke",
+    "password": "VCParty2027!j-mapk",
+    "registration_date": "2012-07-12",
+    "symbol": "Red Shoe",
+    "colors": [
+      "Red",
+      "Brown"
+    ],
+    "primary_color": "#dc2626",
+    "postal_address": "52700-00100 Nairobi",
+    "head_office": "World Hope International Kenya, Business Hub, Ground Floor, Lavington, Nairobi",
+    "slogan": "Jirani Mwema",
+    "former_names": []
+  },
+  {
+    "sno": 44,
+    "cert_no": "054",
+    "name": "Chama Cha Mashinani",
+    "abbreviation": "CCM",
+    "slug": "ccm",
+    "email": "ccm@votecapsule.co.ke",
+    "password": "VCParty2027!ccm",
+    "registration_date": "2012-07-27",
+    "symbol": "Golden Yellow Trumpet",
+    "colors": [
+      "Yellow"
+    ],
+    "primary_color": "#eab308",
+    "postal_address": "14009-0080 Nairobi",
+    "head_office": "Maruti Heights, Langata Road Opposite Tamarind Hotel",
+    "slogan": "",
+    "former_names": []
+  },
+  {
+    "sno": 45,
+    "cert_no": "055",
+    "name": "Alliance for Change",
+    "abbreviation": "AFC",
+    "slug": "afc",
+    "email": "afc@votecapsule.co.ke",
+    "password": "VCParty2027!afc",
+    "registration_date": "2012-10-03",
+    "symbol": "The Unity Tree",
+    "colors": [
+      "Maroon",
+      "Gold",
+      "Black",
+      "Grey",
+      "White"
+    ],
+    "primary_color": "#7f1d1d",
+    "postal_address": "11769-00400 Nairobi",
+    "head_office": "Ndavu Ithau Building, South C Shopping Centre, Muhoho Avenue",
+    "slogan": "Pamoja twaweza",
+    "former_names": [
+      "Alliance for Real Change (ARK)"
+    ]
+  },
+  {
+    "sno": 46,
+    "cert_no": "056",
+    "name": "Forum For Republican Democracy-Asili",
+    "abbreviation": "FORD",
+    "slug": "ford",
+    "email": "ford@votecapsule.co.ke",
+    "password": "VCParty2027!ford",
+    "registration_date": "2012-10-15",
+    "symbol": "Two raised fingers inside the Kenyan Map",
+    "colors": [
+      "Green",
+      "Black"
+    ],
+    "primary_color": "#16a34a",
+    "postal_address": "69564-00400 Nairobi",
+    "head_office": "Kwarara Road, Off Bogani Road, Karen",
+    "slogan": "Haki na Ukweli",
+    "former_names": [
+      "Forum for Restoration of Democracy"
+    ]
+  },
+  {
+    "sno": 47,
+    "cert_no": "058",
+    "name": "Republican Liberty Party",
+    "abbreviation": "RLP",
+    "slug": "rlp",
+    "email": "rlp@votecapsule.co.ke",
+    "password": "VCParty2027!rlp",
+    "registration_date": "2012-12-19",
+    "symbol": "Horse",
+    "colors": [
+      "Royal Blue",
+      "Green",
+      "Orange"
+    ],
+    "primary_color": "#2563eb",
+    "postal_address": "20148-00100 Nairobi",
+    "head_office": "Republican House, Githurai 45, Mwihoko Road",
+    "slogan": "Liberty Powers of the People",
+    "former_names": []
+  },
+  {
+    "sno": 48,
+    "cert_no": "059",
+    "name": "Roots Party of Kenya",
+    "abbreviation": "RPK",
+    "slug": "rpk",
+    "email": "rpk@votecapsule.co.ke",
+    "password": "VCParty2027!rpk",
+    "registration_date": "2013-01-15",
+    "symbol": "Tree and Roots",
+    "colors": [
+      "Gold",
+      "Green",
+      "Brown"
+    ],
+    "primary_color": "#eab308",
+    "postal_address": "13678-0800 Nairobi",
+    "head_office": "Secretariat Office, Krishna Centre, Woodvale Grove, No.9",
+    "slogan": "Shake the Tree",
+    "former_names": []
+  },
+  {
+    "sno": 49,
+    "cert_no": "060",
+    "name": "Vibrant Democracy Party",
+    "abbreviation": "VDP",
+    "slug": "vdp",
+    "email": "vdp@votecapsule.co.ke",
+    "password": "VCParty2027!vdp",
+    "registration_date": "2012-10-01",
+    "symbol": "Eagle",
+    "colors": [
+      "Black",
+      "Yellow",
+      "Red",
+      "Blue"
+    ],
+    "primary_color": "#1f2937",
+    "postal_address": "37886 Mombasa",
+    "head_office": "Habo Plaza, Kenyatta Avenue, Mombasa",
+    "slogan": "Mambo ni sasa",
+    "former_names": [
+      "Democratic Labour Party of Kenya"
+    ]
+  },
+  {
+    "sno": 50,
+    "cert_no": "061",
+    "name": "Ubuntu People's Forum",
+    "abbreviation": "UPF",
+    "slug": "upf",
+    "email": "upf@votecapsule.co.ke",
+    "password": "VCParty2027!upf",
+    "registration_date": "2015-06-30",
+    "symbol": "Double thumbs up",
+    "colors": [
+      "Black",
+      "White",
+      "Red"
+    ],
+    "primary_color": "#1f2937",
+    "postal_address": "72185-00200 Nairobi",
+    "head_office": "Donholm Sunrise Plot 82/402 Manyaja Road",
+    "slogan": "Sauti ya Raia",
+    "former_names": [
+      "Citizens Convention Party"
+    ]
+  },
+  {
+    "sno": 51,
+    "cert_no": "062",
+    "name": "Amani National Congress",
+    "abbreviation": "ANC",
+    "slug": "anc",
+    "email": "anc@votecapsule.co.ke",
+    "password": "VCParty2027!anc",
+    "registration_date": "2015-07-13",
+    "symbol": "Two Branches of Olive Tree",
+    "colors": [
+      "Luminous Green",
+      "White",
+      "Black",
+      "Maroon"
+    ],
+    "primary_color": "#16a34a",
+    "postal_address": "11095-00100 Nairobi",
+    "head_office": "Amani House, Loyangalani Drive, Off Convent Road, Lavington Nairobi",
+    "slogan": "ANC...UCHUMI BORA",
+    "former_names": []
+  },
+  {
+    "sno": 52,
+    "cert_no": "063",
+    "name": "Devolution Party of Kenya",
+    "abbreviation": "DPK",
+    "slug": "dpk",
+    "email": "dpk@votecapsule.co.ke",
+    "password": "VCParty2027!dpk",
+    "registration_date": "2015-07-22",
+    "symbol": "Tap with running water",
+    "colors": [
+      "Gold",
+      "Cream"
+    ],
+    "primary_color": "#eab308",
+    "postal_address": "38077-00100 Nairobi",
+    "head_office": "Krishna Centre, 3rd Floor, Room 629, Westlands",
+    "slogan": "Ugatuzi dawa ya Wakenya",
+    "former_names": []
+  },
+  {
+    "sno": 53,
+    "cert_no": "064",
+    "name": "United Democratic Party",
+    "abbreviation": "UDP",
+    "slug": "udp",
+    "email": "udp@votecapsule.co.ke",
+    "password": "VCParty2027!udp",
+    "registration_date": "2016-02-22",
+    "symbol": "Shield",
+    "colors": [
+      "Maroon",
+      "White",
+      "Green"
+    ],
+    "primary_color": "#7f1d1d",
+    "postal_address": "73179-00200 Nairobi",
+    "head_office": "Kabarsiran Garden, Off Kabarsiran Av, Lr.No.209/7340/6 Lavington",
+    "slogan": "Ngao Yetu",
+    "former_names": []
+  },
+  {
+    "sno": 54,
+    "cert_no": "065",
+    "name": "Kenya Reform Party",
+    "abbreviation": "KRP",
+    "slug": "krp",
+    "email": "krp@votecapsule.co.ke",
+    "password": "VCParty2027!krp",
+    "registration_date": "2016-02-22",
+    "symbol": "Mechanical gear and shaft, two leaves and two spears",
+    "colors": [
+      "Gold",
+      "Red",
+      "Green",
+      "White",
+      "Black"
+    ],
+    "primary_color": "#eab308",
+    "postal_address": "30365-00100 Nairobi",
+    "head_office": "34, Rossylin Riviera, Limuru Road",
+    "slogan": "Tuungane Tuendelee",
+    "former_names": [
+      "Diligence Development Alliance"
+    ]
+  },
+  {
+    "sno": 55,
+    "cert_no": "066",
+    "name": "People's Trust Party",
+    "abbreviation": "PTP",
+    "slug": "ptp",
+    "email": "ptp@votecapsule.co.ke",
+    "password": "VCParty2027!ptp",
+    "registration_date": "2016-09-22",
+    "symbol": "Arrow",
+    "colors": [
+      "Blue",
+      "Red",
+      "Blue"
+    ],
+    "primary_color": "#2563eb",
+    "postal_address": "3008-00506 Nairobi",
+    "head_office": "Pema Auto Mobile Building, Kangundo Road next to Massmatt Supermarket, Machakos Town",
+    "slogan": "Together we can",
+    "former_names": []
+  },
+  {
+    "sno": 56,
+    "cert_no": "067",
+    "name": "Maendeleo Chap Chap",
+    "abbreviation": "MCCP",
+    "slug": "mccp",
+    "email": "mccp@votecapsule.co.ke",
+    "password": "VCParty2027!mccp",
+    "registration_date": "2016-09-22",
+    "symbol": "Road",
+    "colors": [
+      "Black",
+      "White",
+      "Yellow",
+      "Purple"
+    ],
+    "primary_color": "#1f2937",
+    "postal_address": "10790-00100 Nairobi",
+    "head_office": "Convent Road, House No.38, Lavington",
+    "slogan": "Inawezekana na Itawezekana",
+    "former_names": []
+  },
+  {
+    "sno": 57,
+    "cert_no": "068",
+    "name": "Democratic Congress",
+    "abbreviation": "DC",
+    "slug": "dc",
+    "email": "dc@votecapsule.co.ke",
+    "password": "VCParty2027!dc",
+    "registration_date": "2016-11-01",
+    "symbol": "Butterfly",
+    "colors": [
+      "Blue",
+      "Yellow"
+    ],
+    "primary_color": "#2563eb",
+    "postal_address": "1128-00606 Nairobi",
+    "head_office": "Shikangu Road, South B, Nairobi",
+    "slogan": "",
+    "former_names": []
+  },
+  {
+    "sno": 58,
+    "cert_no": "069",
+    "name": "Liberal Democratic Party",
+    "abbreviation": "LDP",
+    "slug": "ldp",
+    "email": "ldp@votecapsule.co.ke",
+    "password": "VCParty2027!ldp",
+    "registration_date": "2016-11-01",
+    "symbol": "Satellite Dish",
+    "colors": [
+      "Green",
+      "Blue",
+      "White"
+    ],
+    "primary_color": "#16a34a",
+    "postal_address": "75845-00200 Nairobi",
+    "head_office": "Mercantile House, Ground Floor, Off Mombasa Road",
+    "slogan": "The face for Democracy",
+    "former_names": []
+  },
+  {
+    "sno": 59,
+    "cert_no": "070",
+    "name": "Green Congress of Kenya",
+    "abbreviation": "GCK",
+    "slug": "gck",
+    "email": "gck@votecapsule.co.ke",
+    "password": "VCParty2027!gck",
+    "registration_date": "2016-11-25",
+    "symbol": "Five Green Trees",
+    "colors": [
+      "Green",
+      "White"
+    ],
+    "primary_color": "#16a34a",
+    "postal_address": "5634-00506 Nairobi",
+    "head_office": "Aac, Sir Francis Ibiam House, Westlands Nairobi",
+    "slogan": "Mbele iko Sawa",
+    "former_names": []
+  },
+  {
+    "sno": 60,
+    "cert_no": "071",
+    "name": "National Liberal Party",
+    "abbreviation": "NLP",
+    "slug": "nlp",
+    "email": "nlp@votecapsule.co.ke",
+    "password": "VCParty2027!nlp",
+    "registration_date": "2016-12-07",
+    "symbol": "Water jet",
+    "colors": [
+      "Red",
+      "Green"
+    ],
+    "primary_color": "#dc2626",
+    "postal_address": "15948-00100 Nairobi",
+    "head_office": "Maendeleo House, Loita Street, 8th floor, Nairobi",
+    "slogan": "Mwelekeo mpya kwa Maisha Bora",
+    "former_names": []
+  },
+  {
+    "sno": 61,
+    "cert_no": "072",
+    "name": "Movement for Democracy and Growth",
+    "abbreviation": "MDG",
+    "slug": "mdg",
+    "email": "mdg@votecapsule.co.ke",
+    "password": "VCParty2027!mdg",
+    "registration_date": "2016-12-07",
+    "symbol": "Three fresh maize cobs in their safety husks",
+    "colors": [
+      "Bottle Green",
+      "Yellow"
+    ],
+    "primary_color": "#16a34a",
+    "postal_address": "282-00623 Parklands",
+    "head_office": "Masaba Road, off Bunyala Road, Upper Hill, Nairobi",
+    "slogan": "Funguo la maisha funguo la usawa",
+    "former_names": []
+  },
+  {
+    "sno": 62,
+    "cert_no": "073",
+    "name": "Alternative Leadership Party Of Kenya",
+    "abbreviation": "ALP-K",
+    "slug": "alp-k",
+    "email": "alp-k@votecapsule.co.ke",
+    "password": "VCParty2027!alp-k",
+    "registration_date": "2016-12-20",
+    "symbol": "Burning Candle with an orange flame",
+    "colors": [
+      "Turquoise Blue"
+    ],
+    "primary_color": "#06b6d4",
+    "postal_address": "35467-00100 Nairobi",
+    "head_office": "Promise House Building Next To Marble Arc Hotel, Lagos Road",
+    "slogan": "Usawa Kenya",
+    "former_names": []
+  },
+  {
+    "sno": 63,
+    "cert_no": "074",
+    "name": "Ukweli Party",
+    "abbreviation": "UP",
+    "slug": "up",
+    "email": "up@votecapsule.co.ke",
+    "password": "VCParty2027!up",
+    "registration_date": "2017-01-24",
+    "symbol": "U-shaped green plant",
+    "colors": [
+      "Green",
+      "Red",
+      "Yellow",
+      "Black",
+      "White"
+    ],
+    "primary_color": "#16a34a",
+    "postal_address": "26543-00100 Nairobi",
+    "head_office": "Kenya House, 2nd Floor, Rm 25, Koinange Street",
+    "slogan": "Nguvu Kwa Mwananchi",
+    "former_names": []
+  },
+  {
+    "sno": 64,
+    "cert_no": "075",
+    "name": "Empowerment and Liberation Party",
+    "abbreviation": "ELP",
+    "slug": "elp",
+    "email": "elp@votecapsule.co.ke",
+    "password": "VCParty2027!elp",
+    "registration_date": "2017-01-24",
+    "symbol": "Ring with people holding hands in unison",
+    "colors": [
+      "White",
+      "Royal Blue"
+    ],
+    "primary_color": "#6b7280",
+    "postal_address": "437-00902 Nairobi",
+    "head_office": "Karengata Park, Room No. 47 Nairobi",
+    "slogan": "Tushikane",
+    "former_names": []
+  },
+  {
+    "sno": 65,
+    "cert_no": "076",
+    "name": "Third Way Alliance Kenya",
+    "abbreviation": "TAKE",
+    "slug": "take",
+    "email": "take@votecapsule.co.ke",
+    "password": "VCParty2027!take",
+    "registration_date": "2017-02-20",
+    "symbol": "Camel in Desert",
+    "colors": [
+      "Brown"
+    ],
+    "primary_color": "#92400e",
+    "postal_address": "4781-00100 Nairobi",
+    "head_office": "Roshanmaer Place Westwing, Lenana Road",
+    "slogan": "Taking Back Our Country",
+    "former_names": []
+  },
+  {
+    "sno": 66,
+    "cert_no": "077",
+    "name": "Justice and Freedom Party of Kenya",
+    "abbreviation": "JFP",
+    "slug": "jfp",
+    "email": "jfp@votecapsule.co.ke",
+    "password": "VCParty2027!jfp",
+    "registration_date": "2017-02-22",
+    "symbol": "Stretched out hand holding freedom torch",
+    "colors": [
+      "Purple",
+      "Gold"
+    ],
+    "primary_color": "#7c3aed",
+    "postal_address": "76004-00508 Nairobi",
+    "head_office": "Regent Court, Apartment B7 Argwings Kodhek Road",
+    "slogan": "Ukweli na Haki",
+    "former_names": []
+  },
+  {
+    "sno": 67,
+    "cert_no": "078",
+    "name": "Grand Dream Development Party",
+    "abbreviation": "GDDP",
+    "slug": "gddp",
+    "email": "gddp@votecapsule.co.ke",
+    "password": "VCParty2027!gddp",
+    "registration_date": "2018-08-07",
+    "symbol": "Sack labelled GDDP Dreams",
+    "colors": [
+      "White",
+      "Gold",
+      "Blue"
+    ],
+    "primary_color": "#6b7280",
+    "postal_address": "104414-00101 Nairobi",
+    "head_office": "Corner House, 4th Flr, Kimathi Street",
+    "slogan": "Ndoto Kubwaah",
+    "former_names": []
+  },
+  {
+    "sno": 68,
+    "cert_no": "079",
+    "name": "United Green Movement",
+    "abbreviation": "UGM",
+    "slug": "ugm",
+    "email": "ugm@votecapsule.co.ke",
+    "password": "VCParty2027!ugm",
+    "registration_date": "2019-06-12",
+    "symbol": "Sun over the ocean",
+    "colors": [
+      "Olive Green"
+    ],
+    "primary_color": "#16a34a",
+    "postal_address": "22467-00100 Nairobi",
+    "head_office": "Green Action House, #71 Westlands Rd",
+    "slogan": "Kumekucha",
+    "former_names": []
+  },
+  {
+    "sno": 69,
+    "cert_no": "080",
+    "name": "Usawa Kwa Wote",
+    "abbreviation": "UKW",
+    "slug": "ukw",
+    "email": "ukw@votecapsule.co.ke",
+    "password": "VCParty2027!ukw",
+    "registration_date": "2019-06-17",
+    "symbol": "A cow and milking can",
+    "colors": [
+      "Green",
+      "Gold",
+      "Black"
+    ],
+    "primary_color": "#16a34a",
+    "postal_address": "2642-00100 Nairobi",
+    "head_office": "Usawa House, Amboseli Lane, Off Amboseli Road, Lavington Estate",
+    "slogan": "Usawa kwa Wote",
+    "former_names": [
+      "Civic Renewal Party"
+    ]
+  },
+  {
+    "sno": 70,
+    "cert_no": "081",
+    "name": "United Progressive Alliance",
+    "abbreviation": "UPA",
+    "slug": "upa",
+    "email": "upa@votecapsule.co.ke",
+    "password": "VCParty2027!upa",
+    "registration_date": "2020-03-06",
+    "symbol": "Bathing Soap",
+    "colors": [
+      "Bright Red",
+      "Lawn Green",
+      "White"
+    ],
+    "primary_color": "#dc2626",
+    "postal_address": "40016-00100 Nairobi",
+    "head_office": "Upa House, Kileleshwa",
+    "slogan": "Safisha Kenya",
+    "former_names": [
+      "Party of Economic Democracy"
+    ]
+  },
+  {
+    "sno": 71,
+    "cert_no": "082",
+    "name": "The Service Party",
+    "abbreviation": "TSP",
+    "slug": "tsp",
+    "email": "tsp@votecapsule.co.ke",
+    "password": "VCParty2027!tsp",
+    "registration_date": "2020-06-05",
+    "symbol": "Heart shape inscribed inside a circle",
+    "colors": [
+      "Royal Blue",
+      "Mustard Yellow",
+      "Red",
+      "Black",
+      "White"
+    ],
+    "primary_color": "#2563eb",
+    "postal_address": "776-00618 Nairobi",
+    "head_office": "Upper Hill, Matumbato Road, House No.25 Nairobi",
+    "slogan": "Service to Humanity is Service to God",
+    "former_names": []
+  },
+  {
+    "sno": 72,
+    "cert_no": "083",
+    "name": "National Ordinary People Empowerment Union",
+    "abbreviation": "NOPEU",
+    "slug": "nopeu",
+    "email": "nopeu@votecapsule.co.ke",
+    "password": "VCParty2027!nopeu",
+    "registration_date": "2020-06-05",
+    "symbol": "Ladder",
+    "colors": [
+      "Black",
+      "Red"
+    ],
+    "primary_color": "#1f2937",
+    "postal_address": "17987-00580 Nairobi",
+    "head_office": "Railway Godown, Bunyala Road",
+    "slogan": "NOPEU",
+    "former_names": []
+  },
+  {
+    "sno": 73,
+    "cert_no": "084",
+    "name": "National Reconstruction Alliance",
+    "abbreviation": "NRA",
+    "slug": "nra",
+    "email": "nra@votecapsule.co.ke",
+    "password": "VCParty2027!nra",
+    "registration_date": "2021-02-02",
+    "symbol": "Eagle",
+    "colors": [
+      "Blue",
+      "Red"
+    ],
+    "primary_color": "#2563eb",
+    "postal_address": "104083-00101 Nairobi",
+    "head_office": "Matasia-Ngong",
+    "slogan": "",
+    "former_names": []
+  },
+  {
+    "sno": 74,
+    "cert_no": "085",
+    "name": "Democratic Action Party-Kenya",
+    "abbreviation": "DAP-K",
+    "slug": "dap-k",
+    "email": "dap-k@votecapsule.co.ke",
+    "password": "VCParty2027!dap-k",
+    "registration_date": "2021-05-17",
+    "symbol": "Leopard",
+    "colors": [
+      "Blue",
+      "White",
+      "Black"
+    ],
+    "primary_color": "#2563eb",
+    "postal_address": "10459-00100 Nairobi",
+    "head_office": "Chui House, Kilimani, Nairobi",
+    "slogan": "",
+    "former_names": []
+  },
+  {
+    "sno": 75,
+    "cert_no": "086",
+    "name": "Party for Peace and Development",
+    "abbreviation": "PPD",
+    "slug": "ppd",
+    "email": "ppd@votecapsule.co.ke",
+    "password": "VCParty2027!ppd",
+    "registration_date": "2021-07-21",
+    "symbol": "Triangle",
+    "colors": [
+      "Red",
+      "White",
+      "Green",
+      "Black"
+    ],
+    "primary_color": "#dc2626",
+    "postal_address": "1038-00232 Nairobi",
+    "head_office": "Federico Plaza, Ruiru",
+    "slogan": "",
+    "former_names": [
+      "Party for Peace and Democracy"
+    ]
+  },
+  {
+    "sno": 76,
+    "cert_no": "087",
+    "name": "Chama Cha Kazi",
+    "abbreviation": "Kazi",
+    "slug": "kazi",
+    "email": "kazi@votecapsule.co.ke",
+    "password": "VCParty2027!kazi",
+    "registration_date": "2021-08-17",
+    "symbol": "Overall coat",
+    "colors": [
+      "Blue",
+      "Red",
+      "White"
+    ],
+    "primary_color": "#2563eb",
+    "postal_address": "1838-00200 Nairobi",
+    "head_office": "The Avalon Building, 5th Floor, Ngong Road, Nairobi",
+    "slogan": "",
+    "former_names": []
+  },
+  {
+    "sno": 77,
+    "cert_no": "088",
+    "name": "Tujibebe Wakenya Party",
+    "abbreviation": "JIBEBE",
+    "slug": "jibebe",
+    "email": "jibebe@votecapsule.co.ke",
+    "password": "VCParty2027!jibebe",
+    "registration_date": "2021-10-12",
+    "symbol": "Buffalo",
+    "colors": [
+      "Blue",
+      "White",
+      "Beige"
+    ],
+    "primary_color": "#2563eb",
+    "postal_address": "2245-00100 Nairobi",
+    "head_office": "Chiromo Road",
+    "slogan": "",
+    "former_names": []
+  },
+  {
+    "sno": 78,
+    "cert_no": "089",
+    "name": "Kenya Union Party",
+    "abbreviation": "KUP",
+    "slug": "kup",
+    "email": "kup@votecapsule.co.ke",
+    "password": "VCParty2027!kup",
+    "registration_date": "2021-10-12",
+    "symbol": "Two Vertical Ticks",
+    "colors": [
+      "Blue",
+      "Red",
+      "White"
+    ],
+    "primary_color": "#2563eb",
+    "postal_address": "15672-00509 Nairobi",
+    "head_office": "Wuyi Plaza Block Rm 10-Galana",
+    "slogan": "",
+    "former_names": []
+  },
+  {
+    "sno": 79,
+    "cert_no": "090",
+    "name": "Democratic National Alliance Party",
+    "abbreviation": "DNA",
+    "slug": "dna",
+    "email": "dna@votecapsule.co.ke",
+    "password": "VCParty2027!dna",
+    "registration_date": "2021-10-15",
+    "symbol": "Traditional pot with collar",
+    "colors": [
+      "Maroon",
+      "Golden Yellow",
+      "Brown"
+    ],
+    "primary_color": "#7f1d1d",
+    "postal_address": "78536-00507 Nairobi",
+    "head_office": "No. 5, May East Road, off Lang'ata Road, Karen/Hardy",
+    "slogan": "Your Voice, Your Power",
+    "former_names": [
+      "Umoja Summit Party"
+    ]
+  },
+  {
+    "sno": 80,
+    "cert_no": "091",
+    "name": "Pamoja African Alliance",
+    "abbreviation": "PAA",
+    "slug": "paa",
+    "email": "paa@votecapsule.co.ke",
+    "password": "VCParty2027!paa",
+    "registration_date": "2021-10-18",
+    "symbol": "Traditional thatched African Hut",
+    "colors": [
+      "Blue",
+      "Yellow"
+    ],
+    "primary_color": "#2563eb",
+    "postal_address": "34040-80118 Nyali",
+    "head_office": "Paa House, Nyali",
+    "slogan": "",
+    "former_names": []
+  },
+  {
+    "sno": 81,
+    "cert_no": "092",
+    "name": "Mabadiliko Party of Kenya",
+    "abbreviation": "MAPK",
+    "slug": "mapk",
+    "email": "mapk@votecapsule.co.ke",
+    "password": "VCParty2027!mapk",
+    "registration_date": "2021-10-12",
+    "symbol": "Honey Bee",
+    "colors": [
+      "Gold"
+    ],
+    "primary_color": "#eab308",
+    "postal_address": "00505-21689 Nairobi",
+    "head_office": "Hurlingham, Rose Avenue, Nairobi",
+    "slogan": "",
+    "former_names": []
+  },
+  {
+    "sno": 82,
+    "cert_no": "093",
+    "name": "Entrust Pioneer Party",
+    "abbreviation": "EPP",
+    "slug": "epp",
+    "email": "epp@votecapsule.co.ke",
+    "password": "VCParty2027!epp",
+    "registration_date": "2021-10-18",
+    "symbol": "Padlock and Chain",
+    "colors": [
+      "Black",
+      "Pink",
+      "White"
+    ],
+    "primary_color": "#1f2937",
+    "postal_address": "22453-00100 Nairobi",
+    "head_office": "Bazaar Plaza",
+    "slogan": "",
+    "former_names": []
+  },
+  {
+    "sno": 83,
+    "cert_no": "094",
+    "name": "Party for Growth and Prosperity",
+    "abbreviation": "PGP",
+    "slug": "pgp",
+    "email": "pgp@votecapsule.co.ke",
+    "password": "VCParty2027!pgp",
+    "registration_date": "2021-12-08",
+    "symbol": "Encircled Trophy",
+    "colors": [
+      "Blue",
+      "Lime Green"
+    ],
+    "primary_color": "#2563eb",
+    "postal_address": "41123-00100 Nairobi",
+    "head_office": "104 Mwingi Road, Nairobi",
+    "slogan": "",
+    "former_names": []
+  },
+  {
+    "sno": 84,
+    "cert_no": "095",
+    "name": "Green Thinking Action Party",
+    "abbreviation": "GTAP",
+    "slug": "gtap",
+    "email": "gtap@votecapsule.co.ke",
+    "password": "VCParty2027!gtap",
+    "registration_date": "2021-10-18",
+    "symbol": "Growing Money",
+    "colors": [
+      "Green",
+      "Yellow",
+      "Red"
+    ],
+    "primary_color": "#16a34a",
+    "postal_address": "9164-00200 Nairobi",
+    "head_office": "KICC Building, Lg 12 Harambee Avenue",
+    "slogan": "",
+    "former_names": []
+  },
+  {
+    "sno": 85,
+    "cert_no": "096",
+    "name": "National Democracy Expansion Party",
+    "abbreviation": "NDEP",
+    "slug": "ndep",
+    "email": "ndep@votecapsule.co.ke",
+    "password": "VCParty2027!ndep",
+    "registration_date": "2021-12-20",
+    "symbol": "Blue Water Tank on White background",
+    "colors": [
+      "Red",
+      "Violet",
+      "White",
+      "Yellow",
+      "Blue"
+    ],
+    "primary_color": "#dc2626",
+    "postal_address": "35710-00200 Nairobi",
+    "head_office": "Reli House, 3rd Floor, Room 319 Nairobi",
+    "slogan": "",
+    "former_names": []
+  },
+  {
+    "sno": 86,
+    "cert_no": "097",
+    "name": "Unified Change Party",
+    "abbreviation": "UCP",
+    "slug": "ucp",
+    "email": "ucp@votecapsule.co.ke",
+    "password": "VCParty2027!ucp",
+    "registration_date": "2021-10-18",
+    "symbol": "Blue Oval with party initials",
+    "colors": [
+      "Blue",
+      "White"
+    ],
+    "primary_color": "#2563eb",
+    "postal_address": "160-00518 Nairobi",
+    "head_office": "Kwa Ngindu, Kitui Town",
+    "slogan": "",
+    "former_names": []
+  },
+  {
+    "sno": 87,
+    "cert_no": "098",
+    "name": "Universal Unity Party",
+    "abbreviation": "UUP",
+    "slug": "uup",
+    "email": "uup@votecapsule.co.ke",
+    "password": "VCParty2027!uup",
+    "registration_date": "2022-03-16",
+    "symbol": "Crown",
+    "colors": [
+      "Crown Pink",
+      "White",
+      "Black",
+      "Red"
+    ],
+    "primary_color": "#ec4899",
+    "postal_address": "296-00618 Nairobi",
+    "head_office": "Ruaraka, Nairobi",
+    "slogan": "Haki na Usawa kwa Wote",
+    "former_names": []
+  },
+  {
+    "sno": 88,
+    "cert_no": "099",
+    "name": "Chama ya Mapatano of Kenya",
+    "abbreviation": "CYMK",
+    "slug": "cymk",
+    "email": "cymk@votecapsule.co.ke",
+    "password": "VCParty2027!cymk",
+    "registration_date": "2022-03-16",
+    "symbol": "Globe Red, Black and White",
+    "colors": [
+      "Red",
+      "Black",
+      "White"
+    ],
+    "primary_color": "#dc2626",
+    "postal_address": "51364-00100 Nairobi",
+    "head_office": "Hurlingham, Nairobi",
+    "slogan": "",
+    "former_names": []
+  },
+  {
+    "sno": 89,
+    "cert_no": "100",
+    "name": "The Equitable Party",
+    "abbreviation": "TEP",
+    "slug": "tep",
+    "email": "tep@votecapsule.co.ke",
+    "password": "VCParty2027!tep",
+    "registration_date": "2022-03-25",
+    "symbol": "Weighing scale",
+    "colors": [
+      "Gold",
+      "Emerald"
+    ],
+    "primary_color": "#eab308",
+    "postal_address": "7149-00200 Nairobi",
+    "head_office": "Mtito Andei Rd.- Off Lenana Rd, Nairobi",
+    "slogan": "Tusawazishe",
+    "former_names": []
+  },
+  {
+    "sno": 90,
+    "cert_no": "101",
+    "name": "Azimio la Umoja One Kenya Coalition Party",
+    "abbreviation": "Azimio",
+    "slug": "azimio",
+    "email": "azimio@votecapsule.co.ke",
+    "password": "VCParty2027!azimio",
+    "registration_date": "2022-04-21",
+    "symbol": "Five Stars against a blue background",
+    "colors": [
+      "Blue",
+      "Orange",
+      "White"
+    ],
+    "primary_color": "#2563eb",
+    "postal_address": "10311-00100 Nairobi",
+    "head_office": "Azimio House, House No.105, Dennis Pritt Road, Nairobi",
+    "slogan": "Azimio: Inawezakana",
+    "former_names": []
+  },
+  {
+    "sno": 91,
+    "cert_no": "102",
+    "name": "The We Alliance Party",
+    "abbreviation": "TWAP",
+    "slug": "twap",
+    "email": "twap@votecapsule.co.ke",
+    "password": "VCParty2027!twap",
+    "registration_date": "2025-02-03",
+    "symbol": "Plate and Spoon",
+    "colors": [
+      "Yellow",
+      "Blue"
+    ],
+    "primary_color": "#eab308",
+    "postal_address": "53604-00200 Nairobi",
+    "head_office": "White House Building, S4, Opposite Imara Primary School, off Kayole Road, Nairobi",
+    "slogan": "Power to the people",
+    "former_names": []
+  },
+  {
+    "sno": 92,
+    "cert_no": "103",
+    "name": "Democracy for the Citizens Party",
+    "abbreviation": "DCP",
+    "slug": "dcp",
+    "email": "dcp@votecapsule.co.ke",
+    "password": "VCParty2027!dcp",
+    "registration_date": "2025-02-03",
+    "symbol": "DCP Logo",
+    "colors": [
+      "Green",
+      "Brown",
+      "Black"
+    ],
+    "primary_color": "#16a34a",
+    "postal_address": "26237-0100 Nairobi",
+    "head_office": "Musa Gitau Road, Muthangari Drive",
+    "slogan": "Skiza Wakenya",
+    "former_names": []
+  },
+  {
+    "sno": 93,
+    "cert_no": "104",
+    "name": "National Economic Development Party",
+    "abbreviation": "NEDP",
+    "slug": "nedp",
+    "email": "nedp@votecapsule.co.ke",
+    "password": "VCParty2027!nedp",
+    "registration_date": "2025-11-19",
+    "symbol": "Magnifying glass",
+    "colors": [
+      "Light Blue",
+      "White",
+      "Maroon"
+    ],
+    "primary_color": "#2563eb",
+    "postal_address": "20322-00200 Nairobi",
+    "head_office": "Ramco Court, Block B11",
+    "slogan": "Uchumi Bora, Nguvu Yetu",
+    "former_names": []
+  },
+  {
+    "sno": 94,
+    "cert_no": "105",
+    "name": "People's Renaissance Movement",
+    "abbreviation": "PM",
+    "slug": "pm",
+    "email": "pm@votecapsule.co.ke",
+    "password": "VCParty2027!pm",
+    "registration_date": "2026-04-13",
+    "symbol": "Hummingbird",
+    "colors": [
+      "Deep Blue",
+      "Bright Red",
+      "White"
+    ],
+    "primary_color": "#2563eb",
+    "postal_address": "21831-00100 Nairobi",
+    "head_office": "River Bank Court, Kileleshwa, Nairobi",
+    "slogan": "The Change we need",
+    "former_names": []
+  },
+  {
+    "sno": 95,
+    "cert_no": "106",
+    "name": "Kenya United Generation Party",
+    "abbreviation": "KUG",
+    "slug": "kug",
+    "email": "kug@votecapsule.co.ke",
+    "password": "VCParty2027!kug",
+    "registration_date": "2026-04-17",
+    "symbol": "Infinity Circle",
+    "colors": [
+      "Green",
+      "Brown",
+      "Blue"
+    ],
+    "primary_color": "#16a34a",
+    "postal_address": "10903-00100 Nairobi",
+    "head_office": "Development House, Moi Avenue 2nd Floor, Room 19",
+    "slogan": "Equality for all Generations",
+    "former_names": []
+  },
+  {
+    "sno": 96,
+    "cert_no": "107",
+    "name": "Peoples' Forum for Rebuilding Democracy",
+    "abbreviation": "PFRD",
+    "slug": "pfrd",
+    "email": "pfrd@votecapsule.co.ke",
+    "password": "VCParty2027!pfrd",
+    "registration_date": "2026-04-17",
+    "symbol": "Pen and Sign",
+    "colors": [
+      "Maroon",
+      "Blue",
+      "Red",
+      "Green",
+      "Black",
+      "White"
+    ],
+    "primary_color": "#7f1d1d",
+    "postal_address": "26181 Ruiru",
+    "head_office": "The Spur Mall, 2nd Floor, Room 023, Thika Road",
+    "slogan": "Party to be! the change we want!",
+    "former_names": []
+  },
+  {
+    "sno": 97,
+    "cert_no": "108",
+    "name": "Msingi wa Utaifa",
+    "abbreviation": "MUP",
+    "slug": "mup",
+    "email": "mup@votecapsule.co.ke",
+    "password": "VCParty2027!mup",
+    "registration_date": "2026-04-17",
+    "symbol": "Pillar",
+    "colors": [
+      "Black",
+      "White",
+      "Purple"
+    ],
+    "primary_color": "#1f2937",
+    "postal_address": "5556-00200 Nairobi",
+    "head_office": "Mwari House, 4th Floor, door 14, Kahawa West off Kamiti Road",
+    "slogan": "Sauti ya Wanyonge",
+    "former_names": []
+  },
+  {
+    "sno": 98,
+    "cert_no": "109",
+    "name": "United Patriotic Party",
+    "abbreviation": "UPM",
+    "slug": "upm",
+    "email": "upm@votecapsule.co.ke",
+    "password": "VCParty2027!upm",
+    "registration_date": "2026-06-26",
+    "symbol": "Mask",
+    "colors": [
+      "Orange",
+      "Black",
+      "White"
+    ],
+    "primary_color": "#f97316",
+    "postal_address": "41422-00100 Nairobi",
+    "head_office": "Kitengela Township, Along Kitengela-Namanga Road, Behind Nairobi Women Hospital",
+    "slogan": "Stability and prosperity",
+    "former_names": []
+  }
+]

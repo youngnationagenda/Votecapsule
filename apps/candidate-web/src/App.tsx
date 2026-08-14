@@ -24,6 +24,7 @@ const NotificationsPage   = lazy(() => import('./pages/NotificationsPage').then(
 const DownloadsPage       = lazy(() => import('./pages/DownloadsPage').then(m => ({ default: m.DownloadsPage })));
 const TeamManagementPage  = lazy(() => import('./pages/TeamManagementPage').then(m => ({ default: m.TeamManagementPage })));
 const BillingPage         = lazy(() => import('./pages/BillingPage').then(m => ({ default: m.BillingPage })));
+const NominationStatusPage = lazy(() => import('./pages/NominationStatusPage').then(m => ({ default: m.NominationStatusPage })));
 
 function PageLoader(): React.JSX.Element {
   return (
@@ -71,6 +72,9 @@ export default function App(): React.JSX.Element {
           } />
           <Route path="/billing" element={
             <Suspense fallback={<PageLoader />}><BillingPage /></Suspense>
+          } />
+          <Route path="/nomination" element={
+            <Suspense fallback={<PageLoader />}><NominationStatusPage /></Suspense>
           } />
         </Route>
       </Route>

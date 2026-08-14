@@ -84,3 +84,19 @@
     @apply inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold tracking-wide text-white bg-[#0B3C6D];
   }
 }
+
+@layer utilities {
+  /* Slide-in animation for slide-over panels */
+  .animate-slide-in-right {
+    animation: slideInRight 0.3s ease-out;
+  }
+
+  @keyframes slideInRight {
+    from {
+      transform: translateX(100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+}

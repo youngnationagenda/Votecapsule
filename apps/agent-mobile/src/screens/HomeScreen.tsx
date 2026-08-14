@@ -1,6 +1,18 @@
 // ============================================================
-// VoteCapsule™ — Home / Dashboard Screen
+// VoteCapsule™ — Home / Dashboard Screen (Assignment-Scoped)
 // apps/agent-mobile/src/screens/HomeScreen.tsx
+//
+// The HomeScreen now fetches the agent's assignment on focus
+// and displays ONLY the assigned election. This prevents:
+//   - Agents seeing elections they weren't assigned to
+//   - Capturing for wrong elections/stations
+//   - Hardcoded election names
+//
+// Assignment flow:
+//   1. Agent logs in → authStore gets tokens
+//   2. HomeScreen focused → assignmentStore.fetchAssignment()
+//   3. UI renders the assigned election name, stations, position
+//   4. "Capture Evidence" button passes assignment context to Capture
 // ============================================================
 import React, { useEffect, useState, useCallback } from 'react';
 import {
@@ -13,6 +25,7 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import { RootStackParamList, LocalCapsule } from '../types';
 import { useAuthStore } from '../store/authStore';
+import { useAssignmentStore } from '../store/assignmentStore';
 import { useNetworkSync } from '../hooks/useNetworkSync';
 import { getAllCapsules } from '../utils/storage';
 import { runSync } from '../services/syncEngine';
@@ -25,7 +38,8 @@ type Props = {
 };
 
 export default function HomeScreen({ navigation }: Props) {
-  const { user, logout } = useAuthStore();
+  const { user, tokens, logout } = useAuthStore();
+  const { assignment, isLoading: assignmentLoading, error: assignmentError, fetchAssignment, hydrate } = useAssignmentStore();
   const { isOnline, isWifi } = useNetworkSync();
   const [capsules, setCapsules]     = useState<LocalCapsule[]>([]);
   const [refreshing, setRefreshing] = useState(false);
@@ -37,16 +51,25 @@ export default function HomeScreen({ navigation }: Props) {
     setCapsules(all);
   }, []);
 
-  // Reload whenever screen comes into focus (after capture, queue changes, etc.)
+  // Hydrate cached assignment on mount
+  useEffect(() => { hydrate(); }, []);
+
+  // Fetch assignment whenever screen comes into focus
   useFocusEffect(
     useCallback(() => {
       loadCapsules();
-    }, [loadCapsules]),
+      if (user && tokens?.accessToken) {
+        fetchAssignment(user.userId, user.tenantId, tokens.accessToken);
+      }
+    }, [loadCapsules, user, tokens]),
   );
 
   const onRefresh = async () => {
     setRefreshing(true);
     await loadCapsules();
+    if (user && tokens?.accessToken) {
+      await fetchAssignment(user.userId, user.tenantId, tokens.accessToken);
+    }
     setRefreshing(false);
   };
 
@@ -78,6 +101,14 @@ export default function HomeScreen({ navigation }: Props) {
   const failed    = capsules.filter((c) => c.status === 'FAILED').length;
   const totalLocal = capsules.length;
 
+  // ── Derived assignment values ──────────────────────────────
+  const hasAssignment = !!assignment;
+  const electionName = assignment?.election.electionName ?? 'No Election Assigned';
+  const positionLabel = assignment?.election.positionLabel ?? '—';
+  const areaName = assignment?.areaName ?? '—';
+  const stationCount = assignment?.stations.length ?? 0;
+  const assignmentStatus = assignment?.status ?? 'UNASSIGNED';
+
   return (
     <ScrollView
       style={styles.container}
@@ -95,6 +126,72 @@ export default function HomeScreen({ navigation }: Props) {
         </View>
         <NetworkBadge isOnline={isOnline} isWifi={isWifi} />
       </View>
+
+      {/* ── Assignment Card ────────────────────────────────── */}
+      {assignmentLoading && !assignment ? (
+        <View style={styles.assignmentCard}>
+          <Text style={styles.assignmentLoading}>Loading assignment…</Text>
+        </View>
+      ) : hasAssignment ? (
+        <View style={styles.assignmentCard}>
+          <View style={styles.assignmentHeader}>
+            <View style={[styles.assignmentDot, { backgroundColor: assignmentStatus === 'ACTIVE' ? '#22c55e' : '#f59e0b' }]} />
+            <Text style={styles.assignmentStatus}>{assignmentStatus}</Text>
+          </View>
+          <Text style={styles.assignmentElection}>{electionName}</Text>
+          <View style={styles.assignmentMeta}>
+            <View style={styles.assignmentMetaItem}>
+              <Text style={styles.assignmentMetaLabel}>Position</Text>
+              <Text style={styles.assignmentMetaValue}>{positionLabel}</Text>
+            </View>
+            <View style={styles.assignmentMetaItem}>
+              <Text style={styles.assignmentMetaLabel}>Area</Text>
+              <Text style={styles.assignmentMetaValue}>{areaName}</Text>
+            </View>
+            <View style={styles.assignmentMetaItem}>
+              <Text style={styles.assignmentMetaLabel}>Stations</Text>
+              <Text style={styles.assignmentMetaValue}>{stationCount}</Text>
+            </View>
+          </View>
+
+          {/* Station list (scrollable if many) */}
+          {stationCount > 0 && (
+            <View style={styles.stationListContainer}>
+              <Text style={styles.stationListTitle}>YOUR STATIONS</Text>
+              {assignment!.stations.slice(0, 5).map((station) => (
+                <View key={station.iebcCode} style={styles.stationRow}>
+                  <View style={styles.stationRowLeft}>
+                    <Text style={styles.stationName} numberOfLines={1}>{station.name}</Text>
+                    <Text style={styles.stationCentre}>{station.centreName}</Text>
+                  </View>
+                  <View style={styles.stationRowRight}>
+                    {station.streamNumber != null && (
+                      <View style={styles.streamBadge}>
+                        <Text style={styles.streamBadgeText}>S{station.streamNumber}</Text>
+                      </View>
+                    )}
+                    <Text style={styles.stationVoters}>{station.registeredVoters.toLocaleString()}</Text>
+                  </View>
+                </View>
+              ))}
+              {stationCount > 5 && (
+                <Text style={styles.moreStations}>+{stationCount - 5} more stations</Text>
+              )}
+            </View>
+          )}
+        </View>
+      ) : (
+        <View style={styles.noAssignmentCard}>
+          <Text style={styles.noAssignmentIcon}>📋</Text>
+          <Text style={styles.noAssignmentTitle}>No Assignment</Text>
+          <Text style={styles.noAssignmentText}>
+            You haven't been assigned to any election yet. Contact your party administrator to receive an assignment.
+          </Text>
+          {assignmentError && (
+            <Text style={styles.assignmentErrorText}>{assignmentError}</Text>
+          )}
+        </View>
+      )}
 
       {/* ── Uploading indicator ─────────────────────────────── */}
       {uploading > 0 && (
@@ -117,10 +214,11 @@ export default function HomeScreen({ navigation }: Props) {
         <Text style={styles.actionsLabel}>ACTIONS</Text>
         <View style={styles.actions}>
           <ActionButton
-            label="Capture Evidence"
+            label={hasAssignment ? `Capture — ${positionLabel}` : 'Capture Evidence'}
             icon="📷"
             primary
             onPress={() => navigation.navigate('Capture', {})}
+            disabled={!hasAssignment || assignmentStatus !== 'ACTIVE'}
           />
           <ActionButton
             label={syncing ? 'Syncing…' : 'Sync Queue'}
@@ -136,11 +234,6 @@ export default function HomeScreen({ navigation }: Props) {
             badge={failed > 0 ? failed : undefined}
           />
           <ActionButton
-            label="Find Polling Station"
-            icon="📍"
-            onPress={() => navigation.navigate('StationSearch')}
-          />
-          <ActionButton
             label="Settings"
             icon="⚙️"
             onPress={() => navigation.navigate('Settings')}
@@ -151,10 +244,17 @@ export default function HomeScreen({ navigation }: Props) {
       {/* ── Device info card ───────────────────────────────── */}
       <View style={styles.infoCard}>
         <Text style={styles.infoCardTitle}>DEVICE</Text>
-        <InfoRow label="Role"       value={(user?.roles?.[0] ?? 'CAPSULE_AGENT')} />
-        <InfoRow label="Device ID"  value={(user?.deviceId?.slice(0, 12) ?? '—') + '…'} mono />
+        <InfoRow label="Role" value={(user?.roles?.[0] ?? 'CAPSULE_AGENT')} />
+        <InfoRow label="Device ID" value={(user?.deviceId?.slice(0, 12) ?? '—') + '…'} mono />
         <InfoRow label="Total captured" value={String(totalLocal)} />
-        <InfoRow label="Election"   value="Kenya General 2027" />
+        <InfoRow
+          label="Election"
+          value={hasAssignment ? electionName : 'Not assigned'}
+        />
+        <InfoRow
+          label="Geo-fence"
+          value={hasAssignment ? `${assignment!.geofenceRadiusMeters}m radius` : '—'}
+        />
       </View>
 
       {/* ── Sign out ───────────────────────────────────────── */}
@@ -188,6 +288,166 @@ const styles = StyleSheet.create({
   greeting:         { color: '#64748b', fontSize: 13 },
   name:             { color: '#f1f5f9', fontSize: 22, fontWeight: '700', marginTop: 2 },
   tenant:           { color: '#475569', fontSize: 11, marginTop: 2 },
+
+  // Assignment card
+  assignmentCard: {
+    marginHorizontal: 24,
+    marginBottom: 16,
+    backgroundColor: '#0f2d1e',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#166534',
+  },
+  assignmentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 8,
+  },
+  assignmentDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  assignmentStatus: {
+    color: '#86efac',
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  assignmentElection: {
+    color: '#f1f5f9',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 12,
+  },
+  assignmentMeta: {
+    flexDirection: 'row',
+    gap: 16,
+    marginBottom: 12,
+  },
+  assignmentMetaItem: {
+    flex: 1,
+  },
+  assignmentMetaLabel: {
+    color: '#4ade80',
+    fontSize: 10,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  assignmentMetaValue: {
+    color: '#f1f5f9',
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  assignmentLoading: {
+    color: '#94a3b8',
+    fontSize: 13,
+    textAlign: 'center',
+    paddingVertical: 16,
+  },
+
+  // Station list
+  stationListContainer: {
+    marginTop: 4,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(34, 197, 94, 0.2)',
+  },
+  stationListTitle: {
+    color: '#4ade80',
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.8,
+    marginBottom: 8,
+  },
+  stationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.05)',
+  },
+  stationRowLeft: {
+    flex: 1,
+    marginRight: 8,
+  },
+  stationName: {
+    color: '#e2e8f0',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  stationCentre: {
+    color: '#64748b',
+    fontSize: 11,
+    marginTop: 1,
+  },
+  stationRowRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  streamBadge: {
+    backgroundColor: '#1e3a5f',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  streamBadgeText: {
+    color: '#60a5fa',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  stationVoters: {
+    color: '#94a3b8',
+    fontSize: 11,
+  },
+  moreStations: {
+    color: '#64748b',
+    fontSize: 11,
+    marginTop: 6,
+    textAlign: 'center',
+  },
+
+  // No assignment
+  noAssignmentCard: {
+    marginHorizontal: 24,
+    marginBottom: 16,
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderStyle: 'dashed',
+  },
+  noAssignmentIcon: {
+    fontSize: 32,
+    marginBottom: 8,
+  },
+  noAssignmentTitle: {
+    color: '#f59e0b',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  noAssignmentText: {
+    color: '#94a3b8',
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  assignmentErrorText: {
+    color: '#ef4444',
+    fontSize: 11,
+    marginTop: 8,
+    textAlign: 'center',
+  },
 
   // Uploading
   uploadingBanner: {

@@ -1,16 +1,17 @@
 // ============================================================
-// VoteCapsule™ — Capture Screen (Multi-Image)
+// VoteCapsule™ — Capture Screen (Assignment-Scoped + Geo-Fenced)
 // apps/agent-mobile/src/screens/CaptureScreen.tsx
 //
-// Multi-page capture workflow:
-//   1. Select station + position
-//   2. Open camera → shoot page 1 → thumbnail appears
-//   3. "Add Page" → shoot page 2 → second thumbnail appears
-//   4. Up to MAX_PAGES (5) pages
-//   5. "Done — Review" → navigate to ReviewScreen
+// Multi-page capture workflow WITH assignment enforcement:
+//   1. Only shows ASSIGNED position (not all 6)
+//   2. Only allows ASSIGNED station selection
+//   3. Validates GPS proximity to station (geofence)
+//   4. Blocks capture if agent is outside allowed radius
 //
-// The camera stays open after each shot (continuous mode)
-// so the agent can immediately shoot the next page.
+// Geo-fence levels:
+//   WITHIN_RANGE (<500m) — green banner, proceed normally
+//   WARNING (500m-2km) — yellow banner, allow with warning
+//   OUT_OF_RANGE (>2km) — red banner, block capture
 // ============================================================
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
@@ -26,12 +27,14 @@ import { useFocusEffect } from '@react-navigation/native';
 
 import { RootStackParamList, PositionCode } from '../types';
 import { useCaptureStore, MAX_PAGES } from '../store/captureStore';
-import { useAuthStore }    from '../store/authStore';
-import { useGps }          from '../hooks/useGps';
-import { Section }         from '../components/Section';
-import { ErrorBanner }     from '../components/ErrorBanner';
-import { getCapsule }      from '../utils/storage';
-import { enqueueAndSync }  from '../services/syncEngine';
+import { useAuthStore }       from '../store/authStore';
+import { useAssignmentStore } from '../store/assignmentStore';
+import { useGps }             from '../hooks/useGps';
+import { useGeofence, GeofenceStatus } from '../hooks/useGeofence';
+import { Section }            from '../components/Section';
+import { ErrorBanner }        from '../components/ErrorBanner';
+import { getCapsule }         from '../utils/storage';
+import { enqueueAndSync }     from '../services/syncEngine';
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Capture'>;
@@ -40,7 +43,8 @@ type Props = {
 
 const SCREEN_W = Dimensions.get('window').width;
 
-const POSITIONS: { code: PositionCode; label: string }[] = [
+// All positions — used only in free/unassigned mode
+const ALL_POSITIONS: { code: PositionCode; label: string }[] = [
   { code: 'PRESIDENT',  label: 'President'   },
   { code: 'GOVERNOR',   label: 'Governor'    },
   { code: 'SENATOR',    label: 'Senator'     },
@@ -57,11 +61,8 @@ export default function CaptureScreen({ navigation, route }: Props) {
   const [cameraReady, setCameraReady]   = useState(false);
   const [cameraOpen, setCameraOpen]     = useState(false);
   const [shotMode, setShotMode]         = useState<ShotMode>('FIRST');
-  // Thumbnails shown after each captured page
   const [thumbnails, setThumbnails]     = useState<string[]>([]);
-  // The capsule we're building across multiple pages
   const [activeCapsuleId, setActiveCapsuleId] = useState<string | null>(null);
-  // Feedback flash after each shot
   const [justCaptured, setJustCaptured] = useState(false);
 
   const cameraRef = useRef<CameraView>(null);
@@ -69,20 +70,63 @@ export default function CaptureScreen({ navigation, route }: Props) {
 
   const { coords: gps, error: gpsError, isLoading: gpsLoading, refresh: refreshGps } = useGps();
   const { user } = useAuthStore();
+  const assignment = useAssignmentStore(s => s.assignment);
   const {
     session, isProcessing, error,
     setStation, setPosition, setGps,
     captureFirstPage, captureAdditionalPage, resetSession, clearError,
   } = useCaptureStore();
 
-  useEffect(() => { if (gps) setGps(gps); }, [gps]);
+  // ── Geofence validation ──────────────────────────────────────
+  const geofence = useGeofence(gps, session.station?.iebcCode ?? null);
 
+  // ── Derived: Is agent in assignment mode? ────────────────────
+  const hasAssignment = !!assignment && assignment.status === 'ACTIVE';
+  const assignedPositionCode = assignment?.election.positionCode ?? null;
+  const assignedPositionLabel = assignment?.election.positionLabel ?? null;
+  const assignedElectionName = assignment?.election.electionName ?? null;
+  const assignedStations = assignment?.stations ?? [];
+
+  // Auto-set position from assignment
+  useEffect(() => {
+    if (hasAssignment && assignedPositionCode && session.positionCode !== assignedPositionCode) {
+      setPosition(assignedPositionCode);
+    }
+  }, [hasAssignment, assignedPositionCode]);
+
+  useEffect(() => { if (gps) setGps(gps); }, [gps]);
   useFocusEffect(useCallback(() => { refreshGps(); }, []));
 
-  // ── Shoot handler — handles both first and additional pages ─
+  // ── Positions to show based on assignment ────────────────────
+  const availablePositions: { code: PositionCode; label: string }[] = hasAssignment
+    ? [{ code: assignedPositionCode!, label: assignedPositionLabel! }]
+    : ALL_POSITIONS;
+
+  // ── Geofence banner color ────────────────────────────────────
+  const getGeofenceBannerStyle = (status: GeofenceStatus) => {
+    switch (status) {
+      case 'WITHIN_RANGE':   return styles.geoBannerGreen;
+      case 'WARNING':        return styles.geoBannerYellow;
+      case 'OUT_OF_RANGE':   return styles.geoBannerRed;
+      case 'NO_GPS':         return styles.geoBannerYellow;
+      case 'NO_STATION_GPS': return styles.geoBannerGreen;
+      case 'UNASSIGNED':     return styles.geoBannerGreen;
+    }
+  };
+
+  // ── Shoot handler ────────────────────────────────────────────
   const handleCapture = async () => {
     if (!cameraRef.current || !cameraReady) return;
     if (!user) { Alert.alert('Not authenticated', 'Please sign in again.'); return; }
+
+    // Geofence enforcement
+    if (!geofence.canProceed) {
+      Alert.alert(
+        'Location Blocked',
+        geofence.message + '\n\nYou must be at your assigned polling station to capture evidence.',
+      );
+      return;
+    }
 
     try {
       const photo = await cameraRef.current.takePictureAsync({
@@ -97,15 +141,12 @@ export default function CaptureScreen({ navigation, route }: Props) {
       setTimeout(() => setJustCaptured(false), 600);
 
       if (shotMode === 'FIRST') {
-        // Create the capsule with page 1
         const localId = await captureFirstPage(photo.uri, user.tenantId, user.userId);
         if (localId) {
           setActiveCapsuleId(localId);
           setThumbnails([photo.uri]);
-          // Stay in camera — user can add more pages OR dismiss
         }
       } else {
-        // Add page to existing capsule
         if (!activeCapsuleId) return;
         const ok = await captureAdditionalPage(activeCapsuleId, photo.uri);
         if (ok) {
@@ -120,7 +161,6 @@ export default function CaptureScreen({ navigation, route }: Props) {
   // ── Done — finalise and navigate to Review ──────────────────
   const handleDone = async () => {
     if (!activeCapsuleId) return;
-    // Enqueue the capsule for upload now that all pages are added
     await enqueueAndSync(activeCapsuleId);
     setCameraOpen(false);
     navigation.replace('Review', { localId: activeCapsuleId });
@@ -129,19 +169,49 @@ export default function CaptureScreen({ navigation, route }: Props) {
   // ── Add another page ────────────────────────────────────────
   const handleAddPage = async () => {
     if (!activeCapsuleId) return;
-
-    // Check page limit
     const capsule = await getCapsule(activeCapsuleId);
     const pageCount = capsule?.pages?.length ?? 1;
-
     if (pageCount >= MAX_PAGES) {
       Alert.alert('Maximum Pages', `A capsule can have at most ${MAX_PAGES} pages. Tap "Done" to submit.`);
       return;
     }
-
     setShotMode('ADDITIONAL');
     setCameraReady(false);
-    // Camera is already open — just switch mode and shoot
+  };
+
+  // ── Station selection (scoped to assignment) ─────────────────
+  const handleSelectStation = () => {
+    if (hasAssignment && assignedStations.length > 0) {
+      // Show only assigned stations — inline picker
+      Alert.alert(
+        'Select Your Station',
+        `You are assigned to ${assignedStations.length} station(s) for ${assignedElectionName}`,
+        [
+          ...assignedStations.slice(0, 8).map((station) => ({
+            text: `${station.name}${station.streamNumber ? ` (S${station.streamNumber})` : ''}`,
+            onPress: () => setStation({
+              iebcCode: station.iebcCode,
+              streamName: station.name,
+              centreName: station.centreName,
+              constituencyName: station.constituencyName,
+              registeredVoters: station.registeredVoters,
+              countyCode: station.countyCode,
+              countyName: station.countyName,
+              constituencyCode: station.constituencyCode,
+              wardCode: station.wardCode,
+              wardName: station.wardName,
+              centreCode: '',
+              latitude: station.latitude,
+              longitude: station.longitude,
+            }),
+          })),
+          { text: 'Cancel', style: 'cancel' },
+        ],
+      );
+    } else {
+      // Unassigned mode — use full search
+      navigation.navigate('StationSearch');
+    }
   };
 
   // ── Permissions ─────────────────────────────────────────────
@@ -194,12 +264,20 @@ export default function CaptureScreen({ navigation, route }: Props) {
                 📍 {session.station?.streamName ?? 'Unknown'}
               </Text>
               <Text style={styles.captureInfoSub}>
-                {session.positionCode} · {session.electionYear} · {pageLabel}
+                {session.positionCode} · {hasAssignment ? assignedElectionName : `General ${session.electionYear}`} · {pageLabel}
+              </Text>
+            </View>
+
+            {/* Geofence indicator in camera view */}
+            <View style={[styles.geoIndicator, getGeofenceBannerStyle(geofence.status)]}>
+              <Text style={styles.geoIndicatorText}>
+                {geofence.status === 'WITHIN_RANGE' ? '✓' : geofence.status === 'WARNING' ? '⚠' : '✕'}{' '}
+                {geofence.distanceMeters != null ? `${geofence.distanceMeters}m` : geofence.status}
               </Text>
             </View>
           </View>
 
-          {/* ── Thumbnail strip (shown after first shot) ── */}
+          {/* ── Thumbnail strip ───────────────────────── */}
           {isMultiPage && (
             <View style={styles.thumbnailStrip}>
               <FlatList
@@ -238,8 +316,6 @@ export default function CaptureScreen({ navigation, route }: Props) {
 
           {/* ── Bottom controls ───────────────────────── */}
           <View style={styles.cameraControls}>
-
-            {/* Left: Cancel or Done */}
             {isMultiPage ? (
               <TouchableOpacity style={styles.doneBtn} onPress={handleDone}>
                 <Text style={styles.doneBtnText}>✓ Done{'\n'}({pageCount}p)</Text>
@@ -253,11 +329,10 @@ export default function CaptureScreen({ navigation, route }: Props) {
               </TouchableOpacity>
             )}
 
-            {/* Centre: Shutter */}
             <TouchableOpacity
-              style={[styles.shutterBtn, (!cameraReady || isProcessing) && styles.shutterDisabled]}
+              style={[styles.shutterBtn, (!cameraReady || isProcessing || !geofence.canProceed) && styles.shutterDisabled]}
               onPress={handleCapture}
-              disabled={!cameraReady || isProcessing}
+              disabled={!cameraReady || isProcessing || !geofence.canProceed}
               accessibilityLabel="Take photo"
             >
               {isProcessing ? (
@@ -267,12 +342,8 @@ export default function CaptureScreen({ navigation, route }: Props) {
               )}
             </TouchableOpacity>
 
-            {/* Right: Add Page or spacer */}
             {isMultiPage && canAddMore ? (
-              <TouchableOpacity
-                style={styles.addPageBtn}
-                onPress={handleAddPage}
-              >
+              <TouchableOpacity style={styles.addPageBtn} onPress={handleAddPage}>
                 <Text style={styles.addPageBtnIcon}>+</Text>
                 <Text style={styles.addPageBtnText}>Page{'\n'}{pageCount + 1}</Text>
               </TouchableOpacity>
@@ -285,8 +356,8 @@ export default function CaptureScreen({ navigation, route }: Props) {
     );
   }
 
-  // ── Setup form (station + position + GPS) ────────────────────
-  const readyToCapture = Boolean(session.station && session.positionCode);
+  // ── Setup form (station + position + GPS + geofence) ─────────
+  const readyToCapture = Boolean(session.station && session.positionCode && geofence.canProceed);
 
   return (
     <ScrollView
@@ -299,7 +370,22 @@ export default function CaptureScreen({ navigation, route }: Props) {
       keyboardShouldPersistTaps="handled"
     >
       <Text style={styles.title}>Capture Evidence</Text>
-      <Text style={styles.subtitle}>Kenya General Election {session.electionYear}</Text>
+      <Text style={styles.subtitle}>
+        {hasAssignment ? assignedElectionName : `Kenya General Election ${session.electionYear}`}
+      </Text>
+
+      {/* Assignment scope banner */}
+      {hasAssignment && (
+        <View style={styles.scopeBanner}>
+          <Text style={styles.scopeBannerText}>
+            🔒 Scoped to: {assignedPositionLabel} — {assignment!.areaName}
+          </Text>
+          <Text style={styles.scopeBannerSub}>
+            {assignedStations.length} station(s) assigned · {assignment!.geofenceRadiusMeters}m geo-fence
+          </Text>
+        </View>
+      )}
+
       <Text style={styles.multiHint}>📄 Up to {MAX_PAGES} pages per capsule — capture front and back if needed</Text>
 
       {error ? <ErrorBanner message={error} onDismiss={clearError} /> : null}
@@ -316,39 +402,59 @@ export default function CaptureScreen({ navigation, route }: Props) {
             <Text style={styles.selectedVoters}>
               {session.station.registeredVoters.toLocaleString()} registered voters
             </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('StationSearch')} style={styles.changeLink}>
-              <Text style={styles.changeLinkText}>Change station →</Text>
+            <TouchableOpacity onPress={handleSelectStation} style={styles.changeLink}>
+              <Text style={styles.changeLinkText}>
+                {hasAssignment ? 'Change assigned station →' : 'Change station →'}
+              </Text>
             </TouchableOpacity>
           </View>
         ) : (
-          <TouchableOpacity style={styles.selectBtn} onPress={() => navigation.navigate('StationSearch')}>
-            <Text style={styles.selectBtnText}>📍  Select Polling Station</Text>
+          <TouchableOpacity style={styles.selectBtn} onPress={handleSelectStation}>
+            <Text style={styles.selectBtnText}>
+              {hasAssignment
+                ? `📍  Select from ${assignedStations.length} assigned station(s)`
+                : '📍  Select Polling Station'
+              }
+            </Text>
           </TouchableOpacity>
         )}
       </Section>
 
-      {/* Position */}
+      {/* Position — single chip if assigned, grid if unassigned */}
       <Section title="Electoral Position">
-        <View style={styles.positionGrid}>
-          {POSITIONS.map((p) => {
-            const selected = session.positionCode === p.code;
-            return (
-              <TouchableOpacity
-                key={p.code}
-                style={[styles.positionChip, selected && styles.positionChipSelected]}
-                onPress={() => setPosition(p.code)}
-              >
-                <Text style={[styles.positionChipText, selected && styles.positionChipTextSelected]}>
-                  {p.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        {hasAssignment ? (
+          <View style={styles.positionLocked}>
+            <View style={[styles.positionChip, styles.positionChipSelected]}>
+              <Text style={[styles.positionChipText, styles.positionChipTextSelected]}>
+                {assignedPositionLabel}
+              </Text>
+            </View>
+            <Text style={styles.positionLockedHint}>
+              Position locked by assignment
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.positionGrid}>
+            {availablePositions.map((p) => {
+              const selected = session.positionCode === p.code;
+              return (
+                <TouchableOpacity
+                  key={p.code}
+                  style={[styles.positionChip, selected && styles.positionChipSelected]}
+                  onPress={() => setPosition(p.code)}
+                >
+                  <Text style={[styles.positionChipText, selected && styles.positionChipTextSelected]}>
+                    {p.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
       </Section>
 
-      {/* GPS */}
-      <Section title="GPS Location">
+      {/* GPS + Geofence */}
+      <Section title="GPS & Location Verification">
         <View style={styles.gpsRow}>
           {gpsLoading ? (
             <ActivityIndicator size="small" color="#3b82f6" />
@@ -368,8 +474,26 @@ export default function CaptureScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           )}
         </View>
+
+        {/* Geofence status banner */}
+        {session.station && geofence.status !== 'UNASSIGNED' && (
+          <View style={[styles.geofenceBanner, getGeofenceBannerStyle(geofence.status)]}>
+            <Text style={styles.geofenceIcon}>
+              {geofence.status === 'WITHIN_RANGE' ? '✓' :
+               geofence.status === 'WARNING' ? '⚠️' :
+               geofence.status === 'OUT_OF_RANGE' ? '✕' : 'ℹ'}
+            </Text>
+            <View style={styles.geofenceTextWrap}>
+              <Text style={styles.geofenceMessage}>{geofence.message}</Text>
+              {geofence.willServerReject && (
+                <Text style={styles.geofenceReject}>Server will reject this submission</Text>
+              )}
+            </View>
+          </View>
+        )}
       </Section>
 
+      {/* Readiness hint */}
       {!readyToCapture && (
         <View style={styles.hintBox}>
           <Text style={styles.hintText}>
@@ -377,20 +501,34 @@ export default function CaptureScreen({ navigation, route }: Props) {
               ? '① Select a polling station  ② Select an electoral position'
               : !session.station
               ? '① Select a polling station to continue'
-              : '② Select an electoral position to continue'}
+              : !session.positionCode
+              ? '② Select an electoral position to continue'
+              : !geofence.canProceed
+              ? '⚠️ Move closer to your assigned station to capture'
+              : ''}
           </Text>
         </View>
       )}
 
+      {/* Capture button — disabled if geofence fails */}
       <TouchableOpacity
-        style={[styles.captureBtn, !readyToCapture && styles.captureBtnDisabled]}
+        style={[
+          styles.captureBtn,
+          !readyToCapture && styles.captureBtnDisabled,
+          !geofence.canProceed && session.station && styles.captureBtnBlocked,
+        ]}
         onPress={() => { setCameraReady(false); setShotMode('FIRST'); setCameraOpen(true); }}
         disabled={!readyToCapture || isProcessing}
       >
         {isProcessing ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.captureBtnText}>📷  Open Camera</Text>
+          <Text style={styles.captureBtnText}>
+            {!geofence.canProceed && session.station
+              ? '🚫  Too Far From Station'
+              : '📷  Open Camera'
+            }
+          </Text>
         )}
       </TouchableOpacity>
     </ScrollView>
@@ -415,7 +553,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.35)',
     zIndex: 10,
   },
-  cameraTopBar: { paddingHorizontal: 16, paddingTop: 8 },
+  cameraTopBar: { paddingHorizontal: 16, paddingTop: 8, alignItems: 'center' },
   captureInfo: {
     alignSelf: 'center',
     backgroundColor: 'rgba(0,0,0,0.65)',
@@ -425,6 +563,20 @@ const styles = StyleSheet.create({
   },
   captureInfoText:  { color: '#f1f5f9', fontSize: 13, fontWeight: '600' },
   captureInfoSub:   { color: '#94a3b8', fontSize: 11, marginTop: 2 },
+
+  // Geo indicator (in-camera)
+  geoIndicator: {
+    marginTop: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    alignSelf: 'center',
+  },
+  geoIndicatorText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
+  },
 
   // Thumbnail strip
   thumbnailStrip: {
@@ -512,6 +664,28 @@ const styles = StyleSheet.create({
   // Setup form
   title:           { color: '#f1f5f9', fontSize: 22, fontWeight: '700' },
   subtitle:        { color: '#64748b', fontSize: 13, marginTop: 4, marginBottom: 4 },
+
+  // Scope banner
+  scopeBanner: {
+    backgroundColor: '#0f2d1e',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#166534',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  scopeBannerText: {
+    color: '#86efac',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  scopeBannerSub: {
+    color: '#4ade80',
+    fontSize: 11,
+    marginTop: 2,
+  },
+
   multiHint: {
     color: '#1d4ed8',
     backgroundColor: '#eff6ff',
@@ -534,6 +708,8 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#334155', borderStyle: 'dashed', alignItems: 'center',
   },
   selectBtnText:    { color: '#94a3b8', fontSize: 15 },
+
+  // Position
   positionGrid:     { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   positionChip: {
     backgroundColor: '#1e293b', borderRadius: 20,
@@ -543,14 +719,58 @@ const styles = StyleSheet.create({
   positionChipSelected:     { backgroundColor: '#3b82f6', borderColor: '#3b82f6' },
   positionChipText:         { color: '#94a3b8', fontSize: 14 },
   positionChipTextSelected: { color: '#fff', fontWeight: '600' },
+  positionLocked: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  positionLockedHint: {
+    color: '#64748b',
+    fontSize: 12,
+    fontStyle: 'italic',
+  },
+
+  // GPS
   gpsRow:           { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#1e293b', borderRadius: 8, padding: 12 },
   gpsDot:           { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
   gpsText:          { color: '#94a3b8', fontSize: 12, flex: 1, lineHeight: 17 },
   gpsRetryBtn:      { backgroundColor: '#1e3a5f', borderRadius: 6, paddingHorizontal: 10, paddingVertical: 4 },
   gpsRetryText:     { color: '#60a5fa', fontSize: 12 },
+
+  // Geofence banner (setup form)
+  geofenceBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginTop: 10,
+    borderRadius: 8,
+    padding: 12,
+  },
+  geoBannerGreen:  { backgroundColor: '#052e16', borderWidth: 1, borderColor: '#166534' },
+  geoBannerYellow: { backgroundColor: '#422006', borderWidth: 1, borderColor: '#854d0e' },
+  geoBannerRed:    { backgroundColor: '#450a0a', borderWidth: 1, borderColor: '#991b1b' },
+  geofenceIcon: {
+    fontSize: 16,
+    marginTop: 1,
+  },
+  geofenceTextWrap: { flex: 1 },
+  geofenceMessage: {
+    color: '#e2e8f0',
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  geofenceReject: {
+    color: '#fca5a5',
+    fontSize: 11,
+    marginTop: 3,
+    fontWeight: '600',
+  },
+
+  // Hints & capture button
   hintBox:          { backgroundColor: '#1c2a1c', borderRadius: 8, padding: 12, marginBottom: 16, borderLeftWidth: 3, borderLeftColor: '#22c55e' },
   hintText:         { color: '#86efac', fontSize: 13, lineHeight: 18 },
   captureBtn:       { backgroundColor: '#3b82f6', borderRadius: 10, padding: 17, alignItems: 'center', marginTop: 8 },
   captureBtnDisabled: { backgroundColor: '#1e293b', borderWidth: 1, borderColor: '#334155' },
+  captureBtnBlocked:  { backgroundColor: '#450a0a', borderWidth: 1, borderColor: '#991b1b' },
   captureBtnText:   { color: '#fff', fontSize: 16, fontWeight: '600' },
 });

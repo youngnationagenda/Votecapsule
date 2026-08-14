@@ -1,12 +1,13 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, MapPin, BarChart3, TrendingUp, Image, Bell, Download, Users, CreditCard, LogOut, Menu, ChevronLeft, User } from 'lucide-react';
+import { LayoutDashboard, MapPin, BarChart3, TrendingUp, Image, Bell, Download, Users, CreditCard, LogOut, Menu, ChevronLeft, User, Flag } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { toggleSidebar } from '../store/slices/uiSlice';
 import { logout } from '../store/slices/authSlice';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'My Dashboard' },
+  { to: '/nomination', icon: Flag, label: 'Nomination & Party' },
   { to: '/region', icon: MapPin, label: 'Assigned Region' },
   { to: '/live-results', icon: BarChart3, label: 'Live Results' },
   { to: '/stations', icon: TrendingUp, label: 'Station Progress' },

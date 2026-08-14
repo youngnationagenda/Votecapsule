@@ -3,6 +3,15 @@
  *
  * Business logic for tenant management.
  * Tenants are organizations that use the Vote Capsule platform.
+ *
+ * Extended 2026-08-12 by Sonie:
+ *  - updateSettingsJsonbKey()   — atomic JSONB sub-key merge
+ *  - addOfficial()              — append to officials array
+ *  - updateOfficial()           — update officials[index]
+ *  - removeOfficial()           — splice officials[index]
+ *  - updateLogoUrl()            — update top-level logo_url column
+ *  - getNominationLimits()      — read from tenant_nomination_limits
+ *  - updateNominationLimits()   — upsert tenant_nomination_limits
  */
 
 import {
@@ -37,11 +46,22 @@ export interface Tenant {
   deletedAt: Date | null;
 }
 
+export interface NominationLimits {
+  maxNominations: number;
+  maxCandidatesPerNomination: number;
+  allowedPositions: string[];
+  canRunNominations: boolean;
+}
+
 @Injectable()
 export class TenantsService {
   private readonly logger = new Logger(TenantsService.name);
 
   constructor(@Inject(DATABASE_POOL) private readonly db: Pool) {}
+
+  // ─────────────────────────────────────────────────────────────
+  // Core CRUD
+  // ─────────────────────────────────────────────────────────────
 
   async findAll(query: PaginationQuery): Promise<PaginatedResponse<Tenant>> {
     const page = query.page ?? 1;
@@ -225,6 +245,201 @@ export class TenantsService {
     }
     return stats;
   }
+
+  // ─────────────────────────────────────────────────────────────
+  // JSONB settings helpers (Party KYC / Branding / Social Media)
+  // ─────────────────────────────────────────────────────────────
+
+  /**
+   * Atomically merges `data` into a top-level key of `tenants.settings` JSONB.
+   * Example: updateSettingsJsonbKey(id, 'kyc', { phone: '+254...' })
+   * ⟹  settings = jsonb_set(settings, '{kyc}', settings->'kyc' || '{"phone":"..."}')
+   */
+  async updateSettingsJsonbKey(
+    tenantId: string,
+    key: string,
+    data: Record<string, unknown>,
+  ): Promise<Tenant> {
+    const tenant = await this.findById(tenantId);
+    if (!tenant) throw new NotFoundException(`Tenant ${tenantId} not found`);
+
+    await this.db.query(
+      `UPDATE tenants
+       SET settings = jsonb_set(
+             COALESCE(settings, '{}'::jsonb),
+             $2::text[],
+             COALESCE(settings->$3, '{}'::jsonb) || $4::jsonb
+           ),
+           updated_at = NOW()
+       WHERE id = $1`,
+      [tenantId, `{${key}}`, key, JSON.stringify(data)],
+    );
+
+    const updated = await this.findById(tenantId);
+    return updated!;
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Officials CRUD
+  // ─────────────────────────────────────────────────────────────
+
+  async addOfficial(tenantId: string, official: Record<string, unknown>): Promise<Tenant> {
+    const tenant = await this.findById(tenantId);
+    if (!tenant) throw new NotFoundException(`Tenant ${tenantId} not found`);
+
+    await this.db.query(
+      `UPDATE tenants
+       SET settings = jsonb_set(
+             COALESCE(settings, '{}'::jsonb),
+             '{officials}',
+             COALESCE(settings->'officials', '[]'::jsonb) || $2::jsonb
+           ),
+           updated_at = NOW()
+       WHERE id = $1`,
+      [tenantId, JSON.stringify(official)],
+    );
+
+    const updated = await this.findById(tenantId);
+    return updated!;
+  }
+
+  async updateOfficial(
+    tenantId: string,
+    index: number,
+    data: Record<string, unknown>,
+  ): Promise<Tenant> {
+    const tenant = await this.findById(tenantId);
+    if (!tenant) throw new NotFoundException(`Tenant ${tenantId} not found`);
+
+    const officials = (tenant.settings['officials'] as unknown[]) ?? [];
+    if (index >= officials.length) {
+      throw new NotFoundException(`Official at index ${index} does not exist`);
+    }
+
+    await this.db.query(
+      `UPDATE tenants
+       SET settings = jsonb_set(
+             settings,
+             $2::text[],
+             (settings->'officials'->$3::int) || $4::jsonb
+           ),
+           updated_at = NOW()
+       WHERE id = $1`,
+      [tenantId, `{officials,${index}}`, index, JSON.stringify(data)],
+    );
+
+    const updated = await this.findById(tenantId);
+    return updated!;
+  }
+
+  async removeOfficial(tenantId: string, index: number): Promise<void> {
+    const tenant = await this.findById(tenantId);
+    if (!tenant) throw new NotFoundException(`Tenant ${tenantId} not found`);
+
+    const officials = (tenant.settings['officials'] as unknown[]) ?? [];
+    if (index >= officials.length) {
+      throw new NotFoundException(`Official at index ${index} does not exist`);
+    }
+
+    // PostgreSQL jsonb array element removal: (array) - index
+    await this.db.query(
+      `UPDATE tenants
+       SET settings = jsonb_set(
+             settings,
+             '{officials}',
+             (settings->'officials') - $2
+           ),
+           updated_at = NOW()
+       WHERE id = $1`,
+      [tenantId, index],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Logo URL helper (updates top-level column)
+  // ─────────────────────────────────────────────────────────────
+
+  async updateLogoUrl(tenantId: string, url: string): Promise<void> {
+    await this.db.query(
+      'UPDATE tenants SET logo_url = $2, updated_at = NOW() WHERE id = $1',
+      [tenantId, url],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Nomination Limits (Task 8)
+  // ─────────────────────────────────────────────────────────────
+
+  async getNominationLimits(tenantId: string): Promise<NominationLimits> {
+    const result = await this.db.query<{
+      max_nominations: number;
+      max_candidates_per_nomination: number;
+      allowed_positions: string[];
+      can_run_nominations: boolean;
+    }>(
+      `SELECT max_nominations, max_candidates_per_nomination,
+              allowed_positions, can_run_nominations
+       FROM tenant_nomination_limits
+       WHERE tenant_id = $1`,
+      [tenantId],
+    );
+
+    const row = result.rows[0];
+    if (!row) {
+      // Return safe defaults if no row exists
+      return {
+        maxNominations: 50,
+        maxCandidatesPerNomination: 6,
+        allowedPositions: [],
+        canRunNominations: true,
+      };
+    }
+
+    return {
+      maxNominations: row.max_nominations,
+      maxCandidatesPerNomination: row.max_candidates_per_nomination,
+      allowedPositions: row.allowed_positions ?? [],
+      canRunNominations: row.can_run_nominations,
+    };
+  }
+
+  async updateNominationLimits(
+    tenantId: string,
+    data: {
+      maxNominations?: number;
+      maxCandidatesPerNomination?: number;
+      allowedPositions?: string[];
+      canRunNominations?: boolean;
+    },
+  ): Promise<NominationLimits> {
+    const tenant = await this.findById(tenantId);
+    if (!tenant) throw new NotFoundException(`Tenant ${tenantId} not found`);
+
+    await this.db.query(
+      `INSERT INTO tenant_nomination_limits
+         (tenant_id, max_nominations, max_candidates_per_nomination, allowed_positions, can_run_nominations)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (tenant_id) DO UPDATE SET
+         max_nominations               = COALESCE($2, tenant_nomination_limits.max_nominations),
+         max_candidates_per_nomination = COALESCE($3, tenant_nomination_limits.max_candidates_per_nomination),
+         allowed_positions             = COALESCE($4, tenant_nomination_limits.allowed_positions),
+         can_run_nominations           = COALESCE($5, tenant_nomination_limits.can_run_nominations),
+         updated_at                    = NOW()`,
+      [
+        tenantId,
+        data.maxNominations ?? null,
+        data.maxCandidatesPerNomination ?? null,
+        data.allowedPositions ?? null,
+        data.canRunNominations ?? null,
+      ],
+    );
+
+    return this.getNominationLimits(tenantId);
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // Private helpers
+  // ─────────────────────────────────────────────────────────────
 
   private generateSlug(name: string, proposedSlug?: string): string {
     if (proposedSlug) {

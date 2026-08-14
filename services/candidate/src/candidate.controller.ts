@@ -9,7 +9,7 @@
 // Geography Service resolves names on demand.
 // ============================================================
 import {
-  Controller, Get, Post, Patch, Param, Body, Query,
+  Controller, Get, Post, Patch, Delete, Param, Body, Query,
   Headers, HttpCode, HttpStatus, ParseUUIDPipe,
   BadRequestException, Logger,
 } from '@nestjs/common';
@@ -648,5 +648,119 @@ export class CandidateController {
   @Get('stats')
   async getStats(@Query('electionId') electionId?: string) {
     return this.service.getStats(electionId);
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  NOMINATION DISPUTES (Task 9)
+  //
+  //  Party admins file disputes against nomination elections.
+  //  Super admins review and resolve disputes.
+  //  Evidence URLs can be attached after filing.
+  // ══════════════════════════════════════════════════════════
+
+  /**
+   * POST /candidates/nominations/disputes
+   * File a dispute against a nomination election.
+   * Header: X-Tenant-Id (filing party), X-User-Id
+   */
+  @Post('nominations/disputes')
+  @HttpCode(HttpStatus.CREATED)
+  async fileDispute(
+    @Body() body: {
+      nominationElectionId: string;
+      againstCandidateId?: string;
+      againstCandidateName?: string;
+      filedByName?: string;
+      category: 'RIGGING' | 'BRIBERY' | 'VIOLENCE' | 'ELIGIBILITY' | 'PROCESS' | 'GENDER_RULE' | 'OTHER';
+      description: string;
+    },
+    @Headers('x-tenant-id') tenantId: string,
+    @Headers('x-user-id') userId: string,
+  ) {
+    if (!tenantId) throw new BadRequestException('X-Tenant-Id header is required');
+    if (!userId) throw new BadRequestException('X-User-Id header is required');
+    if (!body.nominationElectionId) throw new BadRequestException('nominationElectionId is required');
+    if (!body.category) throw new BadRequestException('category is required');
+    if (!body.description) throw new BadRequestException('description is required');
+    return this.service.fileNominationDispute({ ...body, tenantId, filedBy: userId });
+  }
+
+  /**
+   * GET /candidates/nominations/disputes
+   * List disputes. Filter by tenantId (party admin sees own, super admin sees all).
+   * Query: tenantId, status, nominationElectionId
+   */
+  @Get('nominations/disputes')
+  async listDisputes(
+    @Query('tenantId') tenantId?: string,
+    @Query('status') status?: string,
+    @Query('nominationElectionId') nominationElectionId?: string,
+    @Headers('x-tenant-id') headerTenantId?: string,
+  ) {
+    const effectiveTenantId = tenantId ?? headerTenantId;
+    return this.service.listNominationDisputes({ tenantId: effectiveTenantId, status, nominationElectionId });
+  }
+
+  /**
+   * GET /candidates/nominations/disputes/:id
+   * Get a single dispute by ID.
+   */
+  @Get('nominations/disputes/:id')
+  async getDispute(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.getNominationDispute(id);
+  }
+
+  /**
+   * PATCH /candidates/nominations/disputes/:id
+   * Update dispute status and/or resolution. Super admin only.
+   * Header: X-User-Id (resolver)
+   */
+  @Patch('nominations/disputes/:id')
+  async updateDispute(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: {
+      status?: 'FILED' | 'UNDER_REVIEW' | 'EVIDENCE' | 'HEARING' | 'RESOLVED' | 'DISMISSED';
+      resolution?: string;
+    },
+    @Headers('x-user-id') userId: string,
+  ) {
+    if (!userId) throw new BadRequestException('X-User-Id header is required');
+    return this.service.updateNominationDispute(id, { ...body, resolvedBy: userId });
+  }
+
+  /**
+   * POST /candidates/nominations/disputes/:id/evidence
+   * Attach an evidence file URL to a dispute.
+   * Header: X-Tenant-Id, X-User-Id
+   */
+  @Post('nominations/disputes/:id/evidence')
+  @HttpCode(HttpStatus.OK)
+  async addDisputeEvidence(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('url') url: string,
+    @Headers('x-tenant-id') tenantId: string,
+    @Headers('x-user-id') userId: string,
+  ) {
+    if (!url) throw new BadRequestException('url is required in body');
+    if (!tenantId) throw new BadRequestException('X-Tenant-Id header is required');
+    if (!userId) throw new BadRequestException('X-User-Id header is required');
+    return this.service.addDisputeEvidence(id, url, tenantId);
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  CANDIDATE-PARTY BRIDGE (Task 10)
+  //
+  //  Returns nomination history for a promoted candidate.
+  //  Used by Candidate Portal to display nomination origin card.
+  // ══════════════════════════════════════════════════════════
+
+  /**
+   * GET /candidates/:id/nomination-origin
+   * Returns the nomination election history for a promoted candidate.
+   * Returns null if candidate was directly sponsored (no nomination election).
+   */
+  @Get(':id/nomination-origin')
+  async getNominationOrigin(@Param('id', ParseUUIDPipe) id: string) {
+    return this.service.getCandidateNominationOrigin(id);
   }
 }

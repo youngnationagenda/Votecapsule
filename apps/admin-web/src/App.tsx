@@ -27,6 +27,9 @@ const TenantCreatePage       = lazy(() => import('./pages/TenantCreatePage').the
 const TenantMembersPage      = lazy(() => import('./pages/TenantMembersPage').then(m => ({ default: m.TenantMembersPage })));
 const TenantSubscriptionPage = lazy(() => import('./pages/TenantSubscriptionPage').then(m => ({ default: m.TenantSubscriptionPage })));
 
+// Party management
+const PartyManagementPage    = lazy(() => import('./pages/PartyManagementPage').then(m => ({ default: m.PartyManagementPage })));
+
 // User management
 const UsersPage              = lazy(() => import('./pages/UsersPage').then(m => ({ default: m.UsersPage })));
 const UserDetailPage         = lazy(() => import('./pages/UserDetailPage').then(m => ({ default: m.UserDetailPage })));
@@ -141,6 +144,11 @@ export default function App(): React.JSX.Element {
           } />
           <Route path="/tenants/:id/subscription" element={
             <Suspense fallback={<PageLoader />}><TenantSubscriptionPage /></Suspense>
+          } />
+
+          {/* Parties */}
+          <Route path="/parties" element={
+            <Suspense fallback={<PageLoader />}><PartyManagementPage /></Suspense>
           } />
 
           {/* Users */}

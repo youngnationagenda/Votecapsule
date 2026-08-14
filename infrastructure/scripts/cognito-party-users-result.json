@@ -1,0 +1,394 @@
+{
+  "timestamp": "2026-08-12T02:13:41.298Z",
+  "poolId": "us-east-1_i3N2tg34A",
+  "total": 98,
+  "created": 2,
+  "skipped": 0,
+  "failed": 96,
+  "failures": [
+    {
+      "email": "plp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "nvp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "lpk@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "tdu@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "pick@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "dep@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "knc@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "mgp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "kmm@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "wpf@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "dp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "pnu@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "uda@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "anp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "ksc@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "odm@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "ppk@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "ford-kenya@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "ppok@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "jp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "mdp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "narc@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "kadu-asili@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "kpp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "cpk@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "kanu@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "safina@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "ccu@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "nap-k@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "pep@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "pdp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "tnd@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "udm@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "spk@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "pdu@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "ump@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "upia@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "fp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "efp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "fpk@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "mp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "tnp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "j-mapk@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "ccm@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "afc@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "ford@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "rlp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "rpk@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "vdp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "upf@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "anc@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "dpk@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "udp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "krp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "ptp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "mccp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "dc@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "ldp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "gck@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "nlp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "mdg@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "alp-k@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "up@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "elp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "take@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "jfp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "gddp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "ugm@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "ukw@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "upa@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "tsp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "nopeu@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "nra@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "dap-k@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "ppd@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "jibebe@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "kup@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "dna@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "paa@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "mapk@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "epp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "pgp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "gtap@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "ndep@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "ucp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "uup@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "cymk@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "tep@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "twap@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "dcp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "nedp@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "pm@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "kug@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "pfrd@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password must have lowercase characters"
+    },
+    {
+      "email": "mup@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    },
+    {
+      "email": "upm@votecapsule.co.ke",
+      "error": "aws: [ERROR]: An error occurred (InvalidPasswordException) when calling the AdminCreateUser operation: Password did not conform with password policy: Password not long enough"
+    }
+  ]
+}
