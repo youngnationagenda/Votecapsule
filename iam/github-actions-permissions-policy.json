@@ -1,0 +1,89 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "S3PortalBucketList",
+      "Effect": "Allow",
+      "Action": [
+        "s3:ListBucket",
+        "s3:GetBucketLocation"
+      ],
+      "Resource": [
+        "arn:aws:s3:::vote-capsule-landing-web-683541453923",
+        "arn:aws:s3:::vote-capsule-public-web-683541453923",
+        "arn:aws:s3:::vote-capsule-transparency-portal-683541453923",
+        "arn:aws:s3:::vote-capsule-authority-portal-683541453923",
+        "arn:aws:s3:::vote-capsule-party-portal-683541453923",
+        "arn:aws:s3:::vote-capsule-candidate-portal-683541453923",
+        "arn:aws:s3:::vote-capsule-observer-portal-683541453923"
+      ]
+    },
+    {
+      "Sid": "S3PortalObjectOps",
+      "Effect": "Allow",
+      "Action": [
+        "s3:PutObject",
+        "s3:GetObject",
+        "s3:DeleteObject",
+        "s3:PutObjectAcl"
+      ],
+      "Resource": [
+        "arn:aws:s3:::vote-capsule-landing-web-683541453923/*",
+        "arn:aws:s3:::vote-capsule-public-web-683541453923/*",
+        "arn:aws:s3:::vote-capsule-transparency-portal-683541453923/*",
+        "arn:aws:s3:::vote-capsule-authority-portal-683541453923/*",
+        "arn:aws:s3:::vote-capsule-party-portal-683541453923/*",
+        "arn:aws:s3:::vote-capsule-candidate-portal-683541453923/*",
+        "arn:aws:s3:::vote-capsule-observer-portal-683541453923/*"
+      ]
+    },
+    {
+      "Sid": "S3BucketManagement",
+      "Effect": "Allow",
+      "Action": [
+        "s3:CreateBucket",
+        "s3:PutBucketPolicy",
+        "s3:PutBucketWebsite",
+        "s3:PutPublicAccessBlock",
+        "s3:GetBucketPolicy"
+      ],
+      "Resource": [
+        "arn:aws:s3:::vote-capsule-*-683541453923"
+      ]
+    },
+    {
+      "Sid": "CloudFrontInvalidation",
+      "Effect": "Allow",
+      "Action": [
+        "cloudfront:CreateInvalidation",
+        "cloudfront:GetDistribution",
+        "cloudfront:GetDistributionConfig",
+        "cloudfront:UpdateDistribution"
+      ],
+      "Resource": [
+        "arn:aws:cloudfront::683541453923:distribution/E2J8YA2BP1UC1H",
+        "arn:aws:cloudfront::683541453923:distribution/E18OX8YUDVZA5V",
+        "arn:aws:cloudfront::683541453923:distribution/E1Z32G6YW54GHT",
+        "arn:aws:cloudfront::683541453923:distribution/E2K6MDXEZZ7UYS",
+        "arn:aws:cloudfront::683541453923:distribution/E1O4XZRM79VCJ1",
+        "arn:aws:cloudfront::683541453923:distribution/EZEXQ23EU9E55",
+        "arn:aws:cloudfront::683541453923:distribution/E1V2ZCAIR6N7D0"
+      ]
+    },
+    {
+      "Sid": "ECRPushPull",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:GetAuthorizationToken",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage",
+        "ecr:PutImage",
+        "ecr:InitiateLayerUpload",
+        "ecr:UploadLayerPart",
+        "ecr:CompleteLayerUpload"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
