@@ -17,22 +17,22 @@ Multi-tenant SaaS: Election Authorities, Political Parties, Candidates, Observer
 - **AI:** AWS Bedrock — Claude Sonnet 4.5 (`us.anthropic.claude-sonnet-4-5-20250929-v1:0`)
 - **Monorepo:** pnpm workspaces + turbo
 
-## Services (ports 3001–3013)
-| Port | Service      | Purpose                                                   |
-|------|--------------|-----------------------------------------------------------|
-| 3001 | identity     | Auth, users, roles, sessions (Redis)                      |
-| 3002 | evidence     | Capsule upload, SHA-256 integrity, tally validation       |
-| 3003 | trust        | Hedera + RFC 3161 dual anchoring, Merkle trees            |
-| 3004 | geography    | NEC polling station data (46,030 stations)                |
-| 3005 | candidate    | Registration, nomination, approval workflow               |
-| 3006 | election     | Election lifecycle, positions, registered voters          |
-| 3007 | notification | FCM Push, SES Email, SNS SMS, templates                   |
-| 3008 | reporting    | Result snapshots, publication, CSV/PDF export             |
-| 3009 | workflow     | Step Functions orchestration, SLA monitoring              |
-| 3010 | ai           | Textract OCR, NEC validation, confidence scoring          |
-| 3011 | tenant       | Multi-tenant management, settings                         |
-| 3012 | audit        | Immutable audit trail for all operations                  |
-| 3013 | billing      | Subscriptions, usage metering, invoicing                  |
+## Services (ports 3001–3013) — ALL LIVE ON ECS ✅
+| Port | Service      | Purpose                                                   | ECS          |
+|------|--------------|-----------------------------------------------------------|--------------|
+| 3001 | identity     | Auth, users, roles, sessions (Redis), assignments API     | 2/2 running  |
+| 3002 | evidence     | Capsule upload, SHA-256 integrity, tally, geo-validation  | 2/2 running  |
+| 3003 | trust        | Hedera + RFC 3161 dual anchoring, Merkle trees            | 1/1 running  |
+| 3004 | geography    | NEC polling station data (45,805 stations)                | 2/2 running  |
+| 3005 | candidate    | Registration, nomination, disputes, approval workflow     | 1/1 running  |
+| 3006 | election     | Election lifecycle, positions, registered voters          | 2/2 running  |
+| 3007 | notification | FCM Push, SES Email, SNS SMS, templates, demo-request     | 1/1 running  |
+| 3008 | reporting    | Result snapshots, publication, CSV/PDF export             | 1/1 running  |
+| 3009 | workflow     | Step Functions orchestration, SLA monitoring              | 1/1 running  |
+| 3010 | ai           | Textract OCR, NEC validation, confidence scoring          | 1/1 running  |
+| 3011 | tenant       | Multi-tenant mgmt, KYC endpoints, S3 upload, nom limits   | 1/1 running  |
+| 3012 | audit        | Immutable audit trail for all operations                  | 1/1 running  |
+| 3013 | billing      | Subscriptions, custom pricing, invoicing, billing plans   | 1/1 running  |
 
 ## Commands
 ```bash
@@ -69,9 +69,12 @@ pnpm turbo build
 8. **Migrations are immutable** — never edit `database/migrations/` files that have already been applied
 
 ## Database
-- 128 SQL migrations in `packages/database/migrations/`
-- NEC data: 47 counties, 290 constituencies, 1,450 wards, 46,030 polling stations
-- 22M registered voters loaded from IEBC open data
+- **157 SQL migrations** in `packages/database/migrations/` (migrations 1–133 + NEC migrations all applied)
+- NEC data: 49 counties, 292 constituencies, 1,448 wards, 45,805 polling stations
+- 22,102,532 registered voters loaded from IEBC open data
+- 100 political party tenants seeded (98 ORPP-registered + IEBC + admin)
+- 16 roles, 144 permissions, 29 role_permissions seeded
+- 4 active billing plans: candidate, party, observer, authority
 
 ## Key Patterns
 - **Capsule lifecycle:** DRAFT → CAPTURED → QUEUED → UPLOADING → UPLOADED → APPROVED → ANCHORED → PUBLISHED
