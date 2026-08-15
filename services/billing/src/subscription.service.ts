@@ -44,8 +44,9 @@ export class SubscriptionService {
     // Calculate the agreed price
     const agreedPrice = dto.customPrice
       ?? dto.lumpSumAmount
-      ?? (dto.pricePerStation && dto.stationCount ? dto.pricePerStation * dto.stationCount : 0)
-      ?? plan.priceMonthly;
+      ?? (dto.pricePerStation && dto.stationCount
+        ? dto.pricePerStation * dto.stationCount
+        : plan.priceMonthly);
 
     const subscription = this.subRepo.create({
       tenantId: dto.tenantId,
@@ -144,7 +145,7 @@ export class SubscriptionService {
   }
 
   /** Generate unique invoice number: VC-YYYYMMDD-XXXX */
-  private generateInvoiceNumber(tenantId: string): string {
+  private generateInvoiceNumber(_tenantId: string): string {
     const d = new Date();
     const dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
     const rand = Math.random().toString(36).substring(2, 6).toUpperCase();

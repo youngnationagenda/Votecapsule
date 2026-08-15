@@ -2,7 +2,7 @@
 // VoteCapsule — SubscriptionController
 // REST endpoints for tenant subscriptions
 // ============================================================
-import { Controller, Get, Post, Put, Param, Body, Query } from '@nestjs/common';
+import { Controller, Get, Post, Put, Param, Body } from '@nestjs/common';
 import { SubscriptionService } from '../subscription.service';
 import { CreateSubscriptionDto, UpdateSubscriptionDto } from '../dto';
 
