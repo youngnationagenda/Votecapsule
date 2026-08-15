@@ -64,6 +64,34 @@ export class InvoiceService {
     return this.invoiceRepo.save(invoice);
   }
 
+  /** Find all invoices (admin view — no tenant filter) */
+  async findAll(
+    query: QueryInvoicesDto,
+  ): Promise<{ data: Invoice[]; total: number; page: number; limit: number }> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 50;
+
+    const qb = this.invoiceRepo.createQueryBuilder('invoice')
+      .leftJoinAndSelect('invoice.items', 'items');
+
+    if (query.status) {
+      qb.andWhere('invoice.status = :status', { status: query.status });
+    }
+    if (query.dateFrom) {
+      qb.andWhere('invoice.created_at >= :dateFrom', { dateFrom: query.dateFrom });
+    }
+    if (query.dateTo) {
+      qb.andWhere('invoice.created_at <= :dateTo', { dateTo: query.dateTo });
+    }
+
+    qb.orderBy('invoice.created_at', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit);
+
+    const [data, total] = await qb.getManyAndCount();
+    return { data, total, page, limit };
+  }
+
   /** Paginated invoice query for a tenant */
   async findByTenant(
     tenantId: string,

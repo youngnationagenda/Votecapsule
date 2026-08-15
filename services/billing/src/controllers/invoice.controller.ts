@@ -25,7 +25,8 @@ export class InvoiceController {
   @Get()
   findAll(@Query() query: QueryInvoicesDto) {
     if (!query.tenantId) {
-      return { data: [], total: 0, page: 1, limit: 20 };
+      // Admin view: return all invoices
+      return this.invoiceService.findAll(query);
     }
     return this.invoiceService.findByTenant(query.tenantId, query);
   }

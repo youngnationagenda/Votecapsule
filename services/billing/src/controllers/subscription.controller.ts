@@ -2,7 +2,7 @@
 // VoteCapsule — SubscriptionController
 // REST endpoints for tenant subscriptions
 // ============================================================
-import { Controller, Get, Post, Put, Param, Body } from '@nestjs/common';
+import { Controller, Get, Post, Put, Param, Body, Query } from '@nestjs/common';
 import { SubscriptionService } from '../subscription.service';
 import { CreateSubscriptionDto, UpdateSubscriptionDto } from '../dto';
 
@@ -15,7 +15,13 @@ export class SubscriptionController {
     return { status: 'ok', service: 'billing', timestamp: new Date().toISOString() };
   }
 
-  /** POST /subscriptions — create subscription */
+  /** GET /subscriptions — list all subscriptions (admin view) */
+  @Get()
+  findAll() {
+    return this.subscriptionService.findAll();
+  }
+
+  /** POST /subscriptions — create subscription with custom pricing */
   @Post()
   create(@Body() dto: CreateSubscriptionDto) {
     return this.subscriptionService.create(dto);
@@ -30,8 +36,6 @@ export class SubscriptionController {
   /**
    * GET /subscriptions/tenant/:tenantId/active
    * Returns { active: boolean, planName?: string, status?: string }
-   * Used by other services to check subscription status before allowing key actions.
-   * Returns 200 always — callers check the `active` field.
    */
   @Get('tenant/:tenantId/active')
   async checkActive(@Param('tenantId') tenantId: string) {
@@ -44,8 +48,11 @@ export class SubscriptionController {
       tenantId,
       subscriptionId: sub.id,
       planId:         sub.planId,
+      planCode:       sub.plan?.code,
+      planName:       sub.plan?.name,
       status:         sub.status,
       currentPeriodEnd: sub.currentPeriodEnd,
+      metadata:       sub.metadata,
     };
   }
 
