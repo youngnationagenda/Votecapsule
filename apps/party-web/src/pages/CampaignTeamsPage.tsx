@@ -1,0 +1,273 @@
+// ============================================================
+// VoteCapsule™ — Campaign Teams & Volunteers (Party Portal)
+// Phase 14A
+// ============================================================
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Users, UserPlus, Plus, X, MapPin, Phone, Award, Star } from 'lucide-react';
+import { campaignApi } from '../api/campaignApi';
+import { PageErrorBoundary } from '../components/PageErrorBoundary';
+
+const TRAINING_BADGE: Record<string, string> = {
+  not_trained: 'bg-gray-100 text-gray-600',
+  in_training: 'bg-amber-100 text-amber-700',
+  trained:     'bg-blue-100 text-blue-700',
+  certified:   'bg-emerald-100 text-emerald-700',
+};
+
+function CampaignTeamsContent(): React.JSX.Element {
+  const qc = useQueryClient();
+  const [tab, setTab]               = useState<'teams' | 'volunteers'>('teams');
+  const [showCreateTeam, setTeam]   = useState(false);
+  const [showAddVol, setVol]        = useState(false);
+  const [volFilter, setVolFilter]   = useState({ wardCode: '', status: '' });
+  const [teamForm, setTeamForm]     = useState({ teamName: '', teamType: 'GENERAL', wardCode: '', teamLeaderName: '' });
+  const [volForm, setVolForm]       = useState({ firstName: '', lastName: '', phone: '', wardCode: '', skills: '', consentGiven: false });
+
+  const { data: campaigns = [] } = useQuery({ queryKey: ['campaigns'], queryFn: () => campaignApi.list().then((r) => r.data?.data ?? r.data ?? []) });
+  const campaign = campaigns.find((c: any) => c.status === 'active') ?? campaigns[0];
+
+  const { data: teams = [] } = useQuery({
+    queryKey: ['campaign-teams', campaign?.id],
+    queryFn: () => campaign ? campaignApi.teams.list(campaign.id).then((r) => r.data?.data ?? r.data ?? []) : [],
+    enabled: !!campaign?.id,
+  });
+
+  const { data: volunteers = [] } = useQuery({
+    queryKey: ['campaign-volunteers', campaign?.id, volFilter],
+    queryFn: () => campaign ? campaignApi.volunteers.list(campaign.id, volFilter).then((r) => r.data?.data ?? r.data ?? []) : [],
+    enabled: !!campaign?.id,
+  });
+
+  const createTeamMut = useMutation({
+    mutationFn: () => campaignApi.teams.create(campaign.id, teamForm),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['campaign-teams'] }); setTeam(false); },
+  });
+
+  const registerVolMut = useMutation({
+    mutationFn: () => campaignApi.volunteers.register(campaign.id, { ...volForm, skills: volForm.skills.split(',').map((s) => s.trim()).filter(Boolean) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['campaign-volunteers'] }); setVol(false); },
+  });
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-gray-900">Teams & Volunteers</h2>
+          <p className="text-sm text-gray-500 mt-1">Manage your campaign team structure and volunteer registry</p>
+        </div>
+        <div className="flex gap-2">
+          {tab === 'teams' && (
+            <button onClick={() => setTeam(true)} className="vc-btn-primary inline-flex items-center gap-2 text-sm">
+              <Plus className="w-4 h-4" /> New Team
+            </button>
+          )}
+          {tab === 'volunteers' && (
+            <button onClick={() => setVol(true)} className="vc-btn-primary inline-flex items-center gap-2 text-sm">
+              <UserPlus className="w-4 h-4" /> Register Volunteer
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200 gap-6">
+        {[{ key: 'teams', label: 'Teams', icon: Users }, { key: 'volunteers', label: 'Volunteers', icon: UserPlus }].map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => setTab(key as any)}
+            className={`flex items-center gap-2 pb-3 text-sm font-medium border-b-2 transition-colors ${tab === key ? 'border-violet-600 text-violet-700' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+          >
+            <Icon className="w-4 h-4" /> {label}
+            <span className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-full">
+              {key === 'teams' ? teams.length : volunteers.length}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Teams Tab */}
+      {tab === 'teams' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+          {teams.map((team: any) => (
+            <div key={team.id} className="vc-card">
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900">{team.teamName}</h3>
+                  <span className="vc-badge bg-violet-100 text-violet-700 mt-1">{team.teamType}</span>
+                </div>
+                <span className="text-xs text-gray-500">{team.members?.length ?? 0} members</span>
+              </div>
+              {team.teamLeaderName && (
+                <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+                  <Star className="w-4 h-4 text-amber-500" /> {team.teamLeaderName}
+                </div>
+              )}
+              {team.wardCode && (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <MapPin className="w-4 h-4" /> Ward {team.wardCode}
+                </div>
+              )}
+              {team.members && team.members.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <div className="flex gap-1 flex-wrap">
+                    {team.members.slice(0, 5).map((m: any) => (
+                      <div key={m.id} className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-xs font-semibold text-violet-700" title={m.userName ?? m.userId}>
+                        {(m.userName ?? '?').charAt(0).toUpperCase()}
+                      </div>
+                    ))}
+                    {team.members.length > 5 && (
+                      <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-xs text-gray-500">+{team.members.length - 5}</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+          {teams.length === 0 && (
+            <div className="col-span-3 vc-card text-center py-12">
+              <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500">No teams yet. Create your first team!</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Volunteers Tab */}
+      {tab === 'volunteers' && (
+        <div className="space-y-4">
+          <div className="flex gap-3">
+            <input className="vc-input max-w-[180px]" placeholder="Ward code..." value={volFilter.wardCode} onChange={(e) => setVolFilter({ ...volFilter, wardCode: e.target.value })} />
+            <select className="vc-input max-w-[160px]" value={volFilter.status} onChange={(e) => setVolFilter({ ...volFilter, status: e.target.value })}>
+              <option value="">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+          <div className="vc-card overflow-hidden p-0">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  {['Name','Phone','Ward','Skills','Training','Status'].map((h) => (
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {volunteers.map((v: any) => (
+                  <tr key={v.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-medium text-gray-900">{v.firstName} {v.lastName}</td>
+                    <td className="px-4 py-3 text-gray-600">{v.phone}</td>
+                    <td className="px-4 py-3 text-gray-600">{v.wardCode ?? '—'}</td>
+                    <td className="px-4 py-3 text-gray-500 max-w-[150px] truncate">{Array.isArray(v.skills) ? v.skills.join(', ') : '—'}</td>
+                    <td className="px-4 py-3">
+                      <span className={`vc-badge text-xs ${TRAINING_BADGE[v.trainingStatus] ?? ''}`}>{v.trainingStatus?.replace(/_/g,' ')}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`vc-badge text-xs ${v.status === 'active' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>{v.status}</span>
+                    </td>
+                  </tr>
+                ))}
+                {volunteers.length === 0 && (
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400">No volunteers registered yet</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Create Team Modal */}
+      {showCreateTeam && campaign && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h3 className="text-lg font-semibold">New Team</h3>
+              <button onClick={() => setTeam(false)}><X className="w-5 h-5 text-gray-400" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Team Name *</label>
+                <input className="vc-input" value={teamForm.teamName} onChange={(e) => setTeamForm({ ...teamForm, teamName: e.target.value })} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Team Type</label>
+                  <select className="vc-input" value={teamForm.teamType} onChange={(e) => setTeamForm({ ...teamForm, teamType: e.target.value })}>
+                    {['GENERAL','WARD','CONSTITUENCY','COUNTY','YOUTH','WOMEN','MEDIA','SECURITY'].map((t) => <option key={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ward Code</label>
+                  <input className="vc-input" placeholder="0101" value={teamForm.wardCode} onChange={(e) => setTeamForm({ ...teamForm, wardCode: e.target.value })} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Team Leader Name</label>
+                <input className="vc-input" value={teamForm.teamLeaderName} onChange={(e) => setTeamForm({ ...teamForm, teamLeaderName: e.target.value })} />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => setTeam(false)} className="flex-1 vc-btn-secondary">Cancel</button>
+                <button onClick={() => createTeamMut.mutate()} disabled={createTeamMut.isPending || !teamForm.teamName} className="flex-1 vc-btn-primary">
+                  {createTeamMut.isPending ? 'Creating...' : 'Create Team'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Register Volunteer Modal */}
+      {showAddVol && campaign && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h3 className="text-lg font-semibold">Register Volunteer</h3>
+              <button onClick={() => setVol(false)}><X className="w-5 h-5 text-gray-400" /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
+                  <input className="vc-input" value={volForm.firstName} onChange={(e) => setVolForm({ ...volForm, firstName: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
+                  <input className="vc-input" value={volForm.lastName} onChange={(e) => setVolForm({ ...volForm, lastName: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
+                  <input className="vc-input" value={volForm.phone} onChange={(e) => setVolForm({ ...volForm, phone: e.target.value })} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ward Code</label>
+                  <input className="vc-input" placeholder="0101" value={volForm.wardCode} onChange={(e) => setVolForm({ ...volForm, wardCode: e.target.value })} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Skills (comma-separated)</label>
+                <input className="vc-input" placeholder="driving, photography, canvassing" value={volForm.skills} onChange={(e) => setVolForm({ ...volForm, skills: e.target.value })} />
+              </div>
+              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <input type="checkbox" className="rounded" checked={volForm.consentGiven} onChange={(e) => setVolForm({ ...volForm, consentGiven: e.target.checked })} />
+                Volunteer has given consent to be contacted
+              </label>
+              <div className="flex gap-3 pt-2">
+                <button onClick={() => setVol(false)} className="flex-1 vc-btn-secondary">Cancel</button>
+                <button onClick={() => registerVolMut.mutate()} disabled={registerVolMut.isPending || !volForm.firstName || !volForm.phone} className="flex-1 vc-btn-primary">
+                  {registerVolMut.isPending ? 'Registering...' : 'Register'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function CampaignTeamsPage() {
+  return <PageErrorBoundary page="Campaign Teams"><CampaignTeamsContent /></PageErrorBoundary>;
+}
