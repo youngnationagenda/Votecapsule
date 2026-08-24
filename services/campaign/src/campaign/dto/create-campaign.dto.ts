@@ -2,6 +2,7 @@ import { IsString, IsUUID, IsOptional, IsEnum, IsDateString, IsNumber, IsArray }
 import { CampaignStatus } from '../entities/campaign.entity';
 
 export class CreateCampaignDto {
+  @IsOptional() @IsUUID() tenantId?: string;  // injected by controller from header
   @IsUUID() candidateId: string;
   @IsUUID() electionId: string;
   @IsOptional() @IsUUID() partyId?: string;

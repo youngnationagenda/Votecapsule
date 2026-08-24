@@ -1,0 +1,55 @@
+{
+  "family": "vc-campaign",
+  "executionRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+  "taskRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "containerDefinitions": [
+    {
+      "name": "vc-campaign",
+      "image": "683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/campaign-service:latest",
+      "portMappings": [
+        {
+          "containerPort": 3016,
+          "hostPort": 3016,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        { "name": "NODE_ENV",           "value": "production" },
+        { "name": "PORT",               "value": "3016" },
+        { "name": "DB_HOST",            "value": "vote-capsule-db.cluster-c43i6c8ow71c.us-east-1.rds.amazonaws.com" },
+        { "name": "DB_PORT",            "value": "5432" },
+        { "name": "DB_NAME",            "value": "votecapsule" },
+        { "name": "DB_USER",            "value": "vcadmin" },
+        { "name": "DB_PASSWORD",        "value": "B,7BZvfuwXOxDoCjN7g8=03JfxKv3zH0" },
+        { "name": "DB_SSL",             "value": "true" },
+        { "name": "AWS_REGION",         "value": "us-east-1" },
+        { "name": "ALLOWED_ORIGINS",    "value": "http://localhost:3000,http://localhost:5173,https://votecapsule.yna.co.ke,https://admin.votecapsule.yna.co.ke,https://transparency.votecapsule.yna.co.ke,https://authority.votecapsule.yna.co.ke,https://party.votecapsule.yna.co.ke,https://candidate.votecapsule.yna.co.ke,https://observer.votecapsule.yna.co.ke" },
+        { "name": "IDENTITY_SERVICE_URL", "value": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/identity" },
+        { "name": "NOTIFICATION_SERVICE_URL", "value": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/notification" },
+        { "name": "AUDIT_SERVICE_URL",  "value": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/audit" },
+        { "name": "CAMPAIGN_BUDGET_CURRENCY", "value": "KES" },
+        { "name": "CAMPAIGN_IEBC_SPEND_LIMIT_ENABLED", "value": "true" }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/vote-capsule/campaign-service",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "vc-campaign"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "node -e \"require('http').get('http://localhost:3016/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 30
+      }
+    }
+  ]
+}

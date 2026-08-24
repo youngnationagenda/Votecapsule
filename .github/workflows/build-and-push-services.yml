@@ -67,6 +67,7 @@ jobs:
           - { name: tenant,       dir: services/tenant,       repo: vote-capsule/tenant-service,       port: 3011 }
           - { name: audit,        dir: services/audit,        repo: vote-capsule/audit-service,        port: 3012 }
           - { name: billing,      dir: services/billing,      repo: vote-capsule/billing-service,      port: 3013 }
+          - { name: campaign,     dir: services/campaign,     repo: vote-capsule/campaign-service,     port: 3016 }
 
     steps:
       # ── 1. Checkout ──────────────────────────────────────────────────────────

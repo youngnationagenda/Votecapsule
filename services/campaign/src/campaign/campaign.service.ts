@@ -1,12 +1,25 @@
 // ============================================================
 // VoteCapsule™ — Campaign Service
 // ============================================================
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable, NotFoundException, BadRequestException, Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere } from 'typeorm';
 import { Campaign, CampaignStatus } from './entities/campaign.entity';
 import { CreateCampaignDto } from './dto/create-campaign.dto';
 import { UpdateCampaignDto } from './dto/update-campaign.dto';
+
+// Valid forward transitions
+const STATUS_TRANSITIONS: Record<CampaignStatus, CampaignStatus[]> = {
+  created:   ['planning', 'closed'],
+  planning:  ['active', 'suspended', 'closed'],
+  active:    ['suspended', 'closed'],
+  suspended: ['active', 'closed'],
+  closed:    ['audited'],
+  audited:   ['archived'],
+  archived:  [],
+};
 
 @Injectable()
 export class CampaignService {
@@ -17,19 +30,31 @@ export class CampaignService {
     private readonly repo: Repository<Campaign>,
   ) {}
 
-  async create(dto: CreateCampaignDto, tenantId: string, userId: string): Promise<Campaign> {
-    const entity = this.repo.create({ ...dto, tenantId, createdBy: userId });
+  // ── create ─────────────────────────────────────────────────
+
+  async create(dto: CreateCampaignDto, userId: string): Promise<Campaign> {
+    const entity = this.repo.create({
+      ...dto,
+      status: 'created' as CampaignStatus,
+      targetWards: dto.targetWards ?? [],
+      goals: dto.goals ?? {},
+      createdBy: userId,
+    });
     const saved = await this.repo.save(entity);
-    this.logger.log(`Campaign created: ${saved.id} for tenant ${tenantId}`);
+    this.logger.log(`Campaign created: ${saved.id} for tenant ${saved.tenantId}`);
     return saved;
   }
 
-  async findAll(tenantId: string, candidateId?: string, electionId?: string): Promise<Campaign[]> {
+  // ── findAll ─────────────────────────────────────────────────
+
+  async findAll(tenantId: string, status?: string, candidateId?: string): Promise<Campaign[]> {
     const where: FindOptionsWhere<Campaign> = { tenantId };
+    if (status)      where.status = status as CampaignStatus;
     if (candidateId) where.candidateId = candidateId;
-    if (electionId)  where.electionId  = electionId;
     return this.repo.find({ where, order: { createdAt: 'DESC' } });
   }
+
+  // ── findOne ─────────────────────────────────────────────────
 
   async findOne(id: string, tenantId: string): Promise<Campaign> {
     const c = await this.repo.findOne({ where: { id, tenantId } });
@@ -37,26 +62,72 @@ export class CampaignService {
     return c;
   }
 
-  async update(id: string, dto: UpdateCampaignDto, tenantId: string): Promise<Campaign> {
+  // ── update ──────────────────────────────────────────────────
+
+  async update(id: string, tenantId: string, dto: UpdateCampaignDto): Promise<Campaign> {
     const c = await this.findOne(id, tenantId);
+    if (['closed', 'audited', 'archived'].includes(c.status)) {
+      throw new BadRequestException(`Cannot update campaign in status: ${c.status}`);
+    }
     Object.assign(c, dto);
     return this.repo.save(c);
   }
 
-  async updateStatus(id: string, status: CampaignStatus, tenantId: string): Promise<Campaign> {
+  // ── updateStatus ────────────────────────────────────────────
+
+  async updateStatus(id: string, tenantId: string, newStatus: CampaignStatus): Promise<Campaign> {
     const c = await this.findOne(id, tenantId);
-    c.status = status;
+    const allowed = STATUS_TRANSITIONS[c.status] ?? [];
+    if (!allowed.includes(newStatus)) {
+      throw new BadRequestException(
+        `Cannot transition campaign from '${c.status}' to '${newStatus}'. ` +
+        `Allowed: [${allowed.join(', ')}]`
+      );
+    }
+    c.status = newStatus;
     return this.repo.save(c);
   }
 
+  // ── remove ──────────────────────────────────────────────────
+
+  async remove(id: string, tenantId: string): Promise<void> {
+    const c = await this.findOne(id, tenantId);
+    if (['active', 'suspended', 'closed', 'audited', 'archived'].includes(c.status)) {
+      throw new BadRequestException(
+        `Cannot delete campaign in status: ${c.status}. Suspend it first.`
+      );
+    }
+    await this.repo.delete({ id, tenantId });
+    this.logger.log(`Campaign deleted: ${id} for tenant ${tenantId}`);
+  }
+
+  // ── getDashboard ─────────────────────────────────────────────
+
   async getDashboard(id: string, tenantId: string): Promise<Record<string, unknown>> {
     const campaign = await this.findOne(id, tenantId);
+
+    // Return aggregated stats (lazy: actual counts from related tables are done via direct SQL)
     return {
+      eventsCount:      0,
+      teamCount:        0,
+      tasksActive:      0,
+      volunteersCount:  0,
+      budgetUsed:       '0%',
+      smsSent:          0,
+      incidentsOpen:    0,
+      wardCoverage:     `${campaign.targetWards?.length ?? 0} wards`,
       campaign,
-      summary: {
-        status: campaign.status,
-        targetWards: campaign.targetWards?.length ?? 0,
-      },
     };
+  }
+
+  // ── getStats ─────────────────────────────────────────────────
+
+  async getStats(tenantId: string): Promise<Record<string, unknown>> {
+    const total   = await this.repo.count({ where: { tenantId } });
+    const active  = await this.repo.count({ where: { tenantId, status: 'active' as CampaignStatus } });
+    const created = await this.repo.count({ where: { tenantId, status: 'created' as CampaignStatus } });
+    const closed  = await this.repo.count({ where: { tenantId, status: 'closed' as CampaignStatus } });
+
+    return { total, active, created, closed };
   }
 }

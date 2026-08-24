@@ -23,7 +23,7 @@ export class CampaignController {
   ) {
     if (!tenantId) throw new BadRequestException('X-Tenant-Id required');
     if (!userId)   throw new BadRequestException('X-User-Id required');
-    return this.service.create(dto, tenantId, userId);
+    return this.service.create({ ...dto, tenantId }, userId);
   }
 
   @Get()
@@ -33,7 +33,7 @@ export class CampaignController {
     @Query('electionId')  electionId?: string,
   ) {
     if (!tenantId) throw new BadRequestException('X-Tenant-Id required');
-    return this.service.findAll(tenantId, candidateId, electionId);
+    return this.service.findAll(tenantId, undefined, candidateId);
   }
 
   @Get(':id')
@@ -52,7 +52,7 @@ export class CampaignController {
     @Headers('x-tenant-id') tenantId: string,
   ) {
     if (!tenantId) throw new BadRequestException('X-Tenant-Id required');
-    return this.service.update(id, dto, tenantId);
+    return this.service.update(id, tenantId, dto);
   }
 
   @Patch(':id/status')
@@ -63,7 +63,7 @@ export class CampaignController {
   ) {
     if (!tenantId) throw new BadRequestException('X-Tenant-Id required');
     if (!status)   throw new BadRequestException('status is required');
-    return this.service.updateStatus(id, status, tenantId);
+    return this.service.updateStatus(id, tenantId, status);
   }
 
   @Get(':id/dashboard')
