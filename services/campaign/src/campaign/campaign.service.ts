@@ -12,13 +12,13 @@ import { UpdateCampaignDto } from './dto/update-campaign.dto';
 
 // Valid forward transitions
 const STATUS_TRANSITIONS: Record<CampaignStatus, CampaignStatus[]> = {
-  created:   ['planning', 'closed'],
-  planning:  ['active', 'suspended', 'closed'],
-  active:    ['suspended', 'closed'],
-  suspended: ['active', 'closed'],
-  closed:    ['audited'],
-  audited:   ['archived'],
-  archived:  [],
+  [CampaignStatus.CREATED]:   [CampaignStatus.PLANNING, CampaignStatus.CLOSED],
+  [CampaignStatus.PLANNING]:  [CampaignStatus.ACTIVE, CampaignStatus.SUSPENDED, CampaignStatus.CLOSED],
+  [CampaignStatus.ACTIVE]:    [CampaignStatus.SUSPENDED, CampaignStatus.CLOSED],
+  [CampaignStatus.SUSPENDED]: [CampaignStatus.ACTIVE, CampaignStatus.CLOSED],
+  [CampaignStatus.CLOSED]:    [CampaignStatus.AUDITED],
+  [CampaignStatus.AUDITED]:   [CampaignStatus.ARCHIVED],
+  [CampaignStatus.ARCHIVED]:  [],
 };
 
 @Injectable()
@@ -35,7 +35,7 @@ export class CampaignService {
   async create(dto: CreateCampaignDto, userId: string): Promise<Campaign> {
     const entity = this.repo.create({
       ...dto,
-      status: 'created' as CampaignStatus,
+      status: CampaignStatus.CREATED,
       targetWards: dto.targetWards ?? [],
       goals: dto.goals ?? {},
       createdBy: userId,
@@ -66,7 +66,7 @@ export class CampaignService {
 
   async update(id: string, tenantId: string, dto: UpdateCampaignDto): Promise<Campaign> {
     const c = await this.findOne(id, tenantId);
-    if (['closed', 'audited', 'archived'].includes(c.status)) {
+    if ([CampaignStatus.CLOSED, CampaignStatus.AUDITED, CampaignStatus.ARCHIVED].includes(c.status)) {
       throw new BadRequestException(`Cannot update campaign in status: ${c.status}`);
     }
     Object.assign(c, dto);
@@ -92,7 +92,8 @@ export class CampaignService {
 
   async remove(id: string, tenantId: string): Promise<void> {
     const c = await this.findOne(id, tenantId);
-    if (['active', 'suspended', 'closed', 'audited', 'archived'].includes(c.status)) {
+    const noDeleteStatuses = [CampaignStatus.ACTIVE, CampaignStatus.SUSPENDED, CampaignStatus.CLOSED, CampaignStatus.AUDITED, CampaignStatus.ARCHIVED];
+    if (noDeleteStatuses.includes(c.status)) {
       throw new BadRequestException(
         `Cannot delete campaign in status: ${c.status}. Suspend it first.`
       );
@@ -124,9 +125,9 @@ export class CampaignService {
 
   async getStats(tenantId: string): Promise<Record<string, unknown>> {
     const total   = await this.repo.count({ where: { tenantId } });
-    const active  = await this.repo.count({ where: { tenantId, status: 'active' as CampaignStatus } });
-    const created = await this.repo.count({ where: { tenantId, status: 'created' as CampaignStatus } });
-    const closed  = await this.repo.count({ where: { tenantId, status: 'closed' as CampaignStatus } });
+    const active  = await this.repo.count({ where: { tenantId, status: CampaignStatus.ACTIVE } });
+    const created = await this.repo.count({ where: { tenantId, status: CampaignStatus.CREATED } });
+    const closed  = await this.repo.count({ where: { tenantId, status: CampaignStatus.CLOSED } });
 
     return { total, active, created, closed };
   }

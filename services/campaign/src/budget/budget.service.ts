@@ -24,7 +24,7 @@ export class BudgetService {
   ) {}
 
   async createBudget(campaignId: string, dto: any, tenantId: string, userId: string): Promise<CampaignBudget> {
-    const entity = this.budgetRepo.create({ ...dto, campaignId, tenantId, createdBy: userId });
+    const entity = this.budgetRepo.create({ ...dto, campaignId, tenantId, createdBy: userId }) as unknown as CampaignBudget;
     const saved  = await this.budgetRepo.save(entity);
 
     // Seed default categories
@@ -129,7 +129,7 @@ export class BudgetService {
 
   async recordContribution(campaignId: string, dto: any, tenantId: string, userId: string): Promise<CampaignContribution> {
     const budget = await this.budgetRepo.findOne({ where: { campaignId, tenantId } });
-    const entity = this.contributionRepo.create({ ...dto, campaignId, tenantId, budgetId: budget?.id ?? null, recordedBy: userId });
+    const entity = this.contributionRepo.create({ ...dto, campaignId, tenantId, budgetId: budget?.id ?? null, recordedBy: userId }) as unknown as CampaignContribution;
     const saved  = await this.contributionRepo.save(entity);
 
     // Credit budget total

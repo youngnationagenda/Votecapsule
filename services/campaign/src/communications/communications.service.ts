@@ -23,7 +23,7 @@ export class CommunicationsService {
   async createTemplate(campaignId: string, dto: any, tenantId: string, userId: string): Promise<CampaignSmsTemplate> {
     // Extract variables from body e.g. {{first_name}}
     const variables = (dto.body.match(/\{\{(\w+)\}\}/g) ?? []).map((v: string) => v.replace(/\{\{|\}\}/g, ''));
-    const entity = this.templateRepo.create({ ...dto, campaignId, tenantId, createdBy: userId, variables });
+    const entity = this.templateRepo.create({ ...dto, campaignId, tenantId, createdBy: userId, variables }) as unknown as CampaignSmsTemplate;
     return this.templateRepo.save(entity);
   }
 
@@ -43,7 +43,7 @@ export class CommunicationsService {
   // ── SMS Batches ────────────────────────────────────────────
 
   async sendBatch(campaignId: string, dto: any, tenantId: string, userId: string): Promise<CampaignSmsBatch> {
-    const batch = this.batchRepo.create({ ...dto, campaignId, tenantId, createdBy: userId, status: 'queued' });
+    const batch = this.batchRepo.create({ ...dto, campaignId, tenantId, createdBy: userId, status: 'queued' }) as unknown as CampaignSmsBatch;
     const saved = await this.batchRepo.save(batch);
     this.logger.log(`SMS batch queued: ${saved.id} for campaign ${campaignId}`);
     // In production this would enqueue to SQS
@@ -81,7 +81,7 @@ export class CommunicationsService {
     const count  = await this.incidentRepo.count({ where: { campaignId, tenantId } });
     const year   = new Date().getFullYear();
     const number = `INC-${year}-${String(count + 1).padStart(4, '0')}`;
-    const entity = this.incidentRepo.create({ ...dto, campaignId, tenantId, reportedBy: userId, incidentNumber: number });
+    const entity = this.incidentRepo.create({ ...dto, campaignId, tenantId, reportedBy: userId, incidentNumber: number }) as unknown as CampaignIncident;
     return this.incidentRepo.save(entity);
   }
 

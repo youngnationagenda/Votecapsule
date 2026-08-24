@@ -17,7 +17,7 @@ export class TeamsService {
 
   // Teams
   async createTeam(campaignId: string, dto: any, tenantId: string, userId: string): Promise<CampaignTeam> {
-    const entity = this.teamRepo.create({ ...dto, campaignId, tenantId, createdBy: userId });
+    const entity = this.teamRepo.create({ ...dto, campaignId, tenantId, createdBy: userId }) as unknown as CampaignTeam;
     return this.teamRepo.save(entity);
   }
 
@@ -29,7 +29,7 @@ export class TeamsService {
     const team = await this.teamRepo.findOne({ where: { id: teamId, campaignId, tenantId } });
     if (!team) throw new NotFoundException(`Team ${teamId} not found`);
     try {
-      const entity = this.memberRepo.create({ ...dto, teamId, campaignId, tenantId });
+      const entity = this.memberRepo.create({ ...dto, teamId, campaignId, tenantId }) as unknown as CampaignTeamMember;
       return this.memberRepo.save(entity);
     } catch (e: any) {
       if (e?.code === '23505') throw new ConflictException('User already in this team');
@@ -47,7 +47,7 @@ export class TeamsService {
 
   // Volunteers
   async registerVolunteer(campaignId: string, dto: any, tenantId: string, userId: string): Promise<CampaignVolunteer> {
-    const entity = this.volunteerRepo.create({ ...dto, campaignId, tenantId, registeredBy: userId });
+    const entity = this.volunteerRepo.create({ ...dto, campaignId, tenantId, registeredBy: userId }) as unknown as CampaignVolunteer;
     return this.volunteerRepo.save(entity);
   }
 
