@@ -48,6 +48,7 @@ jobs:
           - tenant
           - audit
           - billing
+          - campaign
 
     steps:
       - uses: actions/checkout@v4
