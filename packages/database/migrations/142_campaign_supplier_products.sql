@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS campaign_supplier_products_unmatched (
 );
 
 -- ─────────────────────────────────────────────────────────────
--- Seed KaziSafi Branding supplier
+-- Seed Me Advertising supplier
 INSERT INTO campaign_suppliers (
     tenant_id, company_name, contact_name, contact_email,
     county_code, address, capabilities, lead_time_days,
@@ -82,11 +82,11 @@ INSERT INTO campaign_suppliers (
     website, location, notes
 )
 SELECT
-    t.id, 'KaziSafi Branding', 'KaziSafi Sales Team', 'info@kazisafibranding.co.ke',
+    t.id, 'Me Advertising', 'Me Advertising Team', 'info@meadvertising.co.ke',
     '047', 'Nairobi, Kenya',
     ARRAY['BRANDED_CLOTHING','PRINTED_MATERIALS','PROMOTIONAL_ITEMS','OUTDOOR_ADVERTISING','EVENT_SUPPLIES'],
     14, 4.00, 85.00, TRUE,
-    'https://kazisafibranding.co.ke/', 'Nairobi, Kenya',
+    'https://meadvertising.co.ke/', 'Nairobi, Kenya',
     'Primary branded merchandise supplier'
 FROM (SELECT id FROM tenants WHERE type = 'political_party'
       AND status = 'active' ORDER BY created_at LIMIT 1) t
