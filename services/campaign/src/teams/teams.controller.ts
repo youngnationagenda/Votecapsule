@@ -1,4 +1,7 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, Headers, Query, HttpCode, HttpStatus, BadRequestException, ParseUUIDPipe } from '@nestjs/common';
+import {
+  Controller, Get, Post, Patch, Delete, Param, Body,
+  Headers, Query, HttpCode, HttpStatus, BadRequestException, ParseUUIDPipe,
+} from '@nestjs/common';
 import { TeamsService } from './teams.service';
 
 @Controller('campaigns/:campaignId')
@@ -45,8 +48,57 @@ export class TeamsController {
   }
 
   @Patch('volunteers/:id')
-  updateVolunteer(@Param('campaignId', ParseUUIDPipe) c: string, @Param('id', ParseUUIDPipe) id: string, @Body() dto: any, @Headers('x-tenant-id') t: string) {
+  updateVolunteer(
+    @Param('campaignId', ParseUUIDPipe) c: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: any,
+    @Headers('x-tenant-id') t: string,
+  ) {
     if (!t) throw new BadRequestException('X-Tenant-Id required');
     return this.service.updateVolunteer(id, c, dto, t);
+  }
+
+  // ── Role assignment endpoints ────────────────────────────────
+
+  @Post('roles')
+  @HttpCode(HttpStatus.CREATED)
+  assignRole(
+    @Param('campaignId', ParseUUIDPipe) c: string,
+    @Body() dto: any,
+    @Headers('x-tenant-id') t: string,
+  ) {
+    if (!t) throw new BadRequestException('X-Tenant-Id required');
+    if (!dto.userId || !dto.role) throw new BadRequestException('userId and role are required');
+    return this.service.assignRole(c, dto, t);
+  }
+
+  @Get('roles')
+  listRoles(
+    @Param('campaignId', ParseUUIDPipe) c: string,
+    @Headers('x-tenant-id') t: string,
+  ) {
+    if (!t) throw new BadRequestException('X-Tenant-Id required');
+    return this.service.listRoles(c, t);
+  }
+
+  @Patch('roles/:userId')
+  updateRole(
+    @Param('campaignId', ParseUUIDPipe) c: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body() dto: any,
+    @Headers('x-tenant-id') t: string,
+  ) {
+    if (!t) throw new BadRequestException('X-Tenant-Id required');
+    return this.service.updateRole(c, userId, dto, t);
+  }
+
+  @Delete('roles/:userId')
+  removeRole(
+    @Param('campaignId', ParseUUIDPipe) c: string,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Headers('x-tenant-id') t: string,
+  ) {
+    if (!t) throw new BadRequestException('X-Tenant-Id required');
+    return this.service.removeRole(c, userId, t);
   }
 }

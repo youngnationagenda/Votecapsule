@@ -30,13 +30,29 @@ export class TasksService {
     return this.repo.save(entity);
   }
 
-  async findAll(campaignId: string, tenantId: string, filters?: { status?: string; assignedTo?: string; wardCode?: string }): Promise<CampaignTask[]> {
+  async findAll(
+    campaignId: string,
+    tenantId: string,
+    filters?: { status?: string; assignedTo?: string; wardCode?: string },
+    scope?: { wardCode?: string; constituencyCode?: string; candidateId?: string; allowedModules?: string[] },
+  ): Promise<CampaignTask[]> {
     const qb = this.repo.createQueryBuilder('t')
       .where('t.campaign_id = :campaignId', { campaignId })
       .andWhere('t.tenant_id = :tenantId', { tenantId });
+
+    // Apply geography scope
+    if (scope?.wardCode)         qb.andWhere('t.ward_code = :scopeWard', { scopeWard: scope.wardCode });
+    if (scope?.constituencyCode) qb.andWhere('t.constituency_code = :scopeCons', { scopeCons: scope.constituencyCode });
+
+    // Volunteer sees only their assigned tasks
+    if (scope?.allowedModules && !scope.allowedModules.includes('all') && filters?.assignedTo) {
+      qb.andWhere('t.assigned_to = :uid', { uid: filters.assignedTo });
+    }
+
     if (filters?.status)     qb.andWhere('t.status = :status', { status: filters.status });
     if (filters?.assignedTo) qb.andWhere('t.assigned_to = :uid', { uid: filters.assignedTo });
     if (filters?.wardCode)   qb.andWhere('t.ward_code = :ward', { ward: filters.wardCode });
+
     return qb.orderBy('t.due_date', 'ASC').getMany();
   }
 

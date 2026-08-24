@@ -1,5 +1,20 @@
-import { Controller, Get, Post, Patch, Param, Body, Headers, Query, HttpCode, HttpStatus, BadRequestException, ParseUUIDPipe } from '@nestjs/common';
+import {
+  Controller, Get, Post, Patch, Param, Body, Headers,
+  Query, HttpCode, HttpStatus, BadRequestException, ParseUUIDPipe,
+} from '@nestjs/common';
 import { CommunicationsService } from './communications.service';
+
+// ── Africa's Talking Delivery Webhook ────────────────────────
+@Controller('webhooks')
+export class WebhooksController {
+  constructor(private readonly service: CommunicationsService) {}
+
+  @Post('at/delivery')
+  @HttpCode(HttpStatus.OK)
+  handleAtDelivery(@Body() payload: any) {
+    return this.service.handleDeliveryWebhook(payload);
+  }
+}
 
 @Controller('campaigns/:campaignId')
 export class CommunicationsController {

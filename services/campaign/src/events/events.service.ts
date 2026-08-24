@@ -51,17 +51,21 @@ export class EventsService {
     campaignId: string,
     tenantId: string,
     filters?: { wardCode?: string; eventType?: string; start?: string; end?: string },
+    scope?: { wardCode?: string; constituencyCode?: string; candidateId?: string },
   ): Promise<CampaignEvent[]> {
-    const where: FindOptionsWhere<CampaignEvent> = { campaignId, tenantId };
-    if (filters?.wardCode)   where.wardCode   = filters.wardCode;
-    if (filters?.eventType)  where.eventType  = filters.eventType as any;
+    const qb = this.eventRepo.createQueryBuilder('e')
+      .where('e.campaign_id = :campaignId', { campaignId })
+      .andWhere('e.tenant_id = :tenantId', { tenantId });
 
-    const qb = this.eventRepo.createQueryBuilder('e').where('e.campaign_id = :campaignId', { campaignId }).andWhere('e.tenant_id = :tenantId', { tenantId });
+    // Apply geography scope (WARD_COORDINATOR, CONSTITUENCY_COORDINATOR)
+    if (scope?.wardCode)         qb.andWhere('e.ward_code = :scopeWard',   { scopeWard: scope.wardCode });
+    if (scope?.constituencyCode) qb.andWhere('e.constituency_code = :scopeCons', { scopeCons: scope.constituencyCode });
 
-    if (filters?.wardCode)  qb.andWhere('e.ward_code = :ward', { ward: filters.wardCode });
-    if (filters?.eventType) qb.andWhere('e.event_type = :type', { type: filters.eventType });
+    // Apply query filters
+    if (filters?.wardCode)  qb.andWhere('e.ward_code = :ward',    { ward: filters.wardCode });
+    if (filters?.eventType) qb.andWhere('e.event_type = :type',   { type: filters.eventType });
     if (filters?.start)     qb.andWhere('e.start_time >= :start', { start: new Date(filters.start) });
-    if (filters?.end)       qb.andWhere('e.start_time <= :end', { end: new Date(filters.end) });
+    if (filters?.end)       qb.andWhere('e.start_time <= :end',   { end: new Date(filters.end) });
 
     return qb.orderBy('e.start_time', 'ASC').getMany();
   }

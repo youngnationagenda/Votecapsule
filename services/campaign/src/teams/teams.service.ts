@@ -66,4 +66,73 @@ export class TeamsService {
     Object.assign(v, dto);
     return this.volunteerRepo.save(v);
   }
+
+  // ── Role assignment (uses campaign_team_members.campaign_role) ─
+
+  async assignRole(
+    campaignId: string,
+    dto: { userId: string; role: string; userName?: string; userEmail?: string; wardCode?: string; constituencyCode?: string; countyCode?: string },
+    tenantId: string,
+  ): Promise<CampaignTeamMember> {
+    // Find or create a member record for this user in this campaign
+    let member = await this.memberRepo.findOne({ where: { userId: dto.userId, campaignId, tenantId } });
+    if (member) {
+      member.campaignRole = dto.role;
+      if (dto.wardCode)          member.wardCode         = dto.wardCode;
+      if (dto.constituencyCode)  member.constituencyCode = dto.constituencyCode;
+      if (dto.countyCode)        member.countyCode       = dto.countyCode;
+      return this.memberRepo.save(member);
+    }
+
+    // Find default team for this campaign (or use null teamId as placeholder)
+    const team = await this.teamRepo.findOne({ where: { campaignId, tenantId } });
+    const entity = this.memberRepo.create({
+      teamId:          team?.id ?? '00000000-0000-0000-0000-000000000000',
+      campaignId,
+      tenantId,
+      userId:          dto.userId,
+      userName:        dto.userName ?? null,
+      userEmail:       dto.userEmail ?? null,
+      campaignRole:    dto.role,
+      wardCode:        dto.wardCode         ?? null,
+      constituencyCode: dto.constituencyCode ?? null,
+      countyCode:      dto.countyCode       ?? null,
+      status:          'active',
+    }) as unknown as CampaignTeamMember;
+    return this.memberRepo.save(entity);
+  }
+
+  async listRoles(
+    campaignId: string,
+    tenantId: string,
+  ): Promise<CampaignTeamMember[]> {
+    return this.memberRepo.find({
+      where: { campaignId, tenantId, status: 'active' },
+      order: { createdAt: 'ASC' },
+    });
+  }
+
+  async updateRole(
+    campaignId: string,
+    userId: string,
+    dto: { role: string },
+    tenantId: string,
+  ): Promise<CampaignTeamMember> {
+    const member = await this.memberRepo.findOne({ where: { userId, campaignId, tenantId } });
+    if (!member) throw new NotFoundException(`User ${userId} not found in campaign`);
+    member.campaignRole = dto.role;
+    return this.memberRepo.save(member);
+  }
+
+  async removeRole(
+    campaignId: string,
+    userId: string,
+    tenantId: string,
+  ): Promise<void> {
+    const member = await this.memberRepo.findOne({ where: { userId, campaignId, tenantId } });
+    if (!member) throw new NotFoundException(`User ${userId} not found in campaign`);
+    member.status = 'inactive';
+    member.leftAt = new Date();
+    await this.memberRepo.save(member);
+  }
 }
