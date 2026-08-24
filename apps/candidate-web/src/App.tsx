@@ -15,16 +15,24 @@ import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
 
 // Lazy-loaded page chunks
-const AssignedRegionPage  = lazy(() => import('./pages/AssignedRegionPage').then(m => ({ default: m.AssignedRegionPage })));
-const LiveResultsPage     = lazy(() => import('./pages/LiveResultsPage').then(m => ({ default: m.LiveResultsPage })));
-const StationProgressPage = lazy(() => import('./pages/StationProgressPage').then(m => ({ default: m.StationProgressPage })));
+const AssignedRegionPage   = lazy(() => import('./pages/AssignedRegionPage').then(m => ({ default: m.AssignedRegionPage })));
+const LiveResultsPage      = lazy(() => import('./pages/LiveResultsPage').then(m => ({ default: m.LiveResultsPage })));
+const StationProgressPage  = lazy(() => import('./pages/StationProgressPage').then(m => ({ default: m.StationProgressPage })));
 const EvidenceCapsulesPage = lazy(() => import('./pages/EvidenceCapsulesPage').then(m => ({ default: m.EvidenceCapsulesPage })));
-const AnalyticsPage       = lazy(() => import('./pages/AnalyticsPage').then(m => ({ default: m.AnalyticsPage })));
-const NotificationsPage   = lazy(() => import('./pages/NotificationsPage').then(m => ({ default: m.NotificationsPage })));
-const DownloadsPage       = lazy(() => import('./pages/DownloadsPage').then(m => ({ default: m.DownloadsPage })));
-const TeamManagementPage  = lazy(() => import('./pages/TeamManagementPage').then(m => ({ default: m.TeamManagementPage })));
-const BillingPage         = lazy(() => import('./pages/BillingPage').then(m => ({ default: m.BillingPage })));
+const AnalyticsPage        = lazy(() => import('./pages/AnalyticsPage').then(m => ({ default: m.AnalyticsPage })));
+const NotificationsPage    = lazy(() => import('./pages/NotificationsPage').then(m => ({ default: m.NotificationsPage })));
+const DownloadsPage        = lazy(() => import('./pages/DownloadsPage').then(m => ({ default: m.DownloadsPage })));
+const TeamManagementPage   = lazy(() => import('./pages/TeamManagementPage').then(m => ({ default: m.TeamManagementPage })));
+const BillingPage          = lazy(() => import('./pages/BillingPage').then(m => ({ default: m.BillingPage })));
 const NominationStatusPage = lazy(() => import('./pages/NominationStatusPage').then(m => ({ default: m.NominationStatusPage })));
+
+// ── Campaign Manager pages ────────────────────────────────────
+const MyCampaignDashboard    = lazy(() => import('./pages/MyCampaignDashboard').then(m => ({ default: m.MyCampaignDashboard })));
+const MyCampaignCalendarPage = lazy(() => import('./pages/MyCampaignCalendarPage').then(m => ({ default: m.MyCampaignCalendarPage })));
+const MyCampaignTeamPage     = lazy(() => import('./pages/MyCampaignTeamPage').then(m => ({ default: m.MyCampaignTeamPage })));
+const MyBudgetPage           = lazy(() => import('./pages/MyBudgetPage').then(m => ({ default: m.MyBudgetPage })));
+const MySMSPage              = lazy(() => import('./pages/MySMSPage').then(m => ({ default: m.MySMSPage })));
+const MyIncidentsPage        = lazy(() => import('./pages/MyIncidentsPage').then(m => ({ default: m.MyIncidentsPage })));
 
 function PageLoader(): React.JSX.Element {
   return (
@@ -75,6 +83,26 @@ export default function App(): React.JSX.Element {
           } />
           <Route path="/nomination" element={
             <Suspense fallback={<PageLoader />}><NominationStatusPage /></Suspense>
+          } />
+
+          {/* ── Campaign Manager ───────────────────────────────── */}
+          <Route path="/campaign" element={
+            <Suspense fallback={<PageLoader />}><MyCampaignDashboard /></Suspense>
+          } />
+          <Route path="/campaign/calendar" element={
+            <Suspense fallback={<PageLoader />}><MyCampaignCalendarPage /></Suspense>
+          } />
+          <Route path="/campaign/team" element={
+            <Suspense fallback={<PageLoader />}><MyCampaignTeamPage /></Suspense>
+          } />
+          <Route path="/campaign/budget" element={
+            <Suspense fallback={<PageLoader />}><MyBudgetPage /></Suspense>
+          } />
+          <Route path="/campaign/sms" element={
+            <Suspense fallback={<PageLoader />}><MySMSPage /></Suspense>
+          } />
+          <Route path="/campaign/incidents" element={
+            <Suspense fallback={<PageLoader />}><MyIncidentsPage /></Suspense>
           } />
         </Route>
       </Route>

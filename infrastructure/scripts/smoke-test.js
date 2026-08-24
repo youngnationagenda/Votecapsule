@@ -118,10 +118,11 @@ async function main() {
   await test('Reporting health', `${ALB}/api/v1/reporting/health`, {}, [200, 404, 503]);
   await test('Election health', `${ALB}/api/v1/election/health`, {}, [200, 404, 503]);
 
-  // ── Step 7: Phase 8 health checks (pending CI) ────────────────────────────
-  console.log('\n【7】 Phase 8 Services — Health Checks (may be starting)');
+  // ── Step 7: Phase 8 + Campaign health checks ──────────────────────────────
+  console.log('\n【7】 Phase 8 + Campaign Services — Health Checks');
   await test('Audit health', `${ALB}/api/v1/audit/health`, {}, [200, 503, 504]);
   await test('Billing health', `${ALB}/api/v1/billing/health`, {}, [200, 503, 504]);
+  await test('Campaign health (Phase 20)', `${ALB}/api/v1/campaign/health`, {}, [200, 503, 504]);
 
   // ── Step 8: Security check ─────────────────────────────────────────────────
   console.log('\n【8】 Security — API GW Rejects Unauthenticated Requests');

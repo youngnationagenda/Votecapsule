@@ -1,29 +1,66 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, MapPin, BarChart3, TrendingUp, Image, Bell, Download, Users, CreditCard, LogOut, Menu, ChevronLeft, User, Flag } from 'lucide-react';
+import {
+  LayoutDashboard, MapPin, BarChart3, TrendingUp, Image, Bell,
+  Download, Users, CreditCard, LogOut, Menu, ChevronLeft, User,
+  Flag, Megaphone, Calendar, CheckSquare, DollarSign,
+  MessageSquare, AlertTriangle,
+} from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { toggleSidebar } from '../store/slices/uiSlice';
 import { logout } from '../store/slices/authSlice';
 
-const navItems = [
-  { to: '/dashboard', icon: LayoutDashboard, label: 'My Dashboard' },
-  { to: '/nomination', icon: Flag, label: 'Nomination & Party' },
-  { to: '/region', icon: MapPin, label: 'Assigned Region' },
-  { to: '/live-results', icon: BarChart3, label: 'Live Results' },
-  { to: '/stations', icon: TrendingUp, label: 'Station Progress' },
-  { to: '/evidence', icon: Image, label: 'Evidence Capsules' },
-  { to: '/analytics', icon: TrendingUp, label: 'Analytics' },
-  { to: '/notifications', icon: Bell, label: 'Notifications' },
-  { to: '/downloads', icon: Download, label: 'Downloads' },
-  { to: '/team', icon: Users, label: 'Team Management' },
-  { to: '/billing', icon: CreditCard, label: 'Billing' },
+const electionNavItems = [
+  { to: '/dashboard',   icon: LayoutDashboard, label: 'My Dashboard' },
+  { to: '/nomination',  icon: Flag,            label: 'Nomination & Party' },
+  { to: '/region',      icon: MapPin,          label: 'Assigned Region' },
+  { to: '/live-results',icon: BarChart3,       label: 'Live Results' },
+  { to: '/stations',    icon: TrendingUp,      label: 'Station Progress' },
+  { to: '/evidence',    icon: Image,           label: 'Evidence Capsules' },
+  { to: '/analytics',   icon: TrendingUp,      label: 'Analytics' },
 ];
 
+const campaignNavItems = [
+  { to: '/campaign',           icon: Megaphone,      label: 'Campaign Overview' },
+  { to: '/campaign/calendar',  icon: Calendar,       label: 'Campaign Calendar' },
+  { to: '/campaign/team',      icon: Users,          label: 'My Team' },
+  { to: '/campaign/budget',    icon: DollarSign,     label: 'Campaign Budget' },
+  { to: '/campaign/sms',       icon: MessageSquare,  label: 'Campaign SMS' },
+  { to: '/campaign/incidents', icon: AlertTriangle,  label: 'Incidents' },
+];
+
+const systemNavItems = [
+  { to: '/notifications', icon: Bell,        label: 'Notifications' },
+  { to: '/downloads',     icon: Download,    label: 'Downloads' },
+  { to: '/team',          icon: Users,       label: 'Team Management' },
+  { to: '/billing',       icon: CreditCard,  label: 'Billing' },
+];
+
+interface NavSectionProps { items: { to: string; icon: React.ElementType; label: string }[]; collapsed: boolean; }
+function NavSection({ items, collapsed }: NavSectionProps) {
+  return (
+    <>
+      {items.map(({ to, icon: Icon, label }) => (
+        <NavLink
+          key={to}
+          to={to}
+          end={to === '/campaign' || to === '/dashboard'}
+          className={({ isActive }) => `sidebar-item ${isActive ? 'sidebar-item-active' : 'sidebar-item-inactive'}`}
+          title={collapsed ? label : undefined}
+        >
+          <Icon className="w-4 h-4 flex-shrink-0" />
+          {!collapsed && <span className="truncate">{label}</span>}
+        </NavLink>
+      ))}
+    </>
+  );
+}
+
 export function CandidateLayout(): React.JSX.Element {
-  const dispatch = useAppDispatch();
-  const navigate = useNavigate();
+  const dispatch  = useAppDispatch();
+  const navigate  = useNavigate();
   const collapsed = useAppSelector((s) => s.ui.sidebarCollapsed);
-  const user = useAppSelector((s) => s.auth.user);
+  const user      = useAppSelector((s) => s.auth.user);
   const handleLogout = () => { dispatch(logout()); navigate('/login'); };
 
   return (
@@ -41,12 +78,26 @@ export function CandidateLayout(): React.JSX.Element {
           )}
         </div>
         <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-          {navItems.map(({ to, icon: Icon, label }) => (
-            <NavLink key={to} to={to} className={({ isActive }) => `sidebar-item ${isActive ? 'sidebar-item-active' : 'sidebar-item-inactive'}`} title={collapsed ? label : undefined}>
-              <Icon className="w-4 h-4 flex-shrink-0" />
-              {!collapsed && <span className="truncate">{label}</span>}
-            </NavLink>
-          ))}
+          {/* Election Operations */}
+          <NavSection items={electionNavItems} collapsed={collapsed} />
+
+          {/* Campaign Manager section */}
+          {!collapsed && (
+            <div className="pt-3 pb-1">
+              <p className="px-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Campaign Manager</p>
+            </div>
+          )}
+          {collapsed && <div className="my-1 border-t border-gray-100" />}
+          <NavSection items={campaignNavItems} collapsed={collapsed} />
+
+          {/* System */}
+          {!collapsed && (
+            <div className="pt-3 pb-1">
+              <p className="px-2 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Account</p>
+            </div>
+          )}
+          {collapsed && <div className="my-1 border-t border-gray-100" />}
+          <NavSection items={systemNavItems} collapsed={collapsed} />
         </nav>
         <button onClick={() => dispatch(toggleSidebar())} className="flex items-center gap-2 px-4 py-3 border-t border-gray-100 text-gray-500 hover:bg-gray-50 text-sm">
           {collapsed ? <Menu className="w-4 h-4" /> : <><ChevronLeft className="w-4 h-4" /><span>Collapse</span></>}
