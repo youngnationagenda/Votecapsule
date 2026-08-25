@@ -38,12 +38,18 @@ const LIMITED_ROLES: Record<string, string[]> = {
 };
 
 // Paths that bypass all role checks (health, webhooks, catalogue)
+// Match against the full request path (includes /api/v1/campaign prefix)
 const BYPASS_PATHS = [
-  '/health',
+  '/health',                          // direct hit without prefix (internal)
+  '/api/v1/campaign/health',          // ALB health check path (with full prefix)
   '/metrics',
+  '/api/v1/campaign/webhooks/',
   '/webhooks/',
+  '/api/v1/campaign/materials/categories',
   '/materials/categories',
+  '/api/v1/campaign/materials/types',
   '/materials/types',
+  '/api/v1/campaign/mockup-templates',
   '/mockup-templates',
 ];
 
@@ -70,7 +76,11 @@ export class CampaignRoleGuard implements CanActivate {
     const path = req.url.split('?')[0] ?? req.url;
 
     // Bypass role checks for public/internal paths
-    if (BYPASS_PATHS.some((bp) => path.startsWith(bp))) {
+    if (
+      BYPASS_PATHS.some((bp) => path.startsWith(bp)) ||
+      path.endsWith('/health') ||
+      path === '/health'
+    ) {
       return true;
     }
 
