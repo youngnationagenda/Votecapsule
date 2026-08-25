@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-export interface AuthUser { id: string; email: string; roles: string[]; candidateId?: string; position?: string; countyCode?: string; constituencyCode?: string; }
+export interface AuthUser { id: string; email: string; roles: string[]; tenantId?: string; candidateId?: string; position?: string; countyCode?: string; constituencyCode?: string; wardCode?: string | null; platformAdmin?: boolean; }
 export interface AuthState { isAuthenticated: boolean; user: AuthUser | null; accessToken: string | null; isLoading: boolean; error: string | null; }
 const stored = localStorage.getItem('vc_candidate_token');
 const storedUser = localStorage.getItem('vc_candidate_user');

@@ -36,12 +36,25 @@ export const campaignApi = {
                   apiClient.patch(`${BASE}/campaigns/${cid}/tasks/${tid}/status`, { status, notes }),
   },
 
+  // Materials Catalogue
+  materials: {
+    listCategories: ()                   => apiClient.get(`${BASE}/materials/categories`),
+    listTypes:      (params?: any)        => apiClient.get(`${BASE}/materials/types`, { params }),
+    getType:        (id: string)          => apiClient.get(`${BASE}/materials/types/${id}`),
+    createOrder:    (cid: string, d: any) => apiClient.post(`${BASE}/campaigns/${cid}/materials/orders`, d),
+    listOrders:     (cid: string, p?: any)=> apiClient.get(`${BASE}/campaigns/${cid}/materials/orders`, { params: p }),
+    getInventory:   (cid: string)         => apiClient.get(`${BASE}/campaigns/${cid}/materials/inventory`),
+  },
+
   // Teams
   teams: {
-    create:       (cid: string, data: any)                      => apiClient.post(`${BASE}/campaigns/${cid}/teams`, data),
-    list:         (cid: string)                                 => apiClient.get(`${BASE}/campaigns/${cid}/teams`),
-    addMember:    (cid: string, tid: string, data: any)         => apiClient.post(`${BASE}/campaigns/${cid}/teams/${tid}/members`, data),
-    removeMember: (cid: string, tid: string, uid: string)       => apiClient.delete(`${BASE}/campaigns/${cid}/teams/${tid}/members/${uid}`),
+    create:           (cid: string, data: any)                      => apiClient.post(`${BASE}/campaigns/${cid}/teams`, data),
+    list:             (cid: string)                                 => apiClient.get(`${BASE}/campaigns/${cid}/teams`),
+    addMember:        (cid: string, tid: string, data: any)         => apiClient.post(`${BASE}/campaigns/${cid}/teams/${tid}/members`, data),
+    removeMember:     (cid: string, tid: string, uid: string)       => apiClient.delete(`${BASE}/campaigns/${cid}/teams/${tid}/members/${uid}`),
+    updateMemberRole: (cid: string, tid: string, uid: string, d: any) => apiClient.patch(`${BASE}/campaigns/${cid}/teams/${tid}/members/${uid}`, d),
+    listRoles:        (cid: string)                                 => apiClient.get(`${BASE}/campaigns/${cid}/roles`),
+    assignRole:       (cid: string, data: any)                      => apiClient.post(`${BASE}/campaigns/${cid}/roles`, data),
   },
 
   // Volunteers
@@ -61,6 +74,10 @@ export const campaignApi = {
     listExpenses:    (cid: string, params?: any)    => apiClient.get(`${BASE}/campaigns/${cid}/expenses`, { params }),
     recordContrib:   (cid: string, data: any)       => apiClient.post(`${BASE}/campaigns/${cid}/contributions`, data),
     listContribs:    (cid: string)                  => apiClient.get(`${BASE}/campaigns/${cid}/contributions`),
+    importFile:      (cid: string, fd: FormData)    => apiClient.post(`${BASE}/campaigns/${cid}/budget/import`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    allocate:        (cid: string, data: any)       => apiClient.post(`${BASE}/campaigns/${cid}/budget/allocate`, data),
+    geography:       (cid: string)                  => apiClient.get(`${BASE}/campaigns/${cid}/geography`),
+    allCandidates:   (params?: any)                 => apiClient.get(`${BASE}/budgets/candidates`, { params }),
   },
 
   // SMS
@@ -72,6 +89,16 @@ export const campaignApi = {
     listBatches:     (cid: string)                     => apiClient.get(`${BASE}/campaigns/${cid}/sms/batches`),
     getBatch:        (cid: string, bid: string)        => apiClient.get(`${BASE}/campaigns/${cid}/sms/batches/${bid}`),
     stats:           (cid: string)                     => apiClient.get(`${BASE}/campaigns/${cid}/sms/stats`),
+  },
+
+  // Suppliers
+  suppliers: {
+    list:             (params?: any)                     => apiClient.get(`${BASE}/suppliers`, { params }),
+    get:              (id: string)                       => apiClient.get(`${BASE}/suppliers/${id}`),
+    listProducts:     (supplierId: string, p?: any)      => apiClient.get(`${BASE}/suppliers/${supplierId}/products`, { params: p }),
+    getProduct:       (supplierId: string, pid: string)  => apiClient.get(`${BASE}/suppliers/${supplierId}/products/${pid}`),
+    searchProducts:   (params: any)                      => apiClient.get(`${BASE}/suppliers/products/search`, { params }),
+    comparePrice:     (materialTypeId: string)           => apiClient.get(`${BASE}/suppliers/compare/${materialTypeId}`),
   },
 
   // Incidents

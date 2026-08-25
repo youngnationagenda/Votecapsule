@@ -74,12 +74,17 @@ export class CampaignRoleGuard implements CanActivate {
       return true;
     }
 
-    const role         = (req.headers['x-user-role']          ?? '').toUpperCase();
-    const tenantId     = req.headers['x-tenant-id']           ?? '';
-    const userId       = req.headers['x-user-id']             ?? '';
-    const wardCode     = req.headers['x-ward-code']           ?? '';
-    const consCode     = req.headers['x-constituency-code']   ?? '';
-    const candidateId  = req.headers['x-candidate-id']        ?? '';
+    const role          = (req.headers['x-user-role']          ?? '').toUpperCase();
+    const tenantId      = req.headers['x-tenant-id']           ?? '';
+    const userId        = req.headers['x-user-id']             ?? '';
+    const wardCode      = req.headers['x-ward-code']           ?? '';
+    const consCode      = req.headers['x-constituency-code']   ?? '';
+    const candidateId   = req.headers['x-candidate-id']        ?? '';
+    const platformAdmin = req.headers['x-platform-admin']      ?? '';
+
+    // Platform Super Admin bypass — x-platform-admin: true skips all role checks
+    // The header is only injected by API Gateway from a verified JWT claim
+    if (platformAdmin === 'true') return true;
 
     if (!tenantId) throw new ForbiddenException('X-Tenant-Id header is required');
     if (!role)     throw new ForbiddenException('X-User-Role header is required');

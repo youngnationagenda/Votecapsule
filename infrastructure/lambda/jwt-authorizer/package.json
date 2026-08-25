@@ -1,0 +1,9 @@
+{
+  "name": "vc-jwt-authorizer",
+  "version": "1.0.0",
+  "description": "VoteCapsule JWT Lambda Authorizer — extracts Cognito claims and injects as API Gateway context",
+  "main": "index.js",
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,1 @@
+{"statusCode":200,"body":"Migration 'verify_migrations' completed successfully","rows":[{"campaign_roles":"4","material_categories":"17","material_types":"275","supplier_products_table":"campaign_supplier_products","sms_messages_table":"campaign_sms_messages"}]}

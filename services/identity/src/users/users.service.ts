@@ -461,6 +461,57 @@ export class UsersService {
     );
   }
 
+  /**
+   * getCampaignClaims — fetch the user's active campaign role geography and
+   * candidateId from campaign_team_members (if they have one).
+   * Used by auth.service to sync custom:wardCode, custom:constituencyCode,
+   * custom:candidateId into Cognito at login time so the Lambda authorizer
+   * can forward them as x-* headers to the campaign service.
+   *
+   * Falls back gracefully if the campaign tables don't exist yet.
+   */
+  async getCampaignClaims(
+    userId: string,
+    tenantId?: string,
+  ): Promise<{
+    wardCode: string | null;
+    constituencyCode: string | null;
+    candidateId: string | null;
+  }> {
+    try {
+      // campaign_team_members: ward_code, constituency_code, campaign.candidate_id
+      const result = await this.db.query<{
+        ward_code: string | null;
+        constituency_code: string | null;
+        candidate_id: string | null;
+      }>(
+        `SELECT
+            ctm.ward_code,
+            ctm.constituency_code,
+            c.candidate_id
+         FROM campaign_team_members ctm
+         JOIN campaigns c ON c.id = ctm.campaign_id
+         WHERE ctm.user_id = $1
+           AND ctm.status = 'active'
+           ${tenantId ? 'AND ctm.tenant_id = $2' : ''}
+         ORDER BY ctm.created_at DESC
+         LIMIT 1`,
+        tenantId ? [userId, tenantId] : [userId],
+      );
+
+      const row = result.rows[0];
+      return {
+        wardCode:         row?.ward_code         ?? null,
+        constituencyCode: row?.constituency_code  ?? null,
+        candidateId:      row?.candidate_id       ?? null,
+      };
+    } catch {
+      // campaign tables may not be accessible from identity service DB pool
+      // (different schema or first-time setup) — return nulls gracefully
+      return { wardCode: null, constituencyCode: null, candidateId: null };
+    }
+  }
+
   async logAuthEvent(payload: AuthEventPayload): Promise<void> {
     try {
       const user = await this.findByEmail(payload.email);

@@ -3,7 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { User, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { loginStart, loginSuccess, loginFailure } from '../store/slices/authSlice';
+import type { AuthUser } from '../store/slices/authSlice';
 import { apiClient } from '../api/apiClient';
+
+function buildAuthUser(result: any, fallbackEmail: string): AuthUser {
+  const u = result.user ?? {};
+  return {
+    id:              u.id              ?? '',
+    email:           u.email           ?? fallbackEmail,
+    roles:           Array.isArray(u.roles) ? u.roles : ['CANDIDATE'],
+    tenantId:        u.tenantId        ?? undefined,
+    candidateId:     u.candidateId     ?? undefined,
+    constituencyCode: u.constituencyCode ?? undefined,
+    wardCode:        u.wardCode        ?? null,
+    platformAdmin:   u.platformAdmin   === true,
+  };
+}
 
 export function LoginPage(): React.JSX.Element {
   const dispatch = useAppDispatch();
@@ -23,7 +38,7 @@ export function LoginPage(): React.JSX.Element {
       const { data } = await apiClient.post('/identity/auth/login', { email, password });
       const result = data.data ?? data;
       if (result.challengeName === 'SOFTWARE_TOKEN_MFA') { setMfaRequired(true); setSession(result.session ?? ''); dispatch(loginFailure('')); return; }
-      dispatch(loginSuccess({ user: { id: '', email, roles: ['CANDIDATE'] }, accessToken: result.accessToken }));
+      dispatch(loginSuccess({ user: buildAuthUser(result, email), accessToken: result.accessToken }));
       navigate('/dashboard');
     } catch { dispatch(loginFailure('Invalid credentials')); }
   }, [email, password, dispatch, navigate]);
@@ -33,7 +48,7 @@ export function LoginPage(): React.JSX.Element {
     dispatch(loginStart());
     try {
       const { data } = await apiClient.post('/identity/auth/mfa/verify', { email, mfaCode, session });
-      dispatch(loginSuccess({ user: { id: '', email, roles: ['CANDIDATE'] }, accessToken: (data.data ?? data).accessToken }));
+      dispatch(loginSuccess({ user: buildAuthUser(data.data ?? data, email), accessToken: (data.data ?? data).accessToken }));
       navigate('/dashboard');
     } catch { dispatch(loginFailure('Invalid MFA code')); }
   }, [email, mfaCode, session, dispatch, navigate]);

@@ -12,6 +12,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import {
   CognitoIdentityProviderClient,
@@ -20,6 +21,7 @@ import {
   ForgotPasswordCommand,
   ConfirmForgotPasswordCommand,
   GlobalSignOutCommand,
+  AdminUpdateUserAttributesCommand,
   AuthFlowType,
   ChallengeNameType,
 } from '@aws-sdk/client-cognito-identity-provider';
@@ -31,11 +33,26 @@ import { PasswordResetDto } from './dto/password-reset.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { AuthTokens } from '@vote-capsule/types';
 
+// ── Extended user shape for campaign role claims ───────────────
+interface UserWithClaims {
+  id: string;
+  email: string;
+  cognitoSub: string | null;
+  roles: string[];
+  tenantId: string | null;
+  // Campaign role geography + identity fields
+  wardCode?: string | null;
+  constituencyCode?: string | null;
+  candidateId?: string | null;
+  platformAdmin?: boolean;
+}
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
   private readonly cognitoClient: CognitoIdentityProviderClient;
   private readonly clientId: string;
+  private readonly userPoolId: string;
 
   constructor(
     private readonly jwtService: JwtService,
@@ -45,7 +62,53 @@ export class AuthService {
     this.cognitoClient = new CognitoIdentityProviderClient({
       region: this.configService.get<string>('AWS_REGION', 'us-east-1'),
     });
-    this.clientId = this.configService.getOrThrow<string>('COGNITO_CLIENT_ID');
+    this.clientId   = this.configService.getOrThrow<string>('COGNITO_CLIENT_ID');
+    this.userPoolId = this.configService.get<string>('COGNITO_USER_POOL_ID', 'us-east-1_i3N2tg34A');
+  }
+
+  // ── Sync campaign-scoped claims into Cognito custom attributes ─
+  // Called after login so the Cognito ID token carries these for the
+  // Lambda authorizer to extract and forward as x-* headers.
+  private async syncCognitoClaims(user: UserWithClaims): Promise<void> {
+    if (!user.cognitoSub) return;
+    try {
+      const primaryRole = user.roles?.[0] ?? '';
+      const isPlatformAdmin = (
+        primaryRole === 'PLATFORM_SUPER_ADMIN' ||
+        primaryRole === 'ADMIN' ||
+        (user.platformAdmin === true)
+      );
+
+      // Look up ward/constituency/candidateId from DB (campaign_team_members)
+      const extendedClaims = await this.usersService
+        .getCampaignClaims(user.id, user.tenantId ?? undefined)
+        .catch(() => ({
+          wardCode: null,
+          constituencyCode: null,
+          candidateId: null,
+        }));
+
+      const attrs = [
+        { Name: 'custom:userId',           Value: user.id },
+        { Name: 'custom:tenantId',         Value: user.tenantId ?? '' },
+        { Name: 'custom:roles',            Value: primaryRole },
+        { Name: 'custom:wardCode',         Value: extendedClaims.wardCode        ?? user.wardCode        ?? '' },
+        { Name: 'custom:constituencyCode', Value: extendedClaims.constituencyCode ?? user.constituencyCode ?? '' },
+        { Name: 'custom:candidateId',      Value: extendedClaims.candidateId     ?? user.candidateId      ?? '' },
+        { Name: 'custom:platformAdmin',    Value: isPlatformAdmin ? 'true' : 'false' },
+      ];
+
+      await this.cognitoClient.send(new AdminUpdateUserAttributesCommand({
+        UserPoolId:      this.userPoolId,
+        Username:        user.email,
+        UserAttributes:  attrs,
+      }));
+
+      this.logger.debug(`Synced Cognito claims for ${user.email}: role=${primaryRole} tenant=${user.tenantId}`);
+    } catch (err) {
+      // Non-fatal — log but never break login
+      this.logger.warn(`Could not sync Cognito claims for ${user.email}: ${err instanceof Error ? err.message : err}`);
+    }
   }
 
   async login(
@@ -77,7 +140,7 @@ export class AuthService {
         throw new UnauthorizedException('Authentication failed');
       }
 
-      const { AccessToken, RefreshToken, ExpiresIn } = response.AuthenticationResult;
+      const { AccessToken, IdToken, RefreshToken, ExpiresIn } = response.AuthenticationResult;
 
       if (!AccessToken || !RefreshToken || !ExpiresIn) {
         throw new UnauthorizedException('Invalid authentication result');
@@ -98,28 +161,31 @@ export class AuthService {
         success: true,
       });
 
-      // Issue our own HS256 JWT so all other services can validate with JWT_SECRET.
-      // The Cognito AccessToken (RS256) is stored as refreshToken for token refresh calls.
-      const platformToken = this.jwtService.sign(
-        {
-          sub: user?.id ?? dto.email,
-          email: dto.email,
-          roles: user?.roles ?? [],
-          tenantId: user?.tenantId ?? null,
-        },
-        {
-          expiresIn: `${ExpiresIn}s`,
-          issuer: 'vote-capsule-identity',
-          audience: 'vote-capsule-platform',
-        },
-      );
+      // Sync campaign-scoped claims into Cognito custom attributes.
+      // The Lambda authorizer reads these from the Cognito ID token.
+      if (user) {
+        await this.syncCognitoClaims(user as UserWithClaims);
+      }
+
+      // Return the Cognito ID token as the platform accessToken.
+      // The Lambda authorizer at API Gateway validates this RS256 token
+      // against the Cognito JWKS and extracts custom:* claims as context.
+      // IdToken carries all custom attributes; AccessToken only has standard claims.
+      const tokenToReturn = IdToken ?? AccessToken;
 
       return {
-        accessToken: platformToken,
+        accessToken:  tokenToReturn,
         refreshToken: RefreshToken,   // Cognito refresh token
-        expiresIn: ExpiresIn,
-        tokenType: 'Bearer',
-      };
+        expiresIn:    ExpiresIn,
+        tokenType:    'Bearer',
+        // Also include user profile for frontend store hydration
+        user: user ? {
+          id:              user.id,
+          email:           user.email,
+          roles:           user.roles,
+          tenantId:        user.tenantId,
+        } : null,
+      } as any;
     } catch (error) {
       await this.usersService.logAuthEvent({
         email: dto.email,
@@ -157,7 +223,7 @@ export class AuthService {
         throw new UnauthorizedException('MFA verification failed');
       }
 
-      const { AccessToken, RefreshToken, ExpiresIn } = response.AuthenticationResult;
+      const { AccessToken, IdToken, RefreshToken, ExpiresIn } = response.AuthenticationResult;
 
       await this.usersService.logAuthEvent({
         email: dto.email,
@@ -167,30 +233,26 @@ export class AuthService {
         success: true,
       });
 
-      // Look up user for platform JWT
+      // Look up user for claims sync
       const user = await this.usersService.findByEmailWithRoles(dto.email).catch(() => null);
 
-      // Issue HS256 platform token after MFA success
-      const platformToken = this.jwtService.sign(
-        {
-          sub: user?.id ?? dto.email,
-          email: dto.email,
-          roles: user?.roles ?? [],
-          tenantId: user?.tenantId ?? null,
-        },
-        {
-          expiresIn: `${ExpiresIn ?? 3600}s`,
-          issuer: 'vote-capsule-identity',
-          audience: 'vote-capsule-platform',
-        },
-      );
+      // Sync Cognito claims after MFA success
+      if (user) {
+        await this.syncCognitoClaims(user as UserWithClaims);
+      }
 
       return {
-        accessToken: platformToken,
+        accessToken:  IdToken ?? AccessToken ?? '',
         refreshToken: RefreshToken ?? '',
-        expiresIn: ExpiresIn ?? 3600,
-        tokenType: 'Bearer',
-      };
+        expiresIn:    ExpiresIn ?? 3600,
+        tokenType:    'Bearer',
+        user: user ? {
+          id:      user.id,
+          email:   user.email,
+          roles:   user.roles,
+          tenantId: user.tenantId,
+        } : null,
+      } as any;
     } catch (error) {
       await this.usersService.logAuthEvent({
         email: dto.email,

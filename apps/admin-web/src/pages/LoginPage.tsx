@@ -7,7 +7,29 @@ import { useNavigate } from 'react-router-dom';
 import { Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { loginStart, loginSuccess, loginFailure } from '../store/slices/authSlice';
+import type { AuthUser } from '../store/slices/authSlice';
 import { identityClient } from '../api/apiClient';
+
+// Build AuthUser from identity service login response.
+// Super-admin portal always forces PLATFORM_SUPER_ADMIN role in addition
+// to whatever the server returns, so role-guard bypasses work correctly.
+function buildAuthUser(result: any, fallbackEmail: string): AuthUser {
+  const u = result.user ?? {};
+  const serverRoles: string[] = Array.isArray(u.roles) ? u.roles : [];
+  const roles = serverRoles.includes('PLATFORM_SUPER_ADMIN')
+    ? serverRoles
+    : ['PLATFORM_SUPER_ADMIN', ...serverRoles];
+  return {
+    id:              u.id              ?? '',
+    email:           u.email           ?? fallbackEmail,
+    roles,
+    tenantId:        u.tenantId        ?? undefined,
+    platformAdmin:   true,  // admin portal users are always super-admin
+    wardCode:        null,
+    constituencyCode: null,
+    candidateId:     null,
+  };
+}
 
 export function LoginPage(): React.JSX.Element {
   const dispatch = useAppDispatch();
@@ -38,7 +60,7 @@ export function LoginPage(): React.JSX.Element {
         }
 
         dispatch(loginSuccess({
-          user: { id: '', email, roles: ['PLATFORM_SUPER_ADMIN'] },
+          user: buildAuthUser(result, email),
           accessToken: result.accessToken,
         }));
         navigate('/dashboard');
@@ -61,7 +83,7 @@ export function LoginPage(): React.JSX.Element {
         const result = data.data ?? data;
 
         dispatch(loginSuccess({
-          user: { id: '', email, roles: ['PLATFORM_SUPER_ADMIN'] },
+          user: buildAuthUser(result, email),
           accessToken: result.accessToken,
         }));
         navigate('/dashboard');

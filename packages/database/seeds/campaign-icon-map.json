@@ -1,0 +1,248 @@
+{
+  "categories": {
+    "PRINTED_MATERIALS": {
+      "label": "Printed Materials",
+      "iconFile": "categories/printed_materials.svg",
+      "color": "#4F46E5",
+      "bg": "#EEF2FF"
+    },
+    "BRANDED_CLOTHING": {
+      "label": "Branded Clothing",
+      "iconFile": "categories/branded_clothing.svg",
+      "color": "#EA580C",
+      "bg": "#FFF7ED"
+    },
+    "OUTDOOR_ADVERTISING": {
+      "label": "Outdoor Advertising",
+      "iconFile": "categories/outdoor_advertising.svg",
+      "color": "#16A34A",
+      "bg": "#F0FDF4"
+    },
+    "DIGITAL_MEDIA": {
+      "label": "Digital Media",
+      "iconFile": "categories/digital_media.svg",
+      "color": "#2563EB",
+      "bg": "#EFF6FF"
+    },
+    "VEHICLE_BRANDING": {
+      "label": "Vehicle Branding",
+      "iconFile": "categories/vehicle_branding.svg",
+      "color": "#E11D48",
+      "bg": "#FFF1F2"
+    },
+    "EVENT_SUPPLIES": {
+      "label": "Event Supplies",
+      "iconFile": "categories/event_supplies.svg",
+      "color": "#CA8A04",
+      "bg": "#FEFCE8"
+    },
+    "PROMOTIONAL_ITEMS": {
+      "label": "Promotional Items",
+      "iconFile": "categories/promotional_items.svg",
+      "color": "#9333EA",
+      "bg": "#FDF4FF"
+    },
+    "AUDIO_EQUIPMENT": {
+      "label": "Audio Equipment",
+      "iconFile": "categories/audio_equipment.svg",
+      "color": "#0D9488",
+      "bg": "#F0FDFA"
+    },
+    "STAGE_EQUIPMENT": {
+      "label": "Stage & Lighting",
+      "iconFile": "categories/stage_equipment.svg",
+      "color": "#F59E0B",
+      "bg": "#FFF7ED"
+    },
+    "FOOD_BEVERAGES": {
+      "label": "Food & Beverages",
+      "iconFile": "categories/food_beverages.svg",
+      "color": "#F43F5E",
+      "bg": "#FFF1F2"
+    },
+    "SECURITY_ITEMS": {
+      "label": "Security & Safety",
+      "iconFile": "categories/security_items.svg",
+      "color": "#0284C7",
+      "bg": "#F0F9FF"
+    },
+    "STATIONERY": {
+      "label": "Stationery & Office",
+      "iconFile": "categories/stationery.svg",
+      "color": "#475569",
+      "bg": "#F8FAFC"
+    },
+    "SOCIAL_MEDIA": {
+      "label": "Social Media Assets",
+      "iconFile": "categories/social_media.svg",
+      "color": "#3B82F6",
+      "bg": "#EFF6FF"
+    },
+    "COMMUNICATION_TOOLS": {
+      "label": "Communication Tools",
+      "iconFile": "categories/communication_tools.svg",
+      "color": "#22C55E",
+      "bg": "#F0FDF4"
+    },
+    "TRANSPORT_MATERIALS": {
+      "label": "Transport & Logistics",
+      "iconFile": "categories/transport_materials.svg",
+      "color": "#FB923C",
+      "bg": "#FFF7ED"
+    },
+    "MEDIA_PRODUCTION": {
+      "label": "Media Production",
+      "iconFile": "categories/media_production.svg",
+      "color": "#A855F7",
+      "bg": "#FDF4FF"
+    },
+    "MISCELLANEOUS": {
+      "label": "Miscellaneous",
+      "iconFile": "categories/miscellaneous.svg",
+      "color": "#6B7280",
+      "bg": "#F9FAFB"
+    }
+  },
+  "products": {
+    "BASEBALL_CAP": {
+      "iconFile": "products/baseball_cap.svg",
+      "color": "#EA580C",
+      "bg": "#FFF7ED"
+    },
+    "BUCKET_HAT": {
+      "iconFile": "products/bucket_hat.svg",
+      "color": "#EA580C",
+      "bg": "#FFF7ED"
+    },
+    "ROUND_NECK_TSHIRT": {
+      "iconFile": "products/round_neck_tshirt.svg",
+      "color": "#EA580C",
+      "bg": "#FFF7ED"
+    },
+    "POLO_SHIRT": {
+      "iconFile": "products/polo_shirt.svg",
+      "color": "#EA580C",
+      "bg": "#FFF7ED"
+    },
+    "HOODIE": {
+      "iconFile": "products/hoodie.svg",
+      "color": "#EA580C",
+      "bg": "#FFF7ED"
+    },
+    "REFLECTOR_JACKET": {
+      "iconFile": "products/reflector_jacket.svg",
+      "color": "#EA580C",
+      "bg": "#FFF7ED"
+    },
+    "SILICONE_WRISTBAND": {
+      "iconFile": "products/silicone_wristband.svg",
+      "color": "#16A34A",
+      "bg": "#F0FDF4"
+    },
+    "BALLPOINT_PEN": {
+      "iconFile": "products/ballpoint_pen.svg",
+      "color": "#475569",
+      "bg": "#F8FAFC"
+    },
+    "NOTEBOOK_A5": {
+      "iconFile": "products/notebook_a5.svg",
+      "color": "#475569",
+      "bg": "#F8FAFC"
+    },
+    "A4_FLYER": {
+      "iconFile": "products/a4_flyer.svg",
+      "color": "#4F46E5",
+      "bg": "#EEF2FF"
+    },
+    "A3_POSTER": {
+      "iconFile": "products/a3_poster.svg",
+      "color": "#4F46E5",
+      "bg": "#EEF2FF"
+    },
+    "PVC_BANNER": {
+      "iconFile": "products/pvc_banner.svg",
+      "color": "#059669",
+      "bg": "#ECFDF5"
+    },
+    "ROLLUP_BANNER": {
+      "iconFile": "products/rollup_banner.svg",
+      "color": "#059669",
+      "bg": "#ECFDF5"
+    },
+    "TEARDROP_FLAG": {
+      "iconFile": "products/teardrop_flag.svg",
+      "color": "#E11D48",
+      "bg": "#FFF1F2"
+    },
+    "POLE_FLAG": {
+      "iconFile": "products/pole_flag.svg",
+      "color": "#E11D48",
+      "bg": "#FFF1F2"
+    },
+    "VEHICLE_STICKER": {
+      "iconFile": "products/vehicle_sticker.svg",
+      "color": "#F97316",
+      "bg": "#FFF7ED"
+    },
+    "FULL_VEHICLE_WRAP": {
+      "iconFile": "products/full_vehicle_wrap.svg",
+      "color": "#E11D48",
+      "bg": "#FFF1F2"
+    },
+    "WALL_CALENDAR_A3": {
+      "iconFile": "products/wall_calendar_a3.svg",
+      "color": "#CA8A04",
+      "bg": "#FEFCE8"
+    },
+    "BRANDED_MUG": {
+      "iconFile": "products/branded_mug.svg",
+      "color": "#9333EA",
+      "bg": "#FDF4FF"
+    },
+    "WATER_BOTTLE": {
+      "iconFile": "products/water_bottle.svg",
+      "color": "#9333EA",
+      "bg": "#FDF4FF"
+    },
+    "UMBRELLA": {
+      "iconFile": "products/umbrella.svg",
+      "color": "#9333EA",
+      "bg": "#FDF4FF"
+    },
+    "TOTE_BAG": {
+      "iconFile": "products/tote_bag.svg",
+      "color": "#9333EA",
+      "bg": "#FDF4FF"
+    },
+    "STAFF_ID_CARD": {
+      "iconFile": "products/staff_id_card.svg",
+      "color": "#2563EB",
+      "bg": "#EFF6FF"
+    },
+    "LANYARD": {
+      "iconFile": "products/lanyard.svg",
+      "color": "#2563EB",
+      "bg": "#EFF6FF"
+    },
+    "HIGHWAY_BILLBOARD": {
+      "iconFile": "products/highway_billboard.svg",
+      "color": "#16A34A",
+      "bg": "#F0FDF4"
+    },
+    "STREETLIGHT_POLE_BANNER": {
+      "iconFile": "products/streetlight_pole_banner.svg",
+      "color": "#16A34A",
+      "bg": "#F0FDF4"
+    },
+    "WHATSAPP_POSTER": {
+      "iconFile": "products/whatsapp_poster.svg",
+      "color": "#16A34A",
+      "bg": "#ECFDF5"
+    },
+    "FACEBOOK_POSTER": {
+      "iconFile": "products/facebook_poster.svg",
+      "color": "#2563EB",
+      "bg": "#EFF6FF"
+    }
+  }
+}

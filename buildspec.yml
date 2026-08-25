@@ -1,7 +1,7 @@
 version: 0.2
 
 # VoteCapsule — AWS CodeBuild Buildspec
-# Builds all 14 Docker images (13 services + admin-web) and pushes to ECR
+# Builds all 15 Docker images (14 services + admin-web) and pushes to ECR
 # Each build step uses || true so a single failure doesn't abort remaining builds
 
 env:
@@ -46,19 +46,20 @@ phases:
           fi
         }
 
-        build_service identity-service  3001 services/identity/Dockerfile
-        build_service tenant-service    3002 services/tenant/Dockerfile
-        build_service trust-service     3003 services/trust/Dockerfile
-        build_service geography-service 3004 services/geography/Dockerfile
-        build_service evidence-service  3005 services/evidence/Dockerfile
-        build_service ai-service        3006 services/ai/Dockerfile
-        build_service workflow-service  3007 services/workflow/Dockerfile
+        build_service identity-service     3001 services/identity/Dockerfile
+        build_service tenant-service       3002 services/tenant/Dockerfile
+        build_service trust-service        3003 services/trust/Dockerfile
+        build_service geography-service    3004 services/geography/Dockerfile
+        build_service evidence-service     3005 services/evidence/Dockerfile
+        build_service ai-service           3006 services/ai/Dockerfile
+        build_service workflow-service     3007 services/workflow/Dockerfile
         build_service notification-service 3008 services/notification/Dockerfile
-        build_service candidate-service 3009 services/candidate/Dockerfile
-        build_service reporting-service 3010 services/reporting/Dockerfile
-        build_service election-service  3011 services/election/Dockerfile
-        build_service audit-service     3012 services/audit/Dockerfile
-        build_service billing-service   3013 services/billing/Dockerfile
+        build_service candidate-service    3009 services/candidate/Dockerfile
+        build_service reporting-service    3010 services/reporting/Dockerfile
+        build_service election-service     3011 services/election/Dockerfile
+        build_service audit-service        3012 services/audit/Dockerfile
+        build_service billing-service      3013 services/billing/Dockerfile
+        build_service campaign-service     3016 services/campaign/Dockerfile
 
         echo "--- Building admin-web ---"
         if docker build --no-cache --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION \
@@ -77,7 +78,7 @@ phases:
       - echo "=== Build pipeline complete. ECR image summary ==="
       - echo "SHORT_SHA=$SHORT_SHA"
       - |
-        for SVC in identity-service tenant-service trust-service geography-service evidence-service ai-service workflow-service notification-service candidate-service reporting-service election-service audit-service billing-service admin-web; do
+        for SVC in identity-service tenant-service trust-service geography-service evidence-service ai-service workflow-service notification-service candidate-service reporting-service election-service audit-service billing-service campaign-service admin-web; do
           PUSHED=$(aws ecr describe-images --repository-name vote-capsule/$SVC --image-ids imageTag=latest --region $AWS_REGION --query "imageDetails[0].imagePushedAt" --output text 2>/dev/null || echo "NOT_PUSHED")
           echo "  $SVC: $PUSHED"
         done

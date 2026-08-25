@@ -53,6 +53,9 @@ export const campaignApi = {
     iebc:          (cid: string)             => apiClient.get(`${BASE}/campaigns/${cid}/budget/iebc`),
     listExpenses:  (cid: string, p?: any)    => apiClient.get(`${BASE}/campaigns/${cid}/expenses`, { params: p }),
     recordExpense: (cid: string, data: any)  => apiClient.post(`${BASE}/campaigns/${cid}/expenses`, data),
+    importFile:    (cid: string, fd: FormData) => apiClient.post(`${BASE}/campaigns/${cid}/budget/import`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    allocate:      (cid: string, data: any)  => apiClient.post(`${BASE}/campaigns/${cid}/budget/allocate`, data),
+    geography:     (cid: string)             => apiClient.get(`${BASE}/campaigns/${cid}/geography`),
   },
 
   // ── SMS ──────────────────────────────────────────────────
@@ -61,6 +64,26 @@ export const campaignApi = {
     sendBatch:       (cid: string, d: any)   => apiClient.post(`${BASE}/campaigns/${cid}/sms/send`, d),
     listBatches:     (cid: string)           => apiClient.get(`${BASE}/campaigns/${cid}/sms/batches`),
     stats:           (cid: string)           => apiClient.get(`${BASE}/campaigns/${cid}/sms/stats`),
+  },
+
+  // ── Materials Catalogue ───────────────────────────────────
+  materials: {
+    listCategories: ()                    => apiClient.get(`${BASE}/materials/categories`),
+    listTypes:      (params?: any)        => apiClient.get(`${BASE}/materials/types`, { params }),
+    getType:        (id: string)          => apiClient.get(`${BASE}/materials/types/${id}`),
+    createOrder:    (cid: string, d: any) => apiClient.post(`${BASE}/campaigns/${cid}/materials/orders`, d),
+    listOrders:     (cid: string, p?: any)=> apiClient.get(`${BASE}/campaigns/${cid}/materials/orders`, { params: p }),
+    getOrder:       (cid: string, oid: string) => apiClient.get(`${BASE}/campaigns/${cid}/materials/orders/${oid}`),
+    getInventory:   (cid: string)         => apiClient.get(`${BASE}/campaigns/${cid}/materials/inventory`),
+  },
+
+  // ── Suppliers ────────────────────────────────────────────
+  suppliers: {
+    list:           (params?: any)                     => apiClient.get(`${BASE}/suppliers`, { params }),
+    get:            (id: string)                       => apiClient.get(`${BASE}/suppliers/${id}`),
+    listProducts:   (supplierId: string, p?: any)      => apiClient.get(`${BASE}/suppliers/${supplierId}/products`, { params: p }),
+    searchProducts: (params: any)                      => apiClient.get(`${BASE}/suppliers/products/search`, { params }),
+    comparePrice:   (materialTypeId: string)           => apiClient.get(`${BASE}/suppliers/compare/${materialTypeId}`),
   },
 
   // ── Incidents ────────────────────────────────────────────

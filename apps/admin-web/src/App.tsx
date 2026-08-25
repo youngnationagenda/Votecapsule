@@ -48,6 +48,7 @@ const ElectionsPage          = lazy(() => import('./pages/ElectionsPage').then(m
 const AiOperationsPage       = lazy(() => import('./pages/AiOperationsPage').then(m => ({ default: m.AiOperationsPage })));
 const BillingAdminPage       = lazy(() => import('./pages/BillingAdminPage').then(m => ({ default: m.BillingAdminPage })));
 const ComingSoonPage         = lazy(() => import('./pages/ComingSoonPage').then(m => ({ default: m.ComingSoonPage })));
+const CampaignAdminPage      = lazy(() => import('./pages/CampaignAdminPage').then(m => ({ default: m.CampaignAdminPage })));
 
 // ── Page-level Suspense fallback ─────────────────────────────────────────────
 function PageLoader(): React.JSX.Element {
@@ -149,6 +150,11 @@ export default function App(): React.JSX.Element {
           {/* Parties */}
           <Route path="/parties" element={
             <Suspense fallback={<PageLoader />}><PartyManagementPage /></Suspense>
+          } />
+
+          {/* Campaign Manager */}
+          <Route path="/campaign" element={
+            <Suspense fallback={<PageLoader />}><CampaignAdminPage /></Suspense>
           } />
 
           {/* Users */}

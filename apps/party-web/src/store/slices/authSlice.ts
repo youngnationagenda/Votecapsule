@@ -8,6 +8,11 @@ export interface AuthUser {
   partyId?: string;
   firstName?: string;
   lastName?: string;
+  // Campaign role geography claims — populated from Cognito ID token custom attrs
+  wardCode?: string | null;
+  constituencyCode?: string | null;
+  candidateId?: string | null;
+  platformAdmin?: boolean;
 }
 
 export interface AuthState {

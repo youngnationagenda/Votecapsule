@@ -62,6 +62,20 @@ export class MaterialsService {
     return t;
   }
 
+  async createType(dto: any): Promise<CampaignMaterialType> {
+    const entity = this.typeRepo.create(dto);
+    const saved  = await this.typeRepo.save(entity) as unknown as CampaignMaterialType;
+    this.logger.log(`Material type created: ${saved.code}`);
+    return saved;
+  }
+
+  async updateType(id: string, dto: any): Promise<CampaignMaterialType> {
+    const t = await this.typeRepo.findOne({ where: { id } });
+    if (!t) throw new NotFoundException(`Material type ${id} not found`);
+    Object.assign(t, dto);
+    return this.typeRepo.save(t) as unknown as Promise<CampaignMaterialType>;
+  }
+
   // ── Orders ───────────────────────────────────────────────────
 
   private async nextOrderNumber(): Promise<string> {

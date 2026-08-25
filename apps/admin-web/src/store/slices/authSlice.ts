@@ -5,6 +5,10 @@ export interface AuthUser {
   email: string;
   roles: string[];
   tenantId?: string;
+  platformAdmin?: boolean;
+  wardCode?: string | null;
+  constituencyCode?: string | null;
+  candidateId?: string | null;
 }
 
 export interface AuthState {
@@ -38,6 +42,10 @@ const authSlice = createSlice({
       state.isLoading = false;
       state.error = null;
       localStorage.setItem('vc_access_token', action.payload.accessToken);
+      // Store user ID so apiClient interceptor can inject x-user-id header
+      if (action.payload.user.id) {
+        localStorage.setItem('vc_user_id', action.payload.user.id);
+      }
     },
     loginFailure(state, action: PayloadAction<string>) {
       state.isAuthenticated = false;
@@ -49,6 +57,7 @@ const authSlice = createSlice({
       state.user = null;
       state.accessToken = null;
       localStorage.removeItem('vc_access_token');
+      localStorage.removeItem('vc_user_id');
     },
     clearError(state) {
       state.error = null;

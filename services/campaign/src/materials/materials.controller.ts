@@ -28,6 +28,28 @@ export class MaterialsController {
     return this.service.getType(id);
   }
 
+  // ── Admin-only: create / update material types (x-platform-admin required) ─
+
+  @Post('materials/types')
+  @HttpCode(HttpStatus.CREATED)
+  createType(
+    @Body() dto: any,
+    @Headers('x-platform-admin') platformAdmin: string,
+  ) {
+    if (platformAdmin !== 'true') throw new BadRequestException('Platform admin access required');
+    return this.service.createType(dto);
+  }
+
+  @Patch('materials/types/:id')
+  updateType(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: any,
+    @Headers('x-platform-admin') platformAdmin: string,
+  ) {
+    if (platformAdmin !== 'true') throw new BadRequestException('Platform admin access required');
+    return this.service.updateType(id, dto);
+  }
+
   // ── Campaign-scoped endpoints ────────────────────────────────
 
   @Get('campaigns/:campaignId/materials/orders')

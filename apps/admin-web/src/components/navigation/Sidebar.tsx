@@ -25,6 +25,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Camera,
+  Megaphone,
 } from 'lucide-react';
 import { useAppDispatch } from '../../store/hooks';
 import { toggleSidebar } from '../../store/slices/uiSlice';
@@ -42,6 +43,7 @@ const navItems: NavItem[] = [
   { label: 'Dashboard',     path: '/dashboard',    icon: LayoutDashboard },
   { label: 'Tenants',       path: '/tenants',      icon: Building2 },
   { label: 'Parties',       path: '/parties',      icon: Flag },
+  { label: 'Campaign Mgr',  path: '/campaign',     icon: Megaphone },
   { label: 'Elections',     path: '/elections',    icon: Vote },
   { label: 'Evidence',      path: '/evidence',     icon: Camera },
   { label: 'Users',         path: '/users',        icon: Users },

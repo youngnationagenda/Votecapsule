@@ -2,7 +2,7 @@
 // VoteCapsule™ — Campaign Suppliers Controller
 // ============================================================
 import {
-  Controller, Get, Post, Put, Param, Body,
+  Controller, Get, Post, Put, Patch, Delete, Param, Body,
   Headers, Query, HttpCode, HttpStatus, BadRequestException, ParseUUIDPipe,
 } from '@nestjs/common';
 import { SuppliersService } from './suppliers.service';
@@ -12,7 +12,14 @@ export class SuppliersController {
   constructor(private readonly service: SuppliersService) {}
 
   @Get()
-  list(@Headers('x-tenant-id') t: string) {
+  list(
+    @Headers('x-tenant-id')      t: string,
+    @Headers('x-platform-admin') platformAdmin: string,
+  ) {
+    // Platform admin sees all suppliers across all tenants
+    if (platformAdmin === 'true') {
+      return this.service.listAll();
+    }
     if (!t) throw new BadRequestException('X-Tenant-Id required');
     return this.service.list(t);
   }
@@ -70,5 +77,47 @@ export class SuppliersController {
     @Param('pid', ParseUUIDPipe) pid: string,
   ) {
     return this.service.getProduct(pid, supplierId);
+  }
+
+  // ── Admin-level product management (x-platform-admin required) ─
+
+  @Get('products')
+  listAllProducts(
+    @Headers('x-platform-admin') platformAdmin: string,
+    @Query('page')  page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    if (platformAdmin !== 'true') throw new BadRequestException('Platform admin access required');
+    return this.service.listAllProducts(parseInt(page ?? '1'), parseInt(limit ?? '100'));
+  }
+
+  @Post('products')
+  @HttpCode(HttpStatus.CREATED)
+  createProduct(
+    @Body() dto: any,
+    @Headers('x-platform-admin') platformAdmin: string,
+  ) {
+    if (platformAdmin !== 'true') throw new BadRequestException('Platform admin access required');
+    return this.service.createProduct(dto);
+  }
+
+  @Patch('products/:id')
+  updateProduct(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: any,
+    @Headers('x-platform-admin') platformAdmin: string,
+  ) {
+    if (platformAdmin !== 'true') throw new BadRequestException('Platform admin access required');
+    return this.service.updateProduct(id, dto);
+  }
+
+  @Delete('products/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  deleteProduct(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Headers('x-platform-admin') platformAdmin: string,
+  ) {
+    if (platformAdmin !== 'true') throw new BadRequestException('Platform admin access required');
+    return this.service.deleteProduct(id);
   }
 }

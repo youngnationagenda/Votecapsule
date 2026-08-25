@@ -1,0 +1,173 @@
+{
+    "taskDefinitionArn": "arn:aws:ecs:us-east-1:683541453923:task-definition/vc-campaign:2",
+    "containerDefinitions": [
+        {
+            "name": "vc-campaign",
+            "image": "683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/campaign-service:latest",
+            "cpu": 0,
+            "portMappings": [
+                {
+                    "containerPort": 3016,
+                    "hostPort": 3016,
+                    "protocol": "tcp"
+                }
+            ],
+            "essential": true,
+            "environment": [
+                {
+                    "name": "SERVICE_NAME",
+                    "value": "campaign-service"
+                },
+                {
+                    "name": "AWS_REGION",
+                    "value": "us-east-1"
+                },
+                {
+                    "name": "PORT",
+                    "value": "3016"
+                },
+                {
+                    "name": "IDENTITY_SERVICE_URL",
+                    "value": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/identity"
+                },
+                {
+                    "name": "DB_PORT",
+                    "value": "5432"
+                },
+                {
+                    "name": "DB_USER",
+                    "value": "vcadmin"
+                },
+                {
+                    "name": "DB_NAME",
+                    "value": "votecapsule"
+                },
+                {
+                    "name": "CAMPAIGN_MEDIA_BUCKET",
+                    "value": "votecapsule-campaign-assets"
+                },
+                {
+                    "name": "NOTIFICATION_SERVICE_URL",
+                    "value": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/notification"
+                },
+                {
+                    "name": "CAMPAIGN_IEBC_SPEND_LIMIT_ENABLED",
+                    "value": "true"
+                },
+                {
+                    "name": "DB_HOST",
+                    "value": "vote-capsule-db.cluster-c43i6c8ow71c.us-east-1.rds.amazonaws.com"
+                },
+                {
+                    "name": "ALLOWED_ORIGINS",
+                    "value": "https://votecapsule.yna.co.ke,https://admin.votecapsule.yna.co.ke,https://party.votecapsule.yna.co.ke,https://candidate.votecapsule.yna.co.ke,https://observer.votecapsule.yna.co.ke,https://authority.votecapsule.yna.co.ke,https://transparency.votecapsule.yna.co.ke,http://localhost:3000,http://localhost:5173"
+                },
+                {
+                    "name": "DB_SSL",
+                    "value": "true"
+                },
+                {
+                    "name": "AT_SENDER_ID",
+                    "value": "VOTECAP"
+                },
+                {
+                    "name": "CAMPAIGN_BUDGET_CURRENCY",
+                    "value": "KES"
+                },
+                {
+                    "name": "AUDIT_SERVICE_URL",
+                    "value": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/audit"
+                },
+                {
+                    "name": "NODE_ENV",
+                    "value": "production"
+                },
+                {
+                    "name": "AT_USERNAME",
+                    "value": "sandbox"
+                },
+                {
+                    "name": "AT_API_KEY",
+                    "value": ""
+                },
+                {
+                    "name": "DB_PASSWORD",
+                    "value": "B,7BZvfuwXOxDoCjN7g8=03JfxKv3zH0"
+                }
+            ],
+            "mountPoints": [],
+            "volumesFrom": [],
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": "/vote-capsule/campaign-service",
+                    "awslogs-region": "us-east-1",
+                    "awslogs-stream-prefix": "vc-campaign"
+                }
+            },
+            "healthCheck": {
+                "command": [
+                    "CMD-SHELL",
+                    "node -e \"require('http').get('http://localhost:3016/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""
+                ],
+                "interval": 30,
+                "timeout": 5,
+                "retries": 3,
+                "startPeriod": 60
+            },
+            "systemControls": []
+        }
+    ],
+    "family": "vc-campaign",
+    "taskRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+    "executionRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+    "networkMode": "awsvpc",
+    "revision": 2,
+    "volumes": [],
+    "status": "ACTIVE",
+    "requiresAttributes": [
+        {
+            "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
+        },
+        {
+            "name": "ecs.capability.execution-role-awslogs"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.ecr-auth"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.task-iam-role"
+        },
+        {
+            "name": "ecs.capability.container-health-check"
+        },
+        {
+            "name": "ecs.capability.execution-role-ecr-pull"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
+        },
+        {
+            "name": "ecs.capability.task-eni"
+        },
+        {
+            "name": "com.amazonaws.ecs.capability.docker-remote-api.1.29"
+        }
+    ],
+    "placementConstraints": [],
+    "compatibilities": [
+        "EC2",
+        "MANAGED_INSTANCES",
+        "FARGATE"
+    ],
+    "requiresCompatibilities": [
+        "FARGATE"
+    ],
+    "cpu": "512",
+    "memory": "1024",
+    "registeredAt": "2026-08-24T16:11:35.464000+03:00",
+    "registeredBy": "arn:aws:iam::683541453923:user/dev"
+}

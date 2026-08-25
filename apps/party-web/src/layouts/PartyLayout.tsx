@@ -5,7 +5,7 @@ import {
   TrendingUp, CreditCard, Mail, FileText, Settings, LogOut,
   Bell, ChevronLeft, Menu, Flag, Trophy, Building2, UserCog,
   Globe, UserPlus, Gavel, Megaphone, Calendar, CheckSquare,
-  MessageSquare, DollarSign, UsersRound,
+  MessageSquare, DollarSign, UsersRound, Package, Store,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { toggleSidebar } from '../store/slices/uiSlice';
@@ -43,6 +43,8 @@ const campaignNavItems: NavItem[] = [
   { to: '/campaign',          icon: Megaphone,     label: 'Campaign Overview' },
   { to: '/campaign/calendar', icon: Calendar,      label: 'Campaign Calendar' },
   { to: '/campaign/tasks',    icon: CheckSquare,   label: 'Tasks & Actions' },
+  { to: '/campaign/materials', icon: Package,       label: 'Materials Catalogue' },
+  { to: '/campaign/suppliers', icon: Store,        label: 'Suppliers' },
   { to: '/campaign/teams',    icon: UsersRound,    label: 'Teams & Volunteers' },
   { to: '/campaign/sms',      icon: MessageSquare, label: 'SMS Messaging' },
   { to: '/campaign/budget',   icon: DollarSign,    label: 'Campaign Budget' },

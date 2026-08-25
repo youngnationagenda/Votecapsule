@@ -27,11 +27,16 @@ function createApiClient(servicePrefix: string): AxiosInstance {
     timeout: 30000,
   });
 
-  // Inject auth token
+  // Inject auth + platform-admin headers
   client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-    const token = localStorage.getItem('vc_access_token');
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+    const token  = localStorage.getItem('vc_access_token');
+    const userId = localStorage.getItem('vc_user_id');
+    if (config.headers) {
+      if (token)  config.headers.Authorization   = `Bearer ${token}`;
+      if (userId) config.headers['x-user-id']    = userId;
+      // Super admin — bypass tenant isolation on campaign + candidate services
+      config.headers['x-user-role']       = 'PLATFORM_SUPER_ADMIN';
+      config.headers['x-platform-admin']  = 'true';
     }
     return config;
   });
@@ -76,3 +81,4 @@ export const electionClient     = createApiClient('election');
 export const reportingClient    = createApiClient('reporting');
 export const auditClient        = createApiClient('audit');
 export const billingClient      = createApiClient('billing');
+export const campaignClient     = createApiClient('campaign');

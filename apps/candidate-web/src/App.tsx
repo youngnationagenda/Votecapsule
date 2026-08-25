@@ -30,7 +30,10 @@ const NominationStatusPage = lazy(() => import('./pages/NominationStatusPage').t
 const MyCampaignDashboard    = lazy(() => import('./pages/MyCampaignDashboard').then(m => ({ default: m.MyCampaignDashboard })));
 const MyCampaignCalendarPage = lazy(() => import('./pages/MyCampaignCalendarPage').then(m => ({ default: m.MyCampaignCalendarPage })));
 const MyCampaignTeamPage     = lazy(() => import('./pages/MyCampaignTeamPage').then(m => ({ default: m.MyCampaignTeamPage })));
+const MyMaterialsPage        = lazy(() => import('./pages/MyMaterialsPage').then(m => ({ default: m.MyMaterialsPage })));
+const MySupplierCataloguePage = lazy(() => import('./pages/MySupplierCataloguePage').then(m => ({ default: m.MySupplierCataloguePage })));
 const MyBudgetPage           = lazy(() => import('./pages/MyBudgetPage').then(m => ({ default: m.MyBudgetPage })));
+const MyCampaignNeedsPage    = lazy(() => import('./pages/MyCampaignNeedsPage').then(m => ({ default: m.MyCampaignNeedsPage })));
 const MySMSPage              = lazy(() => import('./pages/MySMSPage').then(m => ({ default: m.MySMSPage })));
 const MyIncidentsPage        = lazy(() => import('./pages/MyIncidentsPage').then(m => ({ default: m.MyIncidentsPage })));
 
@@ -92,11 +95,20 @@ export default function App(): React.JSX.Element {
           <Route path="/campaign/calendar" element={
             <Suspense fallback={<PageLoader />}><MyCampaignCalendarPage /></Suspense>
           } />
+          <Route path="/campaign/materials" element={
+            <Suspense fallback={<PageLoader />}><MyMaterialsPage /></Suspense>
+          } />
+          <Route path="/campaign/suppliers" element={
+            <Suspense fallback={<PageLoader />}><MySupplierCataloguePage /></Suspense>
+          } />
           <Route path="/campaign/team" element={
             <Suspense fallback={<PageLoader />}><MyCampaignTeamPage /></Suspense>
           } />
           <Route path="/campaign/budget" element={
             <Suspense fallback={<PageLoader />}><MyBudgetPage /></Suspense>
+          } />
+          <Route path="/campaign/needs" element={
+            <Suspense fallback={<PageLoader />}><MyCampaignNeedsPage /></Suspense>
           } />
           <Route path="/campaign/sms" element={
             <Suspense fallback={<PageLoader />}><MySMSPage /></Suspense>

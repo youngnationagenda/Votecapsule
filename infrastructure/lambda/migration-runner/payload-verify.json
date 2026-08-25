@@ -1,0 +1,5 @@
+{
+  "label": "verify_migrations",
+  "sql": "SELECT (SELECT COUNT(*) FROM roles WHERE name LIKE 'CAMPAIGN_%' OR name LIKE '%COORDINATOR' OR name LIKE '%VOLUNTEER') AS campaign_roles, (SELECT COUNT(*) FROM campaign_material_categories) AS material_categories, (SELECT COUNT(*) FROM campaign_material_types) AS material_types, (SELECT to_regclass('campaign_supplier_products')::text) AS supplier_products_table, (SELECT to_regclass('campaign_sms_messages')::text) AS sms_messages_table",
+  "returnRows": true
+}

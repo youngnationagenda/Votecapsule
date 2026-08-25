@@ -216,4 +216,51 @@ export class CampaignService {
     const closed  = await this.repo.count({ where: { tenantId, status: CampaignStatus.CLOSED } });
     return { total, active, created, closed };
   }
+
+  // ── Platform Super Admin — cross-tenant global methods ───────
+  // W1 FIX: These bypass tenant isolation for PLATFORM_SUPER_ADMIN only.
+  //         The role guard ensures only that role can reach these paths.
+
+  async findAllGlobal(status?: string, candidateId?: string): Promise<Campaign[]> {
+    const where: FindOptionsWhere<Campaign> = {};
+    if (status)      where.status      = status as CampaignStatus;
+    if (candidateId) where.candidateId = candidateId;
+    return this.repo.find({
+      where,
+      order: { createdAt: 'DESC' },
+      take:  500,
+    });
+  }
+
+  async findOneGlobal(id: string): Promise<Campaign> {
+    const c = await this.repo.findOne({ where: { id } });
+    if (!c) throw new NotFoundException(`Campaign ${id} not found`);
+    return c;
+  }
+
+  async updateGlobal(id: string, dto: UpdateCampaignDto): Promise<Campaign> {
+    const c = await this.findOneGlobal(id);
+    Object.assign(c, dto);
+    return this.repo.save(c);
+  }
+
+  async getGlobalStats(): Promise<Record<string, unknown>> {
+    const total    = await this.repo.count();
+    const active   = await this.repo.count({ where: { status: CampaignStatus.ACTIVE } });
+    const planning = await this.repo.count({ where: { status: CampaignStatus.PLANNING } });
+    const closed   = await this.repo.count({ where: { status: CampaignStatus.CLOSED } });
+    const archived = await this.repo.count({ where: { status: CampaignStatus.ARCHIVED } });
+
+    // Count by tenant
+    const byTenant = await this.dataSource.query(
+      `SELECT tenant_id, COUNT(*)::int AS count FROM campaigns GROUP BY tenant_id ORDER BY count DESC`,
+    );
+    return { total, active, planning, closed, archived, byTenant };
+  }
+
+  async getDashboardGlobal(id: string): Promise<Record<string, unknown>> {
+    // For platform admin: look up campaign without tenant scope, then delegate
+    const c = await this.findOneGlobal(id);
+    return this.getDashboard(id, c.tenantId);
+  }
 }

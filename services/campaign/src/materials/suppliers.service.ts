@@ -25,6 +25,10 @@ export class SuppliersService {
     });
   }
 
+  async listAll(): Promise<CampaignSupplier[]> {
+    return this.repo.find({ order: { companyName: 'ASC' } });
+  }
+
   async create(dto: any, tenantId: string, userId: string): Promise<CampaignSupplier> {
     const entity = this.repo.create({ ...dto, tenantId, createdBy: userId });
     const saved  = await this.repo.save(entity) as unknown as CampaignSupplier;
@@ -94,5 +98,41 @@ export class SuppliersService {
       relations: ['supplier'],
       order:    { unitPrice: 'ASC' },
     });
+  }
+
+  // ── Admin: list all products across all suppliers ─────────────
+
+  async listAllProducts(
+    page = 1,
+    limit = 100,
+  ): Promise<{ data: CampaignSupplierProduct[]; total: number }> {
+    const [data, total] = await this.productRepo.findAndCount({
+      relations: ['supplier'],
+      order:     { supplierProductName: 'ASC' },
+      skip:      (page - 1) * limit,
+      take:      limit,
+    });
+    return { data, total };
+  }
+
+  async createProduct(dto: any): Promise<CampaignSupplierProduct> {
+    const entity = this.productRepo.create(dto);
+    const saved  = await this.productRepo.save(entity) as unknown as CampaignSupplierProduct;
+    this.logger.log(`Supplier product created: ${saved.id}`);
+    return saved;
+  }
+
+  async updateProduct(id: string, dto: any): Promise<CampaignSupplierProduct> {
+    const p = await this.productRepo.findOne({ where: { id } });
+    if (!p) throw new NotFoundException(`Product ${id} not found`);
+    Object.assign(p, dto);
+    return this.productRepo.save(p) as unknown as Promise<CampaignSupplierProduct>;
+  }
+
+  async deleteProduct(id: string): Promise<void> {
+    const p = await this.productRepo.findOne({ where: { id } });
+    if (!p) throw new NotFoundException(`Product ${id} not found`);
+    await this.productRepo.delete(id);
+    this.logger.log(`Supplier product deleted: ${id}`);
   }
 }
