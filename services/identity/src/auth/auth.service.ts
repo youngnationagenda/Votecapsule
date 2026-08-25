@@ -12,7 +12,6 @@ import {
   Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { DataSource } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import {
   CognitoIdentityProviderClient,
