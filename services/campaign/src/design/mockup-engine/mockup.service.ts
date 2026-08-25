@@ -62,8 +62,9 @@ export class MockupService {
   private async removeBackground(imageBuffer: Buffer): Promise<Buffer> {
     try {
       // Dynamic import — only loaded when feature is used
-      // Package: @imgly/background-removal-node
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      // Package: @imgly/background-removal-node (optional, graceful fallback if missing)
+      // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/ban-ts-comment
+      // @ts-ignore — package may not be installed; caught by surrounding try/catch
       const { removeBackground } = await import('@imgly/background-removal-node');
       const blob   = new Blob([imageBuffer]);
       const result = await removeBackground(blob);
