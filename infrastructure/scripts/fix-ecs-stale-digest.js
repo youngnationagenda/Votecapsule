@@ -24,7 +24,7 @@ function awsRaw(cmd) {
 
 // Services to fix: [serviceName, currentTaskDef]
 const FAILING = [
-  { service: 'vc-workflow', taskFamily: 'vc-workflow' },
+  { service: 'vc-billing', taskFamily: 'vc-billing' },
 ];
 
 async function fixService({ service, taskFamily }) {
