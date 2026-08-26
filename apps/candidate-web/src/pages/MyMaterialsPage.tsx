@@ -512,9 +512,10 @@ function MyMaterialsContent(): React.JSX.Element {
       {!campaign && (
         <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
           <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-          <p className="text-sm text-amber-800">
-            No active campaign found. Ask your party admin to create a campaign for you.
-          </p>
+          <div>
+            <p className="text-sm text-amber-800">No active campaign found.</p>
+            <a href="/campaign" className="text-sm text-amber-600 hover:underline font-medium">Create your campaign →</a>
+          </div>
         </div>
       )}
 

@@ -9,10 +9,14 @@
  *   x-ward-code         If user is geo-scoped (ward coordinator)
  *   x-constituency-code If user is geo-scoped (constituency coordinator)
  *   x-candidate-id      If user is a candidate
+ *
+ * Token Refresh:
+ *   On 401, attempts silent token refresh using stored refresh token.
+ *   Only logs user out if refresh itself fails.
  */
-import axios, { InternalAxiosRequestConfig } from 'axios';
+import axios, { InternalAxiosRequestConfig, AxiosError } from 'axios';
 import { store } from '../store';
-import { logout } from '../store/slices/authSlice';
+import { logout, tokenRefreshed } from '../store/slices/authSlice';
 
 const BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
@@ -28,27 +32,19 @@ export const apiClient = axios.create({
 apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const { auth } = store.getState();
 
-  // JWT
   if (auth.accessToken) {
     config.headers.Authorization = `Bearer ${auth.accessToken}`;
   }
-
-  // Tenant isolation (campaign, candidate, billing services all require this)
   if (auth.user?.tenantId) {
     config.headers['x-tenant-id'] = auth.user.tenantId;
   }
-
-  // User identity (campaign service logs + capsule ownership)
   if (auth.user?.id) {
     config.headers['x-user-id'] = auth.user.id;
   }
-
-  // Campaign role guard — primary role
   if (auth.user?.roles?.length) {
     config.headers['x-user-role'] = auth.user.roles[0];
   }
 
-  // Geography scope (ward coordinator, constituency coordinator)
   const user = auth.user as any;
   if (user?.wardCode) {
     config.headers['x-ward-code'] = user.wardCode;
@@ -56,8 +52,6 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (user?.constituencyCode) {
     config.headers['x-constituency-code'] = user.constituencyCode;
   }
-
-  // Candidate identity (for CANDIDATE_CAMPAIGN_PRINCIPAL scoping)
   if (user?.candidateId) {
     config.headers['x-candidate-id'] = user.candidateId;
   }
@@ -65,11 +59,60 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config;
 });
 
-// ── Response interceptor — handle 401 ────────────────────────────
+// ── Token refresh state ─────────────────────────────────────────
+let isRefreshing = false;
+let refreshSubscribers: Array<(token: string) => void> = [];
+function subscribeTokenRefresh(cb: (token: string) => void) { refreshSubscribers.push(cb); }
+function onTokenRefreshed(newToken: string) { refreshSubscribers.forEach((cb) => cb(newToken)); refreshSubscribers = []; }
+
+const AUTH_PATHS = ['/identity/auth/login', '/identity/auth/refresh', '/identity/auth/mfa/verify'];
+function isAuthPath(url?: string): boolean { return AUTH_PATHS.some((p) => url?.includes(p)); }
+
+// ── Response interceptor — 401 triggers silent refresh ──────────
 apiClient.interceptors.response.use(
   (res) => res,
-  (err) => {
-    if (err.response?.status === 401) store.dispatch(logout());
-    return Promise.reject(err);
+  async (error: AxiosError) => {
+    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+
+    if (error.response?.status !== 401) return Promise.reject(error);
+    if (isAuthPath(originalRequest?.url) || originalRequest._retry) {
+      store.dispatch(logout());
+      return Promise.reject(error);
+    }
+
+    const refreshToken = store.getState().auth.refreshToken;
+    if (!refreshToken) { store.dispatch(logout()); return Promise.reject(error); }
+
+    if (isRefreshing) {
+      return new Promise((resolve) => {
+        subscribeTokenRefresh((newToken) => {
+          originalRequest.headers.Authorization = `Bearer ${newToken}`;
+          originalRequest._retry = true;
+          resolve(apiClient(originalRequest));
+        });
+      });
+    }
+
+    isRefreshing = true;
+    originalRequest._retry = true;
+
+    try {
+      const { data } = await axios.post(`${BASE_URL}/identity/auth/refresh`, { refreshToken });
+      const result = data.data ?? data;
+      store.dispatch(tokenRefreshed({
+        accessToken: result.accessToken,
+        expiresIn: result.expiresIn,
+        refreshToken: result.refreshToken,
+      }));
+      onTokenRefreshed(result.accessToken);
+      isRefreshing = false;
+      originalRequest.headers.Authorization = `Bearer ${result.accessToken}`;
+      return apiClient(originalRequest);
+    } catch {
+      isRefreshing = false;
+      refreshSubscribers = [];
+      store.dispatch(logout());
+      return Promise.reject(error);
+    }
   },
 );

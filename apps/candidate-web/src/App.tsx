@@ -22,7 +22,7 @@ const EvidenceCapsulesPage = lazy(() => import('./pages/EvidenceCapsulesPage').t
 const AnalyticsPage        = lazy(() => import('./pages/AnalyticsPage').then(m => ({ default: m.AnalyticsPage })));
 const NotificationsPage    = lazy(() => import('./pages/NotificationsPage').then(m => ({ default: m.NotificationsPage })));
 const DownloadsPage        = lazy(() => import('./pages/DownloadsPage').then(m => ({ default: m.DownloadsPage })));
-const TeamManagementPage   = lazy(() => import('./pages/TeamManagementPage').then(m => ({ default: m.TeamManagementPage })));
+// TeamManagementPage removed — /team now redirects to /campaign/team (the old page called admin-only /identity/users)
 const BillingPage          = lazy(() => import('./pages/BillingPage').then(m => ({ default: m.BillingPage })));
 const NominationStatusPage = lazy(() => import('./pages/NominationStatusPage').then(m => ({ default: m.NominationStatusPage })));
 
@@ -79,9 +79,7 @@ export default function App(): React.JSX.Element {
           <Route path="/downloads" element={
             <Suspense fallback={<PageLoader />}><DownloadsPage /></Suspense>
           } />
-          <Route path="/team" element={
-            <Suspense fallback={<PageLoader />}><TeamManagementPage /></Suspense>
-          } />
+          <Route path="/team" element={<Navigate to="/campaign/team" replace />} />
           <Route path="/billing" element={
             <Suspense fallback={<PageLoader />}><BillingPage /></Suspense>
           } />

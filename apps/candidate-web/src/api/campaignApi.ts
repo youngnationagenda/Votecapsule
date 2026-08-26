@@ -10,7 +10,13 @@ export const campaignApi = {
   // ── Campaigns ────────────────────────────────────────────
   list:      (params?: any)               => apiClient.get(`${BASE}/campaigns`, { params }),
   get:       (id: string)                 => apiClient.get(`${BASE}/campaigns/${id}`),
+  create:    (data: { candidateId: string; electionId: string; name: string; description?: string; countyCode?: string; constituencyCode?: string; wardCode?: string }) =>
+    apiClient.post(`${BASE}/campaigns`, data),
   dashboard: (id: string)                 => apiClient.get(`${BASE}/campaigns/${id}/dashboard`),
+
+  // ── Elections (for campaign creation) ────────────────────
+  activeElection: ()                      => apiClient.get('/election/elections/active'),
+  listElections:  (params?: any)          => apiClient.get('/election/elections', { params }),
 
   // ── Events ───────────────────────────────────────────────
   events: {

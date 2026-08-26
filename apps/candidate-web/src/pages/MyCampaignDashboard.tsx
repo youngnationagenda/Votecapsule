@@ -3,17 +3,165 @@
 // Phase 14A — Candidate's own campaign overview
 // Scoped to candidate's geography + campaign only
 // ============================================================
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
   Calendar, Users, CheckSquare, AlertTriangle, DollarSign,
   MessageSquare, MapPin, Megaphone, ChevronRight, Target,
-  Clock, TrendingUp, Flag,
+  Clock, TrendingUp, Flag, Plus, Rocket,
 } from 'lucide-react';
 import { campaignApi } from '../api/campaignApi';
 import { PageErrorBoundary } from '../components/PageErrorBoundary';
 import { useAppSelector } from '../store/hooks';
+
+// ── Create Campaign Form (shown when no campaign exists) ──────
+function CreateCampaignForm(): React.JSX.Element {
+  const qc   = useQueryClient();
+  const user = useAppSelector((s) => s.auth.user);
+  const [name, setName]               = useState('');
+  const [description, setDescription] = useState('');
+  const [countyCode, setCountyCode]   = useState('');
+  const [constituencyCode, setConstituencyCode] = useState('');
+  const [wardCode, setWardCode]       = useState('');
+  const [error, setError]             = useState<string | null>(null);
+
+  // Fetch active election for auto-population
+  const { data: activeElection } = useQuery({
+    queryKey: ['active-election'],
+    queryFn:  () => campaignApi.activeElection().then((r) => r.data?.data ?? r.data).catch(() => null),
+  });
+
+  // Fallback: list all elections
+  const { data: elections = [] } = useQuery({
+    queryKey: ['elections-list'],
+    queryFn:  () => campaignApi.listElections({ status: 'active,nomination,campaign_period' }).then((r) => r.data?.data ?? r.data ?? []),
+    enabled:  !activeElection,
+  });
+
+  const [selectedElectionId, setSelectedElectionId] = useState('');
+  const electionId = activeElection?.id ?? selectedElectionId;
+
+  const createMutation = useMutation({
+    mutationFn: (payload: Parameters<typeof campaignApi.create>[0]) => campaignApi.create(payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['my-campaigns'] });
+      setError(null);
+    },
+    onError: (err: any) => {
+      setError(err?.response?.data?.message ?? 'Failed to create campaign. Please try again.');
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) { setError('Campaign name is required'); return; }
+    if (!electionId) { setError('Please select an election'); return; }
+    createMutation.mutate({
+      candidateId: user?.id ?? '',
+      electionId,
+      name: name.trim(),
+      description: description.trim() || undefined,
+      countyCode:        countyCode.trim() || undefined,
+      constituencyCode:  constituencyCode.trim() || undefined,
+      wardCode:          wardCode.trim() || undefined,
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div><h2 className="text-xl font-bold text-gray-900">My Campaign</h2></div>
+
+      <div className="vc-card">
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-amber-50 rounded-2xl mb-4">
+            <Rocket className="w-8 h-8 text-amber-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-1">Launch Your Campaign</h3>
+          <p className="text-sm text-gray-500 max-w-md mx-auto">
+            Set up your campaign to start managing team, budget, events, and materials.
+          </p>
+        </div>
+
+        {error && (
+          <div className="flex items-center gap-2 p-3 mb-4 rounded-lg bg-red-50 border border-red-200 max-w-lg mx-auto">
+            <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+            <p className="text-sm text-red-700">{error}</p>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="max-w-lg mx-auto space-y-4">
+          <div>
+            <label className="vc-label">Campaign Name *</label>
+            <input
+              className="vc-input"
+              placeholder="e.g. Wanjiku 2027 — Governor Kiambu"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="vc-label">Description</label>
+            <textarea
+              className="vc-input min-h-[80px]"
+              placeholder="Brief campaign description (optional)"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3}
+            />
+          </div>
+
+          {activeElection ? (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+              <p className="text-xs text-emerald-600 font-medium">Active Election</p>
+              <p className="text-sm font-semibold text-emerald-800 mt-0.5">{activeElection.name ?? activeElection.electionType ?? 'Current Election'}</p>
+            </div>
+          ) : elections.length > 0 ? (
+            <div>
+              <label className="vc-label">Election *</label>
+              <select className="vc-input" value={selectedElectionId} onChange={(e) => setSelectedElectionId(e.target.value)} required>
+                <option value="">Select election…</option>
+                {elections.map((el: any) => (
+                  <option key={el.id} value={el.id}>{el.name ?? el.electionType ?? el.id}</option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-xs text-amber-700">No active election found. Contact your party admin to register an election first.</p>
+            </div>
+          )}
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="vc-label">County Code</label>
+              <input className="vc-input" placeholder="e.g. 022" value={countyCode} onChange={(e) => setCountyCode(e.target.value)} maxLength={3} />
+            </div>
+            <div>
+              <label className="vc-label">Constituency</label>
+              <input className="vc-input" placeholder="e.g. 110" value={constituencyCode} onChange={(e) => setConstituencyCode(e.target.value)} maxLength={3} />
+            </div>
+            <div>
+              <label className="vc-label">Ward</label>
+              <input className="vc-input" placeholder="e.g. 0550" value={wardCode} onChange={(e) => setWardCode(e.target.value)} maxLength={4} />
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={createMutation.isPending || !name.trim() || !electionId}
+            className="vc-btn-primary w-full gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            {createMutation.isPending ? 'Creating campaign…' : 'Create My Campaign'}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
 
 function MyCampaignDashboardContent(): React.JSX.Element {
   const navigate = useNavigate();
@@ -67,16 +215,7 @@ function MyCampaignDashboardContent(): React.JSX.Element {
     </div>
   );
 
-  if (!campaigns.length) return (
-    <div className="space-y-6">
-      <div><h2 className="text-xl font-bold text-gray-900">My Campaign</h2></div>
-      <div className="vc-card text-center py-16">
-        <Megaphone className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-700 mb-2">No campaign found</h3>
-        <p className="text-sm text-gray-500">Your campaign will appear here once it has been set up by your party.</p>
-      </div>
-    </div>
-  );
+  if (!campaigns.length) return <CreateCampaignForm />;
 
   const iebcPct  = iebc?.limitPercentageUsed ?? 0;
   const iebcColor = iebcPct >= 95 ? 'text-red-600' : iebcPct >= 80 ? 'text-amber-600' : 'text-emerald-600';

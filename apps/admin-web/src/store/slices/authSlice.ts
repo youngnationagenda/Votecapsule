@@ -19,10 +19,21 @@ export interface AuthState {
   error: string | null;
 }
 
+const storedToken = localStorage.getItem('vc_access_token');
+const storedExpiry = localStorage.getItem('vc_token_exp');
+const expiryTime = storedExpiry ? parseInt(storedExpiry, 10) : 0;
+const isTokenLikelyValid = storedToken && expiryTime > Date.now();
+
+// Clear stale token immediately to prevent auto-login → 401 → logout loop
+if (storedToken && !isTokenLikelyValid) {
+  localStorage.removeItem('vc_access_token');
+  localStorage.removeItem('vc_token_exp');
+}
+
 const initialState: AuthState = {
-  isAuthenticated: !!localStorage.getItem('vc_access_token'),
+  isAuthenticated: !!isTokenLikelyValid,
   user: null,
-  accessToken: localStorage.getItem('vc_access_token'),
+  accessToken: isTokenLikelyValid ? storedToken : null,
   isLoading: false,
   error: null,
 };
@@ -35,17 +46,18 @@ const authSlice = createSlice({
       state.isLoading = true;
       state.error = null;
     },
-    loginSuccess(state, action: PayloadAction<{ user: AuthUser; accessToken: string }>) {
+    loginSuccess(state, action: PayloadAction<{ user: AuthUser; accessToken: string; refreshToken?: string; expiresIn?: number }>) {
+      const { user, accessToken, refreshToken, expiresIn } = action.payload;
       state.isAuthenticated = true;
-      state.user = action.payload.user;
-      state.accessToken = action.payload.accessToken;
+      state.user = user;
+      state.accessToken = accessToken;
       state.isLoading = false;
       state.error = null;
-      localStorage.setItem('vc_access_token', action.payload.accessToken);
-      // Store user ID so apiClient interceptor can inject x-user-id header
-      if (action.payload.user.id) {
-        localStorage.setItem('vc_user_id', action.payload.user.id);
-      }
+
+      localStorage.setItem('vc_access_token', accessToken);
+      localStorage.setItem('vc_token_exp', String(Date.now() + ((expiresIn ?? 3600) * 1000)));
+      if (refreshToken) localStorage.setItem('vc_refresh_token', refreshToken);
+      if (user.id) localStorage.setItem('vc_user_id', user.id);
     },
     loginFailure(state, action: PayloadAction<string>) {
       state.isAuthenticated = false;
@@ -57,6 +69,8 @@ const authSlice = createSlice({
       state.user = null;
       state.accessToken = null;
       localStorage.removeItem('vc_access_token');
+      localStorage.removeItem('vc_refresh_token');
+      localStorage.removeItem('vc_token_exp');
       localStorage.removeItem('vc_user_id');
     },
     clearError(state) {

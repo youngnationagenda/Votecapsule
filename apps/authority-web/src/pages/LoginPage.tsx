@@ -28,7 +28,13 @@ export function LoginPage(): React.JSX.Element {
         dispatch(loginFailure(''));
         return;
       }
-      dispatch(loginSuccess({ user: { id: result.userId ?? '', email, roles: result.roles ?? ['ELECTION_AUTHORITY'] }, accessToken: result.accessToken }));
+      const u = result.user ?? {};
+      dispatch(loginSuccess({
+        user: { id: u.id ?? result.userId ?? '', email: u.email ?? email, roles: Array.isArray(u.roles) ? u.roles : (result.roles ?? ['ELECTION_AUTHORITY']), tenantId: u.tenantId },
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresIn: result.expiresIn,
+      }));
       navigate('/dashboard');
     } catch {
       dispatch(loginFailure('Invalid email or password. Please try again.'));
@@ -41,7 +47,13 @@ export function LoginPage(): React.JSX.Element {
     try {
       const { data } = await apiClient.post('/identity/auth/mfa/verify', { email, mfaCode, session });
       const result = data.data ?? data;
-      dispatch(loginSuccess({ user: { id: '', email, roles: ['ELECTION_AUTHORITY'] }, accessToken: result.accessToken }));
+      const u = result.user ?? {};
+      dispatch(loginSuccess({
+        user: { id: u.id ?? '', email: u.email ?? email, roles: Array.isArray(u.roles) ? u.roles : ['ELECTION_AUTHORITY'], tenantId: u.tenantId },
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresIn: result.expiresIn,
+      }));
       navigate('/dashboard');
     } catch {
       dispatch(loginFailure('Invalid MFA code'));

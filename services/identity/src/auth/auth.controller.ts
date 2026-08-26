@@ -32,7 +32,7 @@ import { MfaVerifyDto } from './dto/mfa-verify.dto';
 import { PasswordResetRequestDto } from './dto/password-reset-request.dto';
 import { PasswordResetDto } from './dto/password-reset.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { GatewayAuthGuard } from './guards/gateway-auth.guard';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -59,7 +59,7 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(GatewayAuthGuard)
   @ApiBearerAuth('jwt')
   @ApiOperation({ summary: 'Sign out the authenticated user' })
   @ApiResponse({ status: 204, description: 'Logged out successfully' })

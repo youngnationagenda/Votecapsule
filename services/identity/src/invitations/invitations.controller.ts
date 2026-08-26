@@ -26,7 +26,7 @@ import { Request } from 'express';
 import { InvitationsService } from './invitations.service';
 import { CreateInvitationDto } from './dto/create-invitation.dto';
 import { AcceptInvitationDto } from './dto/accept-invitation.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { GatewayAuthGuard } from '../auth/guards/gateway-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { SystemRole, JwtPayload } from '@vote-capsule/types';
@@ -38,7 +38,7 @@ export class InvitationsController {
   constructor(private readonly invitationsService: InvitationsService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard, SubscriptionGuard)
+  @UseGuards(GatewayAuthGuard, RolesGuard, SubscriptionGuard)
   @ApiBearerAuth('jwt')
   @Roles(SystemRole.PLATFORM_SUPER_ADMIN, SystemRole.TENANT_ADMIN)
   @ApiOperation({ summary: 'Create and send a user invitation' })
@@ -53,7 +53,7 @@ export class InvitationsController {
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(GatewayAuthGuard, RolesGuard)
   @ApiBearerAuth('jwt')
   @Roles(SystemRole.PLATFORM_SUPER_ADMIN, SystemRole.TENANT_ADMIN)
   @ApiOperation({ summary: 'List invitations' })
@@ -70,7 +70,7 @@ export class InvitationsController {
   }
 
   @Post(':token/accept')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(GatewayAuthGuard)
   @ApiBearerAuth('jwt')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Accept an invitation (authenticated user)' })
@@ -85,7 +85,7 @@ export class InvitationsController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(GatewayAuthGuard, RolesGuard)
   @ApiBearerAuth('jwt')
   @Roles(SystemRole.PLATFORM_SUPER_ADMIN, SystemRole.TENANT_ADMIN)
   @HttpCode(HttpStatus.NO_CONTENT)

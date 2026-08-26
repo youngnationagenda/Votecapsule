@@ -24,14 +24,14 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { Request } from 'express';
 import { DevicesService } from './devices.service';
 import { RegisterDeviceDto } from './dto/register-device.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { GatewayAuthGuard } from '../auth/guards/gateway-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { SystemRole, JwtPayload } from '@vote-capsule/types';
 
 @ApiTags('users')
 @Controller('users/me/devices')
-@UseGuards(JwtAuthGuard)
+@UseGuards(GatewayAuthGuard)
 @ApiBearerAuth('jwt')
 export class DevicesController {
   constructor(private readonly devicesService: DevicesService) {}

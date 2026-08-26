@@ -22,7 +22,13 @@ export function LoginPage(): React.JSX.Element {
       const { data } = await apiClient.post('/identity/auth/login', { email, password });
       const result = data.data ?? data;
       if (result.challengeName === 'SOFTWARE_TOKEN_MFA') { setMfaRequired(true); setSession(result.session ?? ''); dispatch(loginFailure('')); return; }
-      dispatch(loginSuccess({ user: { id: '', email, roles: ['OBSERVER'] }, accessToken: result.accessToken }));
+      const user = result.user ?? {};
+      dispatch(loginSuccess({
+        user: { id: user.id ?? '', email: user.email ?? email, roles: Array.isArray(user.roles) ? user.roles : ['OBSERVER'] },
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresIn: result.expiresIn,
+      }));
       navigate('/dashboard');
     } catch { dispatch(loginFailure('Invalid credentials')); }
   }, [email, password, dispatch, navigate]);
@@ -32,7 +38,14 @@ export function LoginPage(): React.JSX.Element {
     dispatch(loginStart());
     try {
       const { data } = await apiClient.post('/identity/auth/mfa/verify', { email, mfaCode, session });
-      dispatch(loginSuccess({ user: { id: '', email, roles: ['OBSERVER'] }, accessToken: (data.data ?? data).accessToken }));
+      const result = data.data ?? data;
+      const user = result.user ?? {};
+      dispatch(loginSuccess({
+        user: { id: user.id ?? '', email: user.email ?? email, roles: Array.isArray(user.roles) ? user.roles : ['OBSERVER'] },
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresIn: result.expiresIn,
+      }));
       navigate('/dashboard');
     } catch { dispatch(loginFailure('Invalid MFA code')); }
   }, [email, mfaCode, session, dispatch, navigate]);

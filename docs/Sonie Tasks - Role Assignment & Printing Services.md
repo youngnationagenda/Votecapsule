@@ -268,8 +268,153 @@ aws cloudfront create-invalidation --distribution-id <DIST_ID> --paths "/*"
 
 ---
 
+---
+
+## 11. CRITICAL FIX — Identity Service JwtAuthGuard Rejecting Portal Tokens
+
+**Priority:** HIGHEST — This is causing IMMEDIATE LOGOUT on multiple portal pages.
+
+**Problem:** The Identity service (`services/identity`) has a `JwtAuthGuard` (`src/auth/guards/jwt-auth.guard.ts`) that validates tokens using a local `JWT_SECRET` (HS256). However, ALL portals send Cognito RS256 tokens. The API Gateway Lambda Authorizer already validates these Cognito tokens, so the Identity service re-validating with a different mechanism is REDUNDANT and causes all requests to guarded endpoints to fail with 401.
+
+**Affected endpoints (ALL cause immediate portal logout when accessed):**
+- `GET /identity/users` — `@UseGuards(JwtAuthGuard, RolesGuard)` on UsersController
+- `POST /identity/invitations` — `@UseGuards(JwtAuthGuard, RolesGuard)` on InvitationsController
+- `GET /identity/invitations` — same
+- `PATCH /identity/invitations/:id/accept` — `@UseGuards(JwtAuthGuard)`
+- `GET /identity/roles` — `@UseGuards(JwtAuthGuard, RolesGuard)` on RolesController
+- `POST/PATCH/DELETE /identity/roles/*` — same
+- `GET /identity/users/me/devices` — `@UseGuards(JwtAuthGuard)` on DevicesController
+
+**Endpoints that work fine (NO guard — trust gateway headers):**
+- `POST /identity/auth/login` ✓
+- `POST /identity/auth/refresh` ✓
+- `POST /identity/auth/mfa/verify` ✓
+- `GET/POST/PATCH/DELETE /identity/assignments/*` ✓
+
+**Fix — Option A (Recommended): Remove JwtAuthGuard, trust the Gateway**
+
+Since these endpoints sit behind the API Gateway which already validates Cognito tokens, the internal JwtAuthGuard is redundant. Replace it with a lightweight header-check guard that just verifies `x-user-id` and `x-user-role` headers are present (injected by the Lambda authorizer):
+
+```typescript
+// services/identity/src/auth/guards/gateway-auth.guard.ts
+import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
+
+@Injectable()
+export class GatewayAuthGuard implements CanActivate {
+  canActivate(context: ExecutionContext): boolean {
+    const req = context.switchToHttp().getRequest();
+    const userId = req.headers['x-user-id'];
+    if (!userId) throw new UnauthorizedException('Missing x-user-id header — request must pass through API Gateway');
+    return true;
+  }
+}
+```
+
+Then replace `JwtAuthGuard` with `GatewayAuthGuard` in:
+- `services/identity/src/users/users.controller.ts` (line 51)
+- `services/identity/src/invitations/invitations.controller.ts` (lines 41, 56, 73, 88)
+- `services/identity/src/roles/roles.controller.ts` (line 37)
+- `services/identity/src/devices/devices.controller.ts` (line 34)
+
+Keep the `RolesGuard` — it reads `x-user-role` header and checks permissions. Just remove the JWT re-validation.
+
+**Fix — Option B: Make JwtAuthGuard validate Cognito RS256 tokens**
+
+Modify `services/identity/src/auth/guards/jwt-auth.guard.ts` to use `jwks-rsa` to verify against the Cognito JWKS endpoint:
+
+```typescript
+import * as jwksRsa from 'jwks-rsa';
+import * as jwt from 'jsonwebtoken';
+
+const client = jwksRsa({
+  jwksUri: 'https://cognito-idp.us-east-1.amazonaws.com/us-east-1_i3N2tg34A/.well-known/jwks.json',
+  cache: true,
+  rateLimit: true,
+});
+
+// In the guard's validate method:
+const decoded = jwt.decode(token, { complete: true });
+const key = await client.getSigningKey(decoded.header.kid);
+const verified = jwt.verify(token, key.getPublicKey(), { algorithms: ['RS256'] });
+```
+
+**Recommendation: Go with Option A.** It's simpler, faster, and eliminates the redundant validation. The API Gateway is the security boundary — services behind it should trust its headers.
+
+---
+
+## 12. Deploy ALL Frontend Portals
+
+After the Identity JwtAuthGuard fix, rebuild and deploy ALL 5 portals (they all have token refresh fixes and bug fixes):
+
+```bash
+# Candidate Portal
+cd apps/candidate-web && pnpm build
+aws s3 sync dist/ s3://votecapsule-candidate-portal/ --delete
+aws cloudfront create-invalidation --distribution-id <CANDIDATE_DIST_ID> --paths "/*"
+
+# Party Portal
+cd apps/party-web && pnpm build
+aws s3 sync dist/ s3://votecapsule-party-portal/ --delete
+aws cloudfront create-invalidation --distribution-id <PARTY_DIST_ID> --paths "/*"
+
+# Admin Portal
+cd apps/admin-web && pnpm build
+aws s3 sync dist/ s3://votecapsule-admin-portal/ --delete
+aws cloudfront create-invalidation --distribution-id <ADMIN_DIST_ID> --paths "/*"
+
+# Observer Portal
+cd apps/observer-web && pnpm build
+aws s3 sync dist/ s3://votecapsule-observer-portal/ --delete
+aws cloudfront create-invalidation --distribution-id <OBSERVER_DIST_ID> --paths "/*"
+
+# Authority Portal
+cd apps/authority-web && pnpm build
+aws s3 sync dist/ s3://votecapsule-authority-portal/ --delete
+aws cloudfront create-invalidation --distribution-id <AUTHORITY_DIST_ID> --paths "/*"
+```
+
+---
+
+## 13. Upload Product Images to S3
+
+**Bucket:** `votecapsule-campaign-assets`  
+**Path:** `suppliers/me-advertising/images/`
+
+The materials catalogue (500+ items) references images at:
+```
+https://s3.amazonaws.com/votecapsule-campaign-assets/suppliers/me-advertising/images/{CODE}.svg
+```
+
+Where `{CODE}` is the material type code (e.g. `BASEBALL_CAP`, `CAMPAIGN_POSTER_A3`, `BRANDED_T_SHIRT`).
+
+The frontend `ProductImage` component handles missing images gracefully (shows icon fallback), but for proper UX these images need to be uploaded. Generate or source SVG/PNG icons for each material category at minimum.
+
+---
+
+## UPDATED Summary Checklist
+
+| # | Task | Priority | Blocking? |
+|---|------|----------|-----------|
+| **11** | **Fix Identity JwtAuthGuard (Option A — GatewayAuthGuard)** | **CRITICAL** | **Yes — Coordinators page, Invitations, Roles pages ALL broken** |
+| **12** | **Deploy ALL 5 frontend portals** | **CRITICAL** | **Yes — token refresh + campaign creation won't work until deployed** |
+| 1 | Add CORS headers to API Gateway | HIGH | Yes — browsers will reject |
+| 5 | Run migrations 134-142 on production | HIGH | Yes — tables must exist |
+| 6 | Deploy campaign service image | HIGH | Yes — latest code must be live |
+| 2 | Identity Service: `PATCH /users/:id/attributes` endpoint | HIGH | Yes — roles won't propagate to JWT |
+| 3 | Campaign service: call identity after assignRole | HIGH | Yes — roles won't propagate |
+| 13 | Upload product images to S3 | MED | No — fallback icons work |
+| 7 | Verify canvas/sharp deps in Dockerfile | MED | Design mockups will fail without |
+| 8 | S3 CORS for campaign assets bucket | MED | Preview images won't load |
+| 9 | IAM: verify AdminUpdateUserAttributes | MED | Role sync will 403 |
+| 4 | Verify ALB routing for campaign service | LOW | Probably already done |
+
+**Order of operations:** **11 → 12 → 5 → 1** → 6 → 2 → 3 → 7 → 8 → 9 → 13 → 4
+
+---
+
 ## Questions for Sonie
 
 1. Have migrations 134-142 already been run on prod? (I know 131 for agent scoping was pending)
 2. Is the campaign service currently deployed and healthy? (`curl https://api.votecapsule.co.ke/api/v1/campaign/health`)
 3. Does the identity service already have an endpoint to update Cognito custom attributes, or do we need to build it fresh?
+4. Can you confirm which S3 bucket + CloudFront distribution IDs are used for each portal deployment?

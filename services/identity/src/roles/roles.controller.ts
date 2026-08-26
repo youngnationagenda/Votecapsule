@@ -27,14 +27,14 @@ import { RolesService } from './roles.service';
 import { CreateRoleDto } from './dto/create-role.dto';
 import { UpdateRoleDto } from './dto/update-role.dto';
 import { AssignPermissionsDto } from './dto/assign-permissions.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { GatewayAuthGuard } from '../auth/guards/gateway-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { SystemRole } from '@vote-capsule/types';
 
 @ApiTags('roles')
 @Controller('roles')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(GatewayAuthGuard, RolesGuard)
 @ApiBearerAuth('jwt')
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}

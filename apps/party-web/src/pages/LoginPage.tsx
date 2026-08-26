@@ -53,7 +53,7 @@ export function LoginPage(): React.JSX.Element {
       }
 
       const user = buildAuthUser(result, email);
-      dispatch(loginSuccess({ user, accessToken: result.accessToken }));
+      dispatch(loginSuccess({ user, accessToken: result.accessToken, refreshToken: result.refreshToken, expiresIn: result.expiresIn }));
       navigate('/dashboard');
     } catch {
       dispatch(loginFailure('Invalid email or password'));
@@ -67,7 +67,7 @@ export function LoginPage(): React.JSX.Element {
       const { data } = await apiClient.post('/identity/auth/mfa/verify', { email, mfaCode, session });
       const result   = data.data ?? data;
       const user     = buildAuthUser(result, email);
-      dispatch(loginSuccess({ user, accessToken: result.accessToken }));
+      dispatch(loginSuccess({ user, accessToken: result.accessToken, refreshToken: result.refreshToken, expiresIn: result.expiresIn }));
       navigate('/dashboard');
     } catch {
       dispatch(loginFailure('Invalid MFA code'));

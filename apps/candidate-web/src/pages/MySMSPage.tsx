@@ -72,6 +72,7 @@ function MySMSContent(): React.JSX.Element {
     <div className="vc-card text-center py-16">
       <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
       <p className="text-gray-500">No active campaign found.</p>
+      <a href="/campaign" className="inline-block mt-3 text-sm text-amber-600 hover:underline font-medium">Create your campaign →</a>
     </div>
   );
 

@@ -38,7 +38,12 @@ export function LoginPage(): React.JSX.Element {
       const { data } = await apiClient.post('/identity/auth/login', { email, password });
       const result = data.data ?? data;
       if (result.challengeName === 'SOFTWARE_TOKEN_MFA') { setMfaRequired(true); setSession(result.session ?? ''); dispatch(loginFailure('')); return; }
-      dispatch(loginSuccess({ user: buildAuthUser(result, email), accessToken: result.accessToken }));
+      dispatch(loginSuccess({
+        user: buildAuthUser(result, email),
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresIn: result.expiresIn,
+      }));
       navigate('/dashboard');
     } catch { dispatch(loginFailure('Invalid credentials')); }
   }, [email, password, dispatch, navigate]);
@@ -48,7 +53,13 @@ export function LoginPage(): React.JSX.Element {
     dispatch(loginStart());
     try {
       const { data } = await apiClient.post('/identity/auth/mfa/verify', { email, mfaCode, session });
-      dispatch(loginSuccess({ user: buildAuthUser(data.data ?? data, email), accessToken: (data.data ?? data).accessToken }));
+      const result = data.data ?? data;
+      dispatch(loginSuccess({
+        user: buildAuthUser(result, email),
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresIn: result.expiresIn,
+      }));
       navigate('/dashboard');
     } catch { dispatch(loginFailure('Invalid MFA code')); }
   }, [email, mfaCode, session, dispatch, navigate]);

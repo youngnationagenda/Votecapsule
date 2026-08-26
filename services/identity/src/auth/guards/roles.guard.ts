@@ -25,9 +25,20 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<{ user?: JwtPayload }>();
-    const user = request.user;
+    const request = context.switchToHttp().getRequest<{
+      user?: JwtPayload & { platformAdmin?: boolean };
+      headers?: Record<string, string | undefined>;
+    }>();
 
+    // Platform super admin bypasses all role checks
+    if (
+      request.user?.platformAdmin === true ||
+      request.headers?.['x-platform-admin'] === 'true'
+    ) {
+      return true;
+    }
+
+    const user = request.user;
     if (!user?.roles) {
       return false;
     }

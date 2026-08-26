@@ -36,7 +36,6 @@ const campaignNavItems = [
 const systemNavItems = [
   { to: '/notifications', icon: Bell,        label: 'Notifications' },
   { to: '/downloads',     icon: Download,    label: 'Downloads' },
-  { to: '/team',          icon: Users,       label: 'Team Management' },
   { to: '/billing',       icon: CreditCard,  label: 'Billing' },
 ];
 

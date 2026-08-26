@@ -62,6 +62,8 @@ export function LoginPage(): React.JSX.Element {
         dispatch(loginSuccess({
           user: buildAuthUser(result, email),
           accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+          expiresIn: result.expiresIn,
         }));
         navigate('/dashboard');
       } catch {
@@ -85,6 +87,8 @@ export function LoginPage(): React.JSX.Element {
         dispatch(loginSuccess({
           user: buildAuthUser(result, email),
           accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+          expiresIn: result.expiresIn,
         }));
         navigate('/dashboard');
       } catch {
