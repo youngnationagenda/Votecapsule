@@ -17,7 +17,7 @@
 import {
   Controller, Post, Get, Put, Delete,
   Body, Param, Query, HttpCode, HttpStatus,
-  ParseIntPipe, DefaultValuePipe,
+  ParseUUIDPipe, ParseIntPipe, DefaultValuePipe,
   Logger, BadRequestException,
 } from '@nestjs/common';
 import { NotificationService }                      from './notification.service';
