@@ -1,121 +1,146 @@
-# VoteCapsule™ — Phase 20 + Wiring + JWT Claims Session Report
-**Last Updated:** 2026-08-25
-**Updated by:** Sonie
+# VoteCapsule™ — Platform Status Report
+**Last Updated:** 2026-08-26  
+**Updated by:** Sonie  
 
 ---
 
-## ✅ ALL WIRING TASKS COMPLETE
+## ✅ PLATFORM STATUS — ALL SYSTEMS OPERATIONAL
 
-### W1 — Platform Super Admin Bypass ✅
-`campaign.controller.ts` + `campaign.service.ts` — `x-platform-admin: true` header bypasses tenant scoping.
-Added: `findAllGlobal()`, `findOneGlobal()`, `updateGlobal()`, `getGlobalStats()`, `getDashboardGlobal()`.
-`CampaignRoleGuard` early-exits for `x-platform-admin: true`.
+### ECS Services (14/14 Healthy)
+| Service | Running | Task Def | Status |
+|---------|---------|----------|--------|
+| `vc-identity` | 2/2 | `vc-identity:11` | ✅ HEALTHY |
+| `vc-campaign` | 1/1 | `vc-campaign:5` | ✅ HEALTHY |
+| `vc-candidate` | 1/1 | `vc-candidate:7` | ✅ HEALTHY (fixed stale digest) |
+| `vc-election` | 2/2 | current | ✅ HEALTHY |
+| `vc-evidence` | 2/2 | `vc-evidence:12` | ✅ HEALTHY (fixed stale digest) |
+| `vc-geography` | 2/2 | `vc-geography:11` | ✅ HEALTHY (fixed stale digest) |
+| `vc-trust` | 1/1 | `vc-trust:14` | ✅ HEALTHY (fixed stale digest) |
+| `vc-notification` | 1/1 | current | ✅ HEALTHY |
+| `vc-reporting` | 1/1 | `vc-reporting:7` | ✅ HEALTHY (fixed stale digest) |
+| `vc-workflow` | 1/1 | current | ✅ HEALTHY |
+| `vc-audit` | 1/1 | `vc-audit:7` | ✅ HEALTHY (fixed stale digest) |
+| `vc-billing` | 1/1 | current | ✅ HEALTHY |
+| `vc-ai` | 1/1 | current | ✅ HEALTHY |
+| `vc-tenant` | 1/1 | current | ✅ HEALTHY |
 
-### W2 — Missing Service URLs in .env ✅
-`services/campaign/.env` + ECS Task Def `vc-campaign:3` — all 3 URLs added plus S3, AT config.
+### CloudFront Portals (6/6 Live)
+| Portal | URL | CloudFront ID | Status |
+|--------|-----|---------------|--------|
+| Admin | `admin.votecapsule.yna.co.ke` | `E2J8YA2BP1UC1H` | ✅ LIVE |
+| Party | `party.votecapsule.yna.co.ke` | `E2K6MDXEZZ7UYS` | ✅ LIVE |
+| Candidate | `candidate.votecapsule.yna.co.ke` | `E1O4XZRM79VCJ1` | ✅ LIVE (deployed 2026-08-26) |
+| Authority | `authority.votecapsule.yna.co.ke` | `E1Z32G6YW54GHT` | ✅ LIVE |
+| Observer | `observer.votecapsule.yna.co.ke` | `EZEXQ23EU9E55` | ✅ LIVE |
+| Landing | `votecapsule.yna.co.ke` | `E1V2ZCAIR6N7D0` | ✅ LIVE |
 
-### W3 — API Gateway Lambda Authorizer ✅
-Lambda `vc-jwt-authorizer` deployed. All 10 routes migrated to authorizer `sgfkqd`.
-Both integrations (`f3m2nza`, `b1hnjws`) now forward all 7 x-* headers via `overwrite:header.*`.
+### API Gateway
+| Resource | Value |
+|----------|-------|
+| ID | `483uyy43nc` |
+| Endpoint | `https://483uyy43nc.execute-api.us-east-1.amazonaws.com` |
+| CORS Origins | 19 (includes localhost:5173/5174, candidate.votecapsule.co.ke) |
+| CORS Headers | 13 (all x-* campaign role headers included) |
+| Authorizer | `vc-jwt-authorizer` (Lambda) on all protected routes |
 
-### C3 — Migrations 141 + 142 ✅
-Applied to Aurora. DB verified: 17 categories, 275 material types, `campaign_supplier_products` table.
-
----
-
-## ✅ TASK 1 — JWT Claims Sync at Login (Done this session)
-
-### Problem
-The Lambda authorizer validates Cognito ID tokens and reads `custom:wardCode`,
-`custom:constituencyCode`, `custom:candidateId`, `custom:platformAdmin` as claims.
-These were never being written to Cognito at login time — so the authorizer forwarded empty strings.
-
-### Solution
-**`services/identity/src/auth/auth.service.ts`:**
-- Added `syncCognitoClaims()` — called after every successful login and MFA verify
-- Calls `AdminUpdateUserAttributesCommand` to sync 7 custom attributes to Cognito
-- Now returns `IdToken` (not `AccessToken`) as `accessToken` — the ID token is what
-  the Lambda authorizer validates (it carries all custom:* claims)
-- Also returns `user` object in login response for frontend store hydration
-
-**`services/identity/src/users/users.service.ts`:**
-- Added `getCampaignClaims(userId, tenantId)` — queries `campaign_team_members`
-  to resolve `ward_code`, `constituency_code`, `candidate_id` for the user
-- Falls back gracefully if tables don't exist or user has no campaign assignments
-
-### New Cognito custom attributes (added to `us-east-1_i3N2tg34A`):
-| Attribute | Maps to Header | Purpose |
-|-----------|---------------|---------|
-| `custom:wardCode` | `x-ward-code` | Ward-scoped role filtering |
-| `custom:constituencyCode` | `x-constituency-code` | Constituency-scoped filtering |
-| `custom:candidateId` | `x-candidate-id` | Candidate identity scoping |
-| `custom:platformAdmin` | `x-platform-admin` | Platform super admin bypass |
-
----
-
-## ✅ TASK 2 — CI Image Build + ECS Deployment (Done this session)
-
-### buildspec.yml Updated
-Added `campaign-service` (port 3016) to the CodeBuild build pipeline.
-Post-build step now includes `campaign-service` in the ECR summary report.
-
-### CodeBuild Build
-Build ID: `vote-capsule-docker-build:5ab456f5-4d0e-4894-8814-da125fbc3717`
-Status: **SUCCEEDED** ✅
-
-### ECR Images (latest)
-| Service | Last Pushed |
-|---------|------------|
-| `vote-capsule/identity-service` | 2026-08-25 18:12 ✅ (new — includes JWT claims sync) |
-| `vote-capsule/campaign-service` | 2026-08-24 12:37 (prev build — no changes needed) |
-
-### ECS Services
-| Service | Running | Desired | Task Def | Status |
-|---------|---------|---------|----------|--------|
-| `vc-identity` | 2/2 | 2 | `vc-identity:11` | ✅ ACTIVE (new image deployed) |
-| `vc-campaign` | 1/1 | 1 | `vc-campaign:3` | ✅ ACTIVE |
+### ALB
+| Resource | Value |
+|----------|-------|
+| DNS | `vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com` |
+| Routing rules | 15 path-pattern rules (P10–P125) + default health response |
+| Campaign route | `P125: /api/v1/campaign/*` → `vc-campaign-tg` (port 3016) ✅ |
 
 ---
 
-## ✅ CTO Frontend — What Was Done (checked this session)
+## ✅ SESSION WORK COMPLETED (2026-08-26)
 
-**Party Portal (`apps/party-web/`):**
-- `authSlice.ts` — added `wardCode`, `constituencyCode`, `candidateId`, `platformAdmin` fields to `AuthUser`
-- `LoginPage.tsx` — `buildAuthUser()` helper now populates all fields from login response `user` object
-- `apiClient.ts` — already forwarding all 7 `x-*` headers ✅
-- `campaignApi.ts` — full campaign API client wired (campaigns, events, tasks, teams, volunteers, budget, SMS, suppliers, incidents) ✅
-- All campaign pages built: Dashboard, Calendar, Tasks, Teams, SMS, Budget, Materials Catalogue, Supplier Catalogue, Create Campaign ✅
-- `MaterialsCataloguePage.tsx` — full colour-select + quick-order flow ✅
-- `App.tsx` — all campaign routes registered ✅
+### 1. Role Assignment + Cognito Sync (CTO Task)
+- **Identity Service**: Added `PATCH /users/:id/attributes` endpoint → `UpdateCognitoAttributesDto`
+- **Campaign Service**: `TeamsService.assignRole()` + `updateRole()` now call Identity Service after DB write to sync `custom:roles`, `custom:wardCode`, `custom:constituencyCode`, `custom:candidateId` into Cognito
+- **Flow**: Candidate assigns role → DB write → HTTP PATCH to identity → `AdminUpdateUserAttributes` → next JWT carries correct role claim → `CampaignRoleGuard` grants access
 
-**Candidate Portal (`apps/candidate-web/`):**
-- `authSlice.ts` — added `tenantId`, `wardCode`, `platformAdmin` to `AuthUser`
-- `LoginPage.tsx` — `buildAuthUser()` helper added, MFA response wired
-- All pages built: MyCampaignDashboard, MyCampaignCalendar, MyCampaignTeam, MyMaterials, MySMS, MyBudget, MyIncidents, etc. ✅
+### 2. Cognito User Roles Fixed (59 users)
+All portal users updated with correct `custom:roles`:
+- `superadmin@votecapsule.co.ke` → `["PLATFORM_SUPER_ADMIN"]` + `platformAdmin:true`
+- `candidate@votecapsule.co.ke` → `["CANDIDATE"]`
+- `ccm@votecapsule.co.ke` → `["CAMPAIGN_MANAGER"]`
+- `authority@votecapsule.co.ke` → `["ELECTION_AUTHORITY_ADMIN"]`
+- `observer@votecapsule.co.ke` → `["OBSERVER"]`
+- All 45 party users → `["PARTY_ADMIN"]`
+
+### 3. API Gateway CORS
+All 13 role headers in `AllowHeaders`. 19 origins including:
+- `http://localhost:5173`, `http://localhost:5174` (Vite dev)
+- `https://candidate.votecapsule.co.ke`, `https://app.votecapsule.co.ke`
+
+### 4. S3 Campaign Assets CORS
+`votecapsule-campaign-assets` CORS configured for all portal origins.
+
+### 5. Candidate Portal Deployed
+- Build: 2649 modules, 36.66s, zero errors
+- S3 upload: 32 files → `vote-capsule-candidate-portal-683541453923`
+- CloudFront invalidation: `IE9KW2XCAI1R619FUZHMK62FAU` (all paths)
+- Pages live: `/campaign/team` (My Team & Roles), `/campaign/printing` (Printing & Design)
+- Smoke test: **7/7 critical checks passed**
+
+### 6. Campaign Dockerfile Updated
+- Switched `node:22-alpine` → `node:22-slim` (Debian)
+- Added `libcairo2-dev`, `libpango1.0-dev`, `librsvg2-dev`, `libgif-dev` for canvas/sharp
+
+### 7. ECS Stale Digest Fix
+- **Root cause**: CodeBuild pushed new `:latest` ECR tags — ECS cached old manifests
+- **Fixed**: Re-registered 6 task definitions to force digest re-resolution
+- **Result**: 14/14 services healthy
+
+### 8. DB Migrations 134–142
+All confirmed applied on production Aurora:
+- 33 campaign tables ✅
+- 10 campaign roles seeded ✅
+- 30 campaign permissions ✅
+- 275 material types ✅
+
+### 9. IAM Verified
+`vote-capsule-cognito-admin-policy` includes `AdminUpdateUserAttributes` on `us-east-1_i3N2tg34A` ✅
 
 ---
 
-## ⚠️ REMAINING ITEMS (next session)
+## 📋 ASSIGNABLE CAMPAIGN ROLES
 
-| Item | What's needed |
-|------|--------------|
-| **AT credentials** | Set `AT_API_KEY` + `AT_USERNAME` in ECS task def when Africa's Talking account ready |
-| **Campaign-service image rebuild** | campaign-service image is from 2026-08-24 (pre-wiring fixes to controller). New controller has `findAllGlobal()` and the guard has the `x-platform-admin` bypass. Need a fresh build. Trigger next CodeBuild or push to GitHub to trigger CI. |
-| **Identity service `vc-identity:11`** | Currently uses old task def. Force-new-deployment was triggered but ECS is still using `:11` which points to `:latest` — the new image should be running. Verify in logs. |
-| **CTO: party portal `admin` route** | Admin portal needs `x-platform-admin: true` set in its `apiClient` headers when user has `PLATFORM_SUPER_ADMIN` role (can check `auth.user.platformAdmin`) |
+| Role Constant | Display Name | Guard Scope |
+|---------------|-------------|-------------|
+| `CANDIDATE` | Candidate | Own campaign, full |
+| `CANDIDATE_CAMPAIGN_PRINCIPAL` | Campaign Principal | Own campaign, full |
+| `CAMPAIGN_MANAGER` | Campaign Manager | Own campaign, full |
+| `WARD_COORDINATOR` | Ward Representative | Ward-scoped |
+| `CONSTITUENCY_COORDINATOR` | Constituency Coordinator | Constituency-scoped |
+| `LOGISTICS_OFFICER` | Logistics Manager | vehicles, equipment, events, tasks |
+| `FINANCE_OFFICER` | Finance Officer | budget, expenses, contributions |
+| `COMMUNICATIONS_OFFICER` | Communications Manager | sms, incidents |
+| `BRAND_MANAGER` | Branding Manager | materials, designs, orders, outdoor, media |
+| `CAMPAIGN_VOLUNTEER` | Volunteer | tasks, events only |
 
 ---
 
-## AWS Resources Summary
+## 🔧 OPS SCRIPTS
 
-| Resource | ID / Value |
-|----------|-----------|
-| Lambda Authorizer | `vc-jwt-authorizer` (sgfkqd) |
-| Lambda Role | `vc-lambda-authorizer-role` |
-| API GW Authorizer | `sgfkqd` — all 10 protected routes |
-| ECS Campaign | `vc-campaign:3` — 1/1 running |
-| ECS Identity | `vc-identity:11` — 2/2 running (new image) |
-| Cognito Pool | `us-east-1_i3N2tg34A` — 4 new custom attrs |
-| CodeBuild | `5ab456f5` — SUCCEEDED |
+| Script | Purpose |
+|--------|---------|
+| `check-ecs-health.js` | Full ECS cluster health (14 services) |
+| `full-platform-health.js` | 24-point end-to-end health (portals + APIs + ALB) |
+| `fix-ecs-stale-digest.js` | Re-registers task defs to fix CannotPullContainerError |
+| `smoke-candidate-portal.js` | Candidate portal CloudFront smoke test |
+| `fix-cognito-roles.py` | Bulk-update Cognito custom:roles for all portal users |
+| `verify-campaign-roles-db.js` | Confirm campaign roles/permissions in Aurora |
 
-*Sonie — 2026-08-25*
+---
+
+## ⚠️ PENDING / FUTURE
+
+| Item | Priority | Notes |
+|------|----------|-------|
+| Africa's Talking SMS credentials | MEDIUM | Set `AT_API_KEY` + `AT_USERNAME` in ECS task def when AT account ready |
+| Admin portal `x-platform-admin` header | LOW | Set in `apiClient.ts` when user has `PLATFORM_SUPER_ADMIN` role |
+| E2E role assignment smoke test | LOW | Test full flow: assign role → Cognito sync → login → guard pass |
+| Campaign `/health` route bypass in API GW | LOW | Currently hits JWT authorizer (returns 401) — add public route exception |
+
+*Sonie — 2026-08-26*
