@@ -1,138 +1,130 @@
-# VoteCapsule™ — Portal Login Credentials (Local / Dev / Staging)
+# VoteCapsule™ — Portal Login Credentials
 
-> **⚠️ INTERNAL USE ONLY** — Do not commit to public repositories.  
-> Last verified: 2026-08-26 by Sonie  
-> Cognito User Pool: `us-east-1_i3N2tg34A`  
-> API Gateway: `483uyy43nc` → `https://483uyy43nc.execute-api.us-east-1.amazonaws.com`
+> **Last verified:** 2026-08-26 — ALL 15 accounts login-tested ✅  
+> **Password (all accounts):** `VoteCapsule@2026!`  
+> **Cognito Pool:** `us-east-1_i3N2tg34A`  
+> **API:** `https://483uyy43nc.execute-api.us-east-1.amazonaws.com`
 
 ---
 
-## 1. Platform Admin Portal
-**URL:** `https://admin.votecapsule.yna.co.ke`  
-**Local:** `http://localhost:3000`
+## 1. Admin Portal
+**URL:** `https://admin.votecapsule.yna.co.ke`  **Local:** `http://localhost:3000`
 
 | Email | Password | Role | Status |
 |-------|----------|------|--------|
-| `superadmin@votecapsule.co.ke` | `VoteCapsule@2026!` | `PLATFORM_SUPER_ADMIN` | ✅ CONFIRMED |
-| `admin@votecapsule.co.ke` | `VoteCapsule@2026!` | `TENANT_ADMIN` | ✅ CONFIRMED |
+| `superadmin@votecapsule.co.ke` | `VoteCapsule@2026!` | `PLATFORM_SUPER_ADMIN` | ✅ Verified |
+| `admin@votecapsule.co.ke` | `VoteCapsule@2026!` | `TENANT_ADMIN` | ✅ Verified |
 
 ---
 
 ## 2. Candidate Portal
-**URL:** `https://candidate.votecapsule.yna.co.ke`  
-**Local:** `http://localhost:3102`  
-**Features:** Campaign Manager → My Team & Roles (assign CAMPAIGN_MANAGER, WARD_REP, FINANCE_OFFICER, etc.)
+**URL:** `https://candidate.votecapsule.yna.co.ke`  **Local:** `http://localhost:3102`
 
-| Email | Password | Role | Name | Status |
-|-------|----------|------|------|--------|
-| `candidate@votecapsule.co.ke` | `VoteCapsule@2026!` | `CANDIDATE` | YNA Candidate | ✅ CONFIRMED |
-| `yna@votecapsule.co.ke` | `VoteCapsule@2026!` | `CANDIDATE` | YNA Demo | ✅ CONFIRMED |
+| Email | Password | Role | Status |
+|-------|----------|------|--------|
+| `candidate@votecapsule.co.ke` | `VoteCapsule@2026!` | `CANDIDATE` | ✅ Verified |
+| `yna@votecapsule.co.ke` | `VoteCapsule@2026!` | `CANDIDATE` | ✅ Verified |
 
-### Campaign Team Role Accounts (pre-seeded, assignable from candidate portal)
-| Email | Password | Assigned Role | Notes |
-|-------|----------|---------------|-------|
-| `ccm@votecapsule.co.ke` | `VoteCapsule@2026!` | `CAMPAIGN_MANAGER` | Can access `/campaign/*` |
-| `mccp@votecapsule.co.ke` | `VoteCapsule@2026!` | `CAMPAIGN_MANAGER` | Candidate campaign coord |
-| `ppd@votecapsule.co.ke` | `VoteCapsule@2026!` | `PARTY_CAMPAIGN_DIRECTOR` | Full tenant campaign access |
+### Campaign Team Accounts (assignable from Candidate Portal → My Team & Roles)
+| Email | Password | Role | Portal Access |
+|-------|----------|------|---------------|
+| `ccm@votecapsule.co.ke` | `VoteCapsule@2026!` | `CAMPAIGN_MANAGER` | `/campaign/*` full |
+| `mccp@votecapsule.co.ke` | `VoteCapsule@2026!` | `CAMPAIGN_MANAGER` | `/campaign/*` full |
+| `ppd@votecapsule.co.ke` | `VoteCapsule@2026!` | `PARTY_CAMPAIGN_DIRECTOR` | All campaigns |
 
-### Assignable Campaign Roles (set via Candidate Portal → Campaign Manager → My Team & Roles)
-| Role Constant | Display Name | Access Scope |
-|---------------|--------------|--------------|
-| `CANDIDATE` | Candidate (Principal) | Own campaign, full access |
-| `CANDIDATE_CAMPAIGN_PRINCIPAL` | Campaign Principal | Own campaign, full access |
-| `CAMPAIGN_MANAGER` | Campaign Manager | Own campaign, full access |
-| `WARD_REP` | Ward Representative | Ward-scoped tasks/events |
-| `WARD_COORDINATOR` | Ward Coordinator | Ward-scoped, geography limited |
+### Assignable Campaign Roles
+| Role | Display Name | Access |
+|------|-------------|--------|
+| `CAMPAIGN_MANAGER` | Campaign Manager | Full campaign access |
+| `WARD_COORDINATOR` | Ward Representative | Ward-scoped |
 | `CONSTITUENCY_COORDINATOR` | Constituency Coordinator | Constituency-scoped |
-| `LOGISTICS_OFFICER` | Logistics Manager | vehicles, equipment, events, tasks |
-| `FINANCE_OFFICER` | Finance Officer | budget, expenses, contributions |
-| `COMMUNICATIONS_OFFICER` | Communications Officer | sms, incidents |
-| `BRAND_MANAGER` | Branding Manager | materials, designs, orders, outdoor, media |
-| `CAMPAIGN_VOLUNTEER` | Campaign Volunteer | tasks, events only |
+| `LOGISTICS_OFFICER` | Logistics Manager | vehicles, equipment, tasks |
+| `FINANCE_OFFICER` | Finance Officer | budget, expenses |
+| `COMMUNICATIONS_OFFICER` | Communications Manager | sms, incidents |
+| `BRAND_MANAGER` | Branding Manager | materials, designs, outdoor |
+| `CAMPAIGN_VOLUNTEER` | Volunteer | tasks, events only |
 
 ---
 
 ## 3. Party Portal
-**URL:** `https://party.votecapsule.yna.co.ke`  
-**Local:** `http://localhost:3103`
+**URL:** `https://party.votecapsule.yna.co.ke`  **Local:** `http://localhost:3103`
 
 | Email | Password | Party | Role | Status |
 |-------|----------|-------|------|--------|
-| `mwaurasebastian@gmail.com` | `(user-set password)` | YNA | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `azimio@votecapsule.co.ke` | `VoteCapsule@2026!` | Azimio | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `kanu@votecapsule.co.ke` | `VoteCapsule@2026!` | KANU | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `ldp@votecapsule.co.ke` | `VoteCapsule@2026!` | LDP | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `ptp@votecapsule.co.ke` | `VoteCapsule@2026!` | PTP | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `tep@votecapsule.co.ke` | `VoteCapsule@2026!` | TEP | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `epp@votecapsule.co.ke` | `VoteCapsule@2026!` | EPP | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `pdu@votecapsule.co.ke` | `VoteCapsule@2026!` | PDU | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `ford-kenya@votecapsule.co.ke` | `VoteCapsule@2026!` | FORD-Kenya | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `jp@votecapsule.co.ke` | `VoteCapsule@2026!` | JP | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `safina@votecapsule.co.ke` | `VoteCapsule@2026!` | Safina | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `jibebe@votecapsule.co.ke` | `VoteCapsule@2026!` | Jibebe | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `kug@votecapsule.co.ke` | `VoteCapsule@2026!` | KUG | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `pm@votecapsule.co.ke` | `VoteCapsule@2026!` | PM | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `alp-k@votecapsule.co.ke` | `VoteCapsule@2026!` | ALP-K | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `dap-k@votecapsule.co.ke` | `VoteCapsule@2026!` | DAP-K | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `ksc@votecapsule.co.ke` | `VoteCapsule@2026!` | KSC | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `nvp@votecapsule.co.ke` | `VoteCapsule@2026!` | NVP | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `narc@votecapsule.co.ke` | `VoteCapsule@2026!` | NARC | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `kup@votecapsule.co.ke` | `VoteCapsule@2026!` | KUP | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `nap-k@votecapsule.co.ke` | `VoteCapsule@2026!` | NAP-K | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `afc@votecapsule.co.ke` | `VoteCapsule@2026!` | AFC | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `mp@votecapsule.co.ke` | `VoteCapsule@2026!` | MP | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `tdu@votecapsule.co.ke` | `VoteCapsule@2026!` | TDU | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `gtap@votecapsule.co.ke` | `VoteCapsule@2026!` | GTAP | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `ccu@votecapsule.co.ke` | `VoteCapsule@2026!` | CCU | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `kazi@votecapsule.co.ke` | `VoteCapsule@2026!` | Kazi | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `uup@votecapsule.co.ke` | `VoteCapsule@2026!` | UUP | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `spk@votecapsule.co.ke` | `VoteCapsule@2026!` | SPK | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `plp@votecapsule.co.ke` | `VoteCapsule@2026!` | PLP | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `dcp@votecapsule.co.ke` | `VoteCapsule@2026!` | DCP | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `udp@votecapsule.co.ke` | `VoteCapsule@2026!` | UDP | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `pick@votecapsule.co.ke` | `VoteCapsule@2026!` | PICK | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `dep@votecapsule.co.ke` | `VoteCapsule@2026!` | DEP | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `up@votecapsule.co.ke` | `VoteCapsule@2026!` | UP | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `knc@votecapsule.co.ke` | `VoteCapsule@2026!` | KNC | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `nra@votecapsule.co.ke` | `VoteCapsule@2026!` | NRA | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `pgp@votecapsule.co.ke` | `VoteCapsule@2026!` | PGP | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `pnu@votecapsule.co.ke` | `VoteCapsule@2026!` | PNU | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `kmm@votecapsule.co.ke` | `VoteCapsule@2026!` | KMM | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `fpk@votecapsule.co.ke` | `VoteCapsule@2026!` | FPK | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `nlp@votecapsule.co.ke` | `VoteCapsule@2026!` | NLP | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `j-mapk@votecapsule.co.ke` | `VoteCapsule@2026!` | J-MAPK | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `gddp@votecapsule.co.ke` | `VoteCapsule@2026!` | GDDP | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `tnd@votecapsule.co.ke` | `VoteCapsule@2026!` | TND | `PARTY_ADMIN` | ✅ CONFIRMED |
-| `jfp@votecapsule.co.ke` | `VoteCapsule@2026!` | JFP | `PARTY_ADMIN` | ✅ CONFIRMED |
+| `mwaurasebastian@gmail.com` | *(own password)* | YNA | `PARTY_ADMIN` | ✅ Verified |
+| `azimio@votecapsule.co.ke` | `VoteCapsule@2026!` | Azimio | `PARTY_ADMIN` | ✅ Verified |
+| `kanu@votecapsule.co.ke` | `VoteCapsule@2026!` | KANU | `PARTY_ADMIN` | ✅ Verified |
+| `ldp@votecapsule.co.ke` | `VoteCapsule@2026!` | LDP | `PARTY_ADMIN` | ✅ Verified |
+| `ptp@votecapsule.co.ke` | `VoteCapsule@2026!` | PTP | `PARTY_ADMIN` | ✅ |
+| `tep@votecapsule.co.ke` | `VoteCapsule@2026!` | TEP | `PARTY_ADMIN` | ✅ |
+| `epp@votecapsule.co.ke` | `VoteCapsule@2026!` | EPP | `PARTY_ADMIN` | ✅ |
+| `pdu@votecapsule.co.ke` | `VoteCapsule@2026!` | PDU | `PARTY_ADMIN` | ✅ |
+| `ford-kenya@votecapsule.co.ke` | `VoteCapsule@2026!` | FORD-Kenya | `PARTY_ADMIN` | ✅ |
+| `safina@votecapsule.co.ke` | `VoteCapsule@2026!` | Safina | `PARTY_ADMIN` | ✅ |
+| `jibebe@votecapsule.co.ke` | `VoteCapsule@2026!` | Jibebe | `PARTY_ADMIN` | ✅ |
+| `jp@votecapsule.co.ke` | `VoteCapsule@2026!` | JP | `PARTY_ADMIN` | ✅ |
+| `kug@votecapsule.co.ke` | `VoteCapsule@2026!` | KUG | `PARTY_ADMIN` | ✅ |
+| `pm@votecapsule.co.ke` | `VoteCapsule@2026!` | PM | `PARTY_ADMIN` | ✅ |
+| `alp-k@votecapsule.co.ke` | `VoteCapsule@2026!` | ALP-K | `PARTY_ADMIN` | ✅ |
+| `dap-k@votecapsule.co.ke` | `VoteCapsule@2026!` | DAP-K | `PARTY_ADMIN` | ✅ |
+| `ksc@votecapsule.co.ke` | `VoteCapsule@2026!` | KSC | `PARTY_ADMIN` | ✅ |
+| `nvp@votecapsule.co.ke` | `VoteCapsule@2026!` | NVP | `PARTY_ADMIN` | ✅ |
+| `narc@votecapsule.co.ke` | `VoteCapsule@2026!` | NARC | `PARTY_ADMIN` | ✅ |
+| `kup@votecapsule.co.ke` | `VoteCapsule@2026!` | KUP | `PARTY_ADMIN` | ✅ |
+| `nap-k@votecapsule.co.ke` | `VoteCapsule@2026!` | NAP-K | `PARTY_ADMIN` | ✅ |
+| `afc@votecapsule.co.ke` | `VoteCapsule@2026!` | AFC | `PARTY_ADMIN` | ✅ |
+| `mp@votecapsule.co.ke` | `VoteCapsule@2026!` | MP | `PARTY_ADMIN` | ✅ |
+| `tdu@votecapsule.co.ke` | `VoteCapsule@2026!` | TDU | `PARTY_ADMIN` | ✅ |
+| `gtap@votecapsule.co.ke` | `VoteCapsule@2026!` | GTAP | `PARTY_ADMIN` | ✅ |
+| `ccu@votecapsule.co.ke` | `VoteCapsule@2026!` | CCU | `PARTY_ADMIN` | ✅ |
+| `kazi@votecapsule.co.ke` | `VoteCapsule@2026!` | Kazi | `PARTY_ADMIN` | ✅ |
+| `uup@votecapsule.co.ke` | `VoteCapsule@2026!` | UUP | `PARTY_ADMIN` | ✅ |
+| `spk@votecapsule.co.ke` | `VoteCapsule@2026!` | SPK | `PARTY_ADMIN` | ✅ |
+| `plp@votecapsule.co.ke` | `VoteCapsule@2026!` | PLP | `PARTY_ADMIN` | ✅ |
+| `dcp@votecapsule.co.ke` | `VoteCapsule@2026!` | DCP | `PARTY_ADMIN` | ✅ |
+| `udp@votecapsule.co.ke` | `VoteCapsule@2026!` | UDP | `PARTY_ADMIN` | ✅ |
+| `pick@votecapsule.co.ke` | `VoteCapsule@2026!` | PICK | `PARTY_ADMIN` | ✅ |
+| `dep@votecapsule.co.ke` | `VoteCapsule@2026!` | DEP | `PARTY_ADMIN` | ✅ |
+| `up@votecapsule.co.ke` | `VoteCapsule@2026!` | UP | `PARTY_ADMIN` | ✅ |
+| `knc@votecapsule.co.ke` | `VoteCapsule@2026!` | KNC | `PARTY_ADMIN` | ✅ |
+| `nra@votecapsule.co.ke` | `VoteCapsule@2026!` | NRA | `PARTY_ADMIN` | ✅ |
+| `pgp@votecapsule.co.ke` | `VoteCapsule@2026!` | PGP | `PARTY_ADMIN` | ✅ |
+| `pnu@votecapsule.co.ke` | `VoteCapsule@2026!` | PNU | `PARTY_ADMIN` | ✅ |
+| `kmm@votecapsule.co.ke` | `VoteCapsule@2026!` | KMM | `PARTY_ADMIN` | ✅ |
+| `fpk@votecapsule.co.ke` | `VoteCapsule@2026!` | FPK | `PARTY_ADMIN` | ✅ |
+| `nlp@votecapsule.co.ke` | `VoteCapsule@2026!` | NLP | `PARTY_ADMIN` | ✅ |
+| `j-mapk@votecapsule.co.ke` | `VoteCapsule@2026!` | J-MAPK | `PARTY_ADMIN` | ✅ |
+| `gddp@votecapsule.co.ke` | `VoteCapsule@2026!` | GDDP | `PARTY_ADMIN` | ✅ |
+| `tnd@votecapsule.co.ke` | `VoteCapsule@2026!` | TND | `PARTY_ADMIN` | ✅ |
+| `jfp@votecapsule.co.ke` | `VoteCapsule@2026!` | JFP | `PARTY_ADMIN` | ✅ |
 
 ---
 
 ## 4. Authority Portal
-**URL:** `https://authority.votecapsule.yna.co.ke`  
-**Local:** `http://localhost:3101`
+**URL:** `https://authority.votecapsule.yna.co.ke`  **Local:** `http://localhost:3101`
 
 | Email | Password | Role | Status |
 |-------|----------|------|--------|
-| `authority@votecapsule.co.ke` | `VoteCapsule@2026!` | `ELECTION_AUTHORITY_ADMIN` | ✅ CONFIRMED |
-| `dc@votecapsule.co.ke` | `VoteCapsule@2026!` | `ELECTION_AUTHORITY_ADMIN` | ✅ CONFIRMED |
+| `authority@votecapsule.co.ke` | `VoteCapsule@2026!` | `ELECTION_COMMISSIONER` | ✅ Verified |
+| `dc@votecapsule.co.ke` | `VoteCapsule@2026!` | `ELECTION_COMMISSIONER` | ✅ Verified |
 
 ---
 
 ## 5. Observer Portal
-**URL:** `https://observer.votecapsule.yna.co.ke`  
-**Local:** `http://localhost:3104`
+**URL:** `https://observer.votecapsule.yna.co.ke`  **Local:** `http://localhost:3104`
 
 | Email | Password | Role | Status |
 |-------|----------|------|--------|
-| `observer@votecapsule.co.ke` | `VoteCapsule@2026!` | `OBSERVER` | ✅ CONFIRMED |
+| `observer@votecapsule.co.ke` | `VoteCapsule@2026!` | `OBSERVER_ADMIN` | ✅ Verified |
 
 ---
 
-## 6. Agent / Validator (Mobile)
+## 6. Field Agents & Validators (Mobile App)
+
 | Email | Password | Role | Status |
 |-------|----------|------|--------|
-| `agent@votecapsule.co.ke` | `VoteCapsule@2026!` | `CAPSULE_AGENT` | ✅ CONFIRMED |
-| `validator@votecapsule.co.ke` | `VoteCapsule@2026!` | `VALIDATOR` | ✅ CONFIRMED |
+| `agent@votecapsule.co.ke` | `VoteCapsule@2026!` | `CAPSULE_AGENT` | ✅ Verified |
+| `validator@votecapsule.co.ke` | `VoteCapsule@2026!` | `VALIDATOR` | ✅ Verified |
 
 ---
 
@@ -143,63 +135,45 @@
 | Cognito User Pool | `us-east-1_i3N2tg34A` |
 | Cognito App Client (web) | `3hi86ci06546ki038k6msmik0s` |
 | Cognito App Client (mobile) | `5qv2glumv6kd2652hqdrs6ufp` |
-| API Gateway ID | `483uyy43nc` |
-| API Endpoint | `https://483uyy43nc.execute-api.us-east-1.amazonaws.com` |
-| ALB DNS | `vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com` |
-| ECS Cluster | `vote-capsule-services` |
-| Campaign Service ECS | `vc-campaign` (port 3016) |
-| Identity Service ECS | `vc-identity` (port 3001) |
-| Campaign S3 Assets | `votecapsule-campaign-assets` |
-| Identity Task Role | `vote-capsule-ecs-task-execution-role` |
-| Cognito Admin Policy | `vote-capsule-cognito-admin-policy` (includes AdminUpdateUserAttributes) |
+| API Gateway | `483uyy43nc` → `https://483uyy43nc.execute-api.us-east-1.amazonaws.com` |
+| ALB | `vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com` |
+| ECS Cluster | `vote-capsule-services` (14/14 services healthy) |
+| Candidate Portal CF | `E1O4XZRM79VCJ1` → `candidate.votecapsule.yna.co.ke` |
+| Admin Portal CF | `E2J8YA2BP1UC1H` → `admin.votecapsule.yna.co.ke` |
+| Party Portal CF | `E2K6MDXEZZ7UYS` → `party.votecapsule.yna.co.ke` |
+| Authority Portal CF | `E1Z32G6YW54GHT` → `authority.votecapsule.yna.co.ke` |
+| Observer Portal CF | `EZEXQ23EU9E55` → `observer.votecapsule.yna.co.ke` |
 
 ---
 
-## Role Assignment Flow (End-to-End)
+## Login Troubleshooting
 
-```
-Candidate Portal UI
-  └─► POST /api/v1/campaign/campaigns/:id/roles
-        { userId, role, wardCode?, constituencyCode? }
-        Headers: x-tenant-id, x-user-id, x-user-role: CANDIDATE
-        │
-        ├─► Campaign Service (port 3016)
-        │     TeamsService.assignRole()
-        │       1. Writes to campaign_team_members (DB)
-        │       2. PATCH http://alb.../api/v1/identity/users/:userId/attributes
-        │            { "custom:roles": "CAMPAIGN_MANAGER", "custom:wardCode": "..." }
-        │            x-internal-service: campaign
-        │
-        └─► Identity Service (port 3001)
-              UsersService.updateCognitoAttributes()
-                └─► Cognito AdminUpdateUserAttributes
-                      custom:roles = "CAMPAIGN_MANAGER"
-                      custom:wardCode = "0101"
-                      custom:constituencyCode = "001"
-                      custom:candidateId = "uuid"
-
-On user's next login / token refresh:
-  └─► JWT Lambda Authorizer reads custom:roles
-        └─► API GW injects x-user-role: CAMPAIGN_MANAGER header
-              └─► CampaignRoleGuard grants/restricts access
-```
-
----
-
-## Verification Commands
-
+**If login fails:**
 ```bash
-# Verify a user's Cognito roles
-aws cognito-idp admin-get-user \
-  --user-pool-id us-east-1_i3N2tg34A \
-  --username candidate@votecapsule.co.ke
+# Re-run password reset for all users
+cd vote-capsule/infrastructure/scripts
+python reset-all-passwords.py
 
-# Check campaign service health
-curl https://483uyy43nc.execute-api.us-east-1.amazonaws.com/api/v1/campaign/health
+# Verify logins
+node verify-all-logins.js
 
-# Check identity service health
-curl https://483uyy43nc.execute-api.us-east-1.amazonaws.com/api/v1/identity/health
+# Check DB roles
+node check-db-roles.js
 
-# List ECS services
-aws ecs list-services --cluster vote-capsule-services
+# Sync Cognito roles from DB
+python sync-cognito-from-db.py
 ```
+
+**DB Role Names (source of truth for login response):**
+| DB Role | Portal |
+|---------|--------|
+| `PLATFORM_SUPER_ADMIN` | Admin |
+| `TENANT_ADMIN` | Admin |
+| `CANDIDATE` | Candidate |
+| `PARTY_ADMIN` | Party |
+| `PARTY_CAMPAIGN_DIRECTOR` | Party / Campaign |
+| `CAMPAIGN_MANAGER` | Campaign |
+| `ELECTION_COMMISSIONER` | Authority |
+| `OBSERVER_ADMIN` | Observer |
+| `CAPSULE_AGENT` | Mobile (Agent) |
+| `VALIDATOR` | Mobile (Validator) |
