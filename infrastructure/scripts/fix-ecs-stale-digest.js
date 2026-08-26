@@ -24,12 +24,8 @@ function awsRaw(cmd) {
 
 // Services to fix: [serviceName, currentTaskDef]
 const FAILING = [
-  { service: 'vc-candidate', taskFamily: 'vc-candidate' },
-  { service: 'vc-trust',     taskFamily: 'vc-trust'     },
-  { service: 'vc-reporting', taskFamily: 'vc-reporting' },
-  { service: 'vc-audit',     taskFamily: 'vc-audit'     },
-  { service: 'vc-evidence',  taskFamily: 'vc-evidence'  },
-  { service: 'vc-geography', taskFamily: 'vc-geography' },
+  { service: 'vc-election',     taskFamily: 'vc-election'     },
+  { service: 'vc-notification', taskFamily: 'vc-notification' },
 ];
 
 async function fixService({ service, taskFamily }) {
