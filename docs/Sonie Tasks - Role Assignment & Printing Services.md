@@ -270,20 +270,24 @@ aws cloudfront create-invalidation --distribution-id <DIST_ID> --paths "/*"
 
 ---
 
-## 11. CRITICAL FIX — Identity Service JwtAuthGuard Rejecting Portal Tokens
+## 11. CRITICAL FIX — Identity + Tenant Service JwtAuthGuard Rejecting Portal Tokens
 
 **Priority:** HIGHEST — This is causing IMMEDIATE LOGOUT on multiple portal pages.
 
-**Problem:** The Identity service (`services/identity`) has a `JwtAuthGuard` (`src/auth/guards/jwt-auth.guard.ts`) that validates tokens using a local `JWT_SECRET` (HS256). However, ALL portals send Cognito RS256 tokens. The API Gateway Lambda Authorizer already validates these Cognito tokens, so the Identity service re-validating with a different mechanism is REDUNDANT and causes all requests to guarded endpoints to fail with 401.
+**Problem:** Both the Identity service and Tenant service have `JwtAuthGuard` that validates tokens using a local `JWT_SECRET` (HS256). However, ALL portals send Cognito RS256 tokens. The API Gateway Lambda Authorizer already validates these Cognito tokens, so re-validating is REDUNDANT and causes 401s.
+
+**CTO HAS ALREADY FIXED THIS IN CODE:**
+- **Identity Service**: All controllers already use `GatewayAuthGuard` (check `services/identity/src/auth/guards/gateway-auth.guard.ts`)
+- **Tenant Service**: All 3 controllers (tenants, subscriptions, members) now use `GatewayAuthGuard` (check `services/tenant/src/common/guards/gateway-auth.guard.ts`)
+
+**Your only task: DEPLOY both services.**
 
 **Affected endpoints (ALL cause immediate portal logout when accessed):**
-- `GET /identity/users` — `@UseGuards(JwtAuthGuard, RolesGuard)` on UsersController
-- `POST /identity/invitations` — `@UseGuards(JwtAuthGuard, RolesGuard)` on InvitationsController
-- `GET /identity/invitations` — same
-- `PATCH /identity/invitations/:id/accept` — `@UseGuards(JwtAuthGuard)`
-- `GET /identity/roles` — `@UseGuards(JwtAuthGuard, RolesGuard)` on RolesController
-- `POST/PATCH/DELETE /identity/roles/*` — same
-- `GET /identity/users/me/devices` — `@UseGuards(JwtAuthGuard)` on DevicesController
+- `GET /identity/users` — was UsersController
+- `POST /identity/invitations` — was InvitationsController
+- `GET /tenant/tenants/:id/nomination-limits` — was TenantsController ← **CAUSES NOMINATIONS PAGE CRASH**
+- `GET /tenant/tenants/:id/subscription` — was SubscriptionsController
+- `GET /tenant/tenants/:id/members` — was MembersController
 
 **Endpoints that work fine (NO guard — trust gateway headers):**
 - `POST /identity/auth/login` ✓

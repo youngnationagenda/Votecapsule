@@ -142,7 +142,8 @@ export class BudgetService {
   }
 
   // ── Budget File Import ─────────────────────────────────────
-  async importBudgetFile(campaignId: string, file: Express.Multer.File, tenantId: string, userId: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async importBudgetFile(campaignId: string, file: any, tenantId: string, userId: string) {
     this.logger.log(`Importing budget file: ${file.originalname} (${file.size} bytes) for campaign ${campaignId}`);
 
     const ext = file.originalname.split('.').pop()?.toLowerCase();

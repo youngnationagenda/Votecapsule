@@ -84,7 +84,7 @@ const PARTY_EMAILS = [
   'tnd@votecapsule.co.ke','jfp@votecapsule.co.ke','pm@votecapsule.co.ke','alp-k@votecapsule.co.ke',
   'dap-k@votecapsule.co.ke','ksc@votecapsule.co.ke','nvp@votecapsule.co.ke','narc@votecapsule.co.ke',
   'kup@votecapsule.co.ke','nap-k@votecapsule.co.ke','afc@votecapsule.co.ke','mp@votecapsule.co.ke',
-  'tdu@votecapsule.co.ke','gtap@votecapsule.co.ke','ccu@votecapsule.co.ke','kazi@votecapsule.co.ke',
+  'tdu@votecapsule.co.ke','gtap@votecapsule.co.ke','ccu@votecapsule.co.ke',
   'uup@votecapsule.co.ke','spk@votecapsule.co.ke','plp@votecapsule.co.ke','dcp@votecapsule.co.ke',
   'udp@votecapsule.co.ke','pick@votecapsule.co.ke','dep@votecapsule.co.ke','up@votecapsule.co.ke',
   'knc@votecapsule.co.ke','nra@votecapsule.co.ke','pgp@votecapsule.co.ke','pnu@votecapsule.co.ke',

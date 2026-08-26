@@ -107,18 +107,7 @@ async function main() {
     process.exit(1);
   }
 
-  // Remove old kazisafi prefix if it exists
-  console.log('\n🧹 Cleaning up old suppliers/kazisafi/ prefix in S3...');
-  try {
-    execSync(
-      `aws s3 rm "s3://${BUCKET}/suppliers/kazisafi/" --recursive --region ${REGION}`,
-      { encoding: 'utf8', timeout: 60000 }
-    );
-    console.log('✅ Old suppliers/kazisafi/ removed');
-  } catch (e) {
-    // May not exist — that's fine
-    console.log('  (nothing to remove or already clean)');
-  }
+  // S3 prefix cleanup — reserved for future use
 
   // Verify
   console.log('\n🔍 Verifying S3 upload...');

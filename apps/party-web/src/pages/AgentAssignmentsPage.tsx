@@ -110,7 +110,7 @@ function AgentAssignmentsPageContent(): React.JSX.Element {
   const { data: elections = [] } = useQuery<NominationElection[]>({
     queryKey: ['party', 'nomination-elections', tenantId],
     queryFn: async () => {
-      const { data } = await apiClient.get(`/candidate/elections?tenantId=${tenantId}&type=PARTY_NOMINATION`);
+      const { data } = await apiClient.get(`/candidate/candidates/elections?tenantId=${tenantId}&type=PARTY_NOMINATION`);
       return data?.data ?? data ?? [];
     },
     enabled: !!tenantId,

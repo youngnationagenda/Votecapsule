@@ -77,7 +77,6 @@
 | `tdu@votecapsule.co.ke` | `VoteCapsule@2026!` | TDU | `PARTY_ADMIN` | ✅ |
 | `gtap@votecapsule.co.ke` | `VoteCapsule@2026!` | GTAP | `PARTY_ADMIN` | ✅ |
 | `ccu@votecapsule.co.ke` | `VoteCapsule@2026!` | CCU | `PARTY_ADMIN` | ✅ |
-| `kazi@votecapsule.co.ke` | `VoteCapsule@2026!` | Kazi | `PARTY_ADMIN` | ✅ |
 | `uup@votecapsule.co.ke` | `VoteCapsule@2026!` | UUP | `PARTY_ADMIN` | ✅ |
 | `spk@votecapsule.co.ke` | `VoteCapsule@2026!` | SPK | `PARTY_ADMIN` | ✅ |
 | `plp@votecapsule.co.ke` | `VoteCapsule@2026!` | PLP | `PARTY_ADMIN` | ✅ |

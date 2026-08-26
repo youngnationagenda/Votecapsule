@@ -155,7 +155,7 @@ function FileDisputeModal({
   const { data: nominations } = useQuery({
     queryKey: ['party-nominations', tenantId],
     queryFn: () =>
-      apiClient.get('/candidate/nominations', { headers: { 'x-tenant-id': tenantId } })
+      apiClient.get('/candidate/candidates/nominations', { headers: { 'x-tenant-id': tenantId } })
         .then(r => r.data?.data ?? r.data ?? []),
     enabled: !!tenantId,
     staleTime: 30_000,
@@ -163,7 +163,7 @@ function FileDisputeModal({
 
   const mutation = useMutation({
     mutationFn: () =>
-      apiClient.post('/candidate/nominations/disputes', {
+      apiClient.post('/candidate/candidates/nominations/disputes', {
         ...form,
         tenantId,
         filedBy: userId,
@@ -402,7 +402,7 @@ function NominationDisputesPageContent(): React.JSX.Element {
   const { data: disputes, isLoading: disputesLoading } = useQuery<Dispute[]>({
     queryKey: ['nomination-disputes', tenantId],
     queryFn: () =>
-      apiClient.get('/candidate/nominations/disputes', { headers: { 'x-tenant-id': tenantId } })
+      apiClient.get('/candidate/candidates/nominations/disputes', { headers: { 'x-tenant-id': tenantId } })
         .then(r => r.data?.data ?? r.data ?? []),
     enabled: !!tenantId,
     staleTime: 30_000,

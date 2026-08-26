@@ -385,7 +385,7 @@ function CreateNominationModal({
 
   const mutation = useMutation({
     mutationFn: () =>
-      apiClient.post('/candidate/nominations', {
+      apiClient.post('/candidate/candidates/nominations', {
         parentElectionId: form.parentElectionId,
         name: autoName || `${selectedPosition?.label ?? ''} Nomination`,
         electionYear: form.electionYear,
@@ -599,7 +599,7 @@ function NominationCard({
   // Candidates for this nomination
   const { data: candidates } = useQuery<NominationCandidate[]>({
     queryKey: ['nom-candidates', election.id],
-    queryFn: () => apiClient.get(`/candidate/candidates?electionId=${election.id}`)
+    queryFn: () => apiClient.get('/candidate/candidates', { params: { electionId: election.id } })
       .then(r => r.data?.data ?? r.data ?? []),
     enabled: showCandidates,
     staleTime: 30_000,
@@ -607,7 +607,7 @@ function NominationCard({
 
   const lifecycleMutation = useMutation({
     mutationFn: (action: string) =>
-      apiClient.post(`/candidate/elections/${election.id}/${action}`, {}, {
+      apiClient.post(`/candidate/candidates/elections/${election.id}/${action}`, {}, {
         headers: { 'x-tenant-id': tenantId, 'x-user-id': userId },
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['party-nominations'] }),
@@ -615,7 +615,7 @@ function NominationCard({
 
   const declareWinnerMutation = useMutation({
     mutationFn: (candidateId: string) =>
-      apiClient.post(`/candidate/nominations/${election.id}/declare-winner`,
+      apiClient.post(`/candidate/candidates/nominations/${election.id}/declare-winner`,
         { candidateId },
         { headers: { 'x-user-id': userId } }
       ),
@@ -627,7 +627,7 @@ function NominationCard({
 
   const promoteMutation = useMutation({
     mutationFn: (candidateId: string) =>
-      apiClient.post(`/candidate/nominations/promote/${candidateId}`, {}, {
+      apiClient.post(`/candidate/candidates/nominations/promote/${candidateId}`, {}, {
         headers: { 'x-user-id': userId },
       }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['nom-candidates', election.id] }),
@@ -928,18 +928,16 @@ function NominationsPageContent(): React.JSX.Element {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Subscription limits from tenant settings
+  // .catch() prevents 401/404 from the Tenant service from triggering logout
   const { data: limits } = useQuery<SubscriptionLimits>({
     queryKey: ['nomination-limits', tenantId],
     queryFn: () =>
       apiClient.get(`/tenant/tenants/${tenantId}/nomination-limits`)
-        .then(r => r.data?.data ?? r.data ?? {
-          maxNominations: 50,
-          maxCandidatesPerNomination: 6,
-          allowedPositions: [],
-          canRunNominations: true,
-        }),
+        .then(r => r.data?.data ?? r.data)
+        .catch(() => null),
     enabled: !!tenantId,
     staleTime: 5 * 60_000,
+    retry: false,
   });
 
   const effectiveLimits: SubscriptionLimits = limits ?? {
@@ -953,7 +951,7 @@ function NominationsPageContent(): React.JSX.Element {
   const { data: nominations, isLoading: nomLoading } = useQuery<NominationElection[]>({
     queryKey: ['party-nominations', tenantId],
     queryFn: () =>
-      apiClient.get('/candidate/nominations', { headers: { 'x-tenant-id': tenantId } })
+      apiClient.get('/candidate/candidates/nominations', { headers: { 'x-tenant-id': tenantId } })
         .then(r => r.data?.data ?? r.data ?? []),
     enabled: !!tenantId,
     staleTime: 30_000,

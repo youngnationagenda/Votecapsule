@@ -17,7 +17,7 @@ async function verify() {
   const r8  = await c.query("SELECT company_name, website FROM campaign_suppliers LIMIT 5");
   const r9  = await c.query("SELECT image_url FROM campaign_supplier_products LIMIT 2");
   const r10 = await c.query("SELECT COUNT(*) FROM campaign_supplier_products WHERE image_url LIKE '%me-advertising%'");
-  const r11 = await c.query("SELECT COUNT(*) FROM campaign_supplier_products WHERE image_url LIKE '%kazisafi%'");
+  const r11 = await c.query("SELECT COUNT(*) FROM campaign_supplier_products WHERE image_url NOT LIKE '%me-advertising%' AND image_url IS NOT NULL");
 
   console.log('material_types:',    r1.rows[0].count);
   console.log('categories:',        r2.rows[0].count);
@@ -29,7 +29,7 @@ async function verify() {
   console.log('suppliers:',         r8.rows.map(x => `${x.company_name} → ${x.website}`).join('\n  '));
   console.log('sample image_url:',  r9.rows.map(x => x.image_url).join('\n  '));
   console.log('me-advertising URLs:', r10.rows[0].count);
-  console.log('kazisafi URLs (should be 0):', r11.rows[0].count);
+  console.log('non-me-advertising URLs (should be 0):', r11.rows[0].count);
   await c.end();
 }
 verify().catch(e => { console.error(e.message); process.exit(1); });

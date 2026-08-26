@@ -23,13 +23,13 @@ async function run() {
   `);
   console.log('Supplier renamed:', r1.rows);
 
-  // 2. Update product descriptions to remove old supplier references
+  // 2. Update product descriptions to remove any stale supplier references
   const r2 = await c.query(`
     UPDATE campaign_supplier_products
     SET description = REPLACE(description, 'Me Advertising', 'Me Advertising'),
         metadata    = REPLACE(metadata::text, 'Me Advertising', 'Me Advertising')::jsonb,
         updated_at  = NOW()
-    WHERE description ILIKE '%kazisafi%' OR metadata::text ILIKE '%kazisafi%'
+    WHERE description ILIKE '%me-advertising%' OR metadata::text ILIKE '%me-advertising%'
   `);
   console.log('Products updated:', r2.rowCount);
 
@@ -56,7 +56,7 @@ async function run() {
     UPDATE campaign_supplier_products
     SET product_url = REPLACE(product_url, 'meadvertising.co.ke', 'meadvertising.co.ke'),
         updated_at  = NOW()
-    WHERE product_url LIKE '%kazisafi%'
+    WHERE product_url NOT LIKE '%meadvertising.co.ke%' AND product_url IS NOT NULL
   `);
   console.log('Product URLs updated:', r5.rowCount);
 

@@ -62,7 +62,6 @@ USERS = [
     ('tdu@votecapsule.co.ke',          ['PARTY_ADMIN'],                  {}),
     ('gtap@votecapsule.co.ke',         ['PARTY_ADMIN'],                  {}),
     ('ccu@votecapsule.co.ke',          ['PARTY_ADMIN'],                  {}),
-    ('kazi@votecapsule.co.ke',         ['PARTY_ADMIN'],                  {}),
     ('uup@votecapsule.co.ke',          ['PARTY_ADMIN'],                  {}),
     ('spk@votecapsule.co.ke',          ['PARTY_ADMIN'],                  {}),
     ('plp@votecapsule.co.ke',          ['PARTY_ADMIN'],                  {}),

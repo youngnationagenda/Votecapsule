@@ -155,7 +155,7 @@ function CreateCandidateModal({
 
   const mutation = useMutation({
     mutationFn: () =>
-      apiClient.post('/candidate/register', {
+      apiClient.post('/candidate/candidates/register', {
         fullName: form.fullName,
         shortName: form.shortName || form.fullName.split(' ')[0],
         nationalId: form.nationalId,

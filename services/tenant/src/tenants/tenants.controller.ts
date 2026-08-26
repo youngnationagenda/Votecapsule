@@ -52,7 +52,7 @@ import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { TenantsService } from './tenants.service';
 import { CreateTenantDto } from './dto/create-tenant.dto';
 import { UpdateTenantDto } from './dto/update-tenant.dto';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { GatewayAuthGuard } from '../common/guards/gateway-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { SystemRole, PaginationQuery, JwtPayload } from '@vote-capsule/types';
@@ -64,7 +64,7 @@ type AuthReq = Request & { user?: JwtPayload };
 
 @ApiTags('tenants')
 @Controller('tenants')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(GatewayAuthGuard, RolesGuard)
 @ApiBearerAuth('jwt')
 export class TenantsController {
   constructor(private readonly tenantsService: TenantsService) {}

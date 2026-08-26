@@ -69,7 +69,7 @@ export class BudgetController {
   @UseInterceptors(FileInterceptor('file'))
   async importBudgetFile(
     @Param('campaignId', ParseUUIDPipe) c: string,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: any,
     @Headers('x-tenant-id') t: string,
     @Headers('x-user-id') u: string,
   ) {

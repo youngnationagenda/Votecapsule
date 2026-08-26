@@ -24,14 +24,14 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { MembersService } from './members.service';
 import { AddMemberDto } from './dto/add-member.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
-import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { GatewayAuthGuard } from '../common/guards/gateway-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { SystemRole } from '@vote-capsule/types';
 
 @ApiTags('members')
 @Controller('tenants/:id/members')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(GatewayAuthGuard, RolesGuard)
 @ApiBearerAuth('jwt')
 export class MembersController {
   constructor(private readonly membersService: MembersService) {}
