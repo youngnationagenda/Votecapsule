@@ -19,6 +19,7 @@ import {
 import { campaignApi } from '../api/campaignApi';
 import { PageErrorBoundary } from '../components/PageErrorBoundary';
 import { useAppSelector } from '../store/hooks';
+import { buildExportData, downloadCSV, downloadExcel, downloadPDF } from '../utils/budgetExport';
 
 // ── Shared hook ──────────────────────────────────────────────
 function useMyCampaign() {
@@ -633,6 +634,62 @@ function CampaignInsights({ campaign, budget, categories, expenses }: {
   );
 }
 
+// ── Export Dropdown ───────────────────────────────────────────
+function ExportDropdown({ campaign, budget, iebc, categories, expenses }: {
+  campaign: any; budget: any; iebc: any; categories: any[]; expenses: any[];
+}) {
+  const [open, setOpen] = useState(false);
+  const user = useAppSelector((s) => s.auth.user) as any;
+
+  const handleExport = (format: 'csv' | 'excel' | 'pdf') => {
+    const data = buildExportData({
+      campaignName: campaign?.name ?? 'My Campaign',
+      candidateName: user?.name ?? user?.displayName ?? '',
+      budget,
+      iebc,
+      categories,
+      expenses,
+    });
+
+    switch (format) {
+      case 'csv': downloadCSV(data); break;
+      case 'excel': downloadExcel(data); break;
+      case 'pdf': downloadPDF(data); break;
+    }
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+      >
+        <Download className="w-4 h-4" /> Export
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1 w-48">
+            <button onClick={() => handleExport('csv')} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 text-left">
+              <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+              <div><p className="font-medium">CSV</p><p className="text-[10px] text-gray-400">Spreadsheet compatible</p></div>
+            </button>
+            <button onClick={() => handleExport('excel')} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 text-left">
+              <FileSpreadsheet className="w-4 h-4 text-green-600" />
+              <div><p className="font-medium">Excel (.xls)</p><p className="text-[10px] text-gray-400">Microsoft Excel format</p></div>
+            </button>
+            <button onClick={() => handleExport('pdf')} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 text-left">
+              <FileText className="w-4 h-4 text-red-500" />
+              <div><p className="font-medium">PDF</p><p className="text-[10px] text-gray-400">Print-ready report</p></div>
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Main Budget Content ──────────────────────────────────────
 function MyBudgetContent(): React.JSX.Element {
   const qc = useQueryClient();
@@ -698,6 +755,7 @@ function MyBudgetContent(): React.JSX.Element {
           <p className="text-sm text-gray-500 mt-1">{campaign.name}</p>
         </div>
         <div className="flex items-center gap-2">
+          <ExportDropdown campaign={campaign} budget={budget} iebc={iebc} categories={categories} expenses={expenses} />
           <button onClick={() => setUpload(true)} className="vc-btn-secondary inline-flex items-center gap-2 text-sm">
             <Upload className="w-4 h-4" /> Import File
           </button>

@@ -11,11 +11,41 @@
         "CorsConfiguration": {
           "AllowOrigins": [
             "http://localhost:3000",
+            "http://localhost:3001",
+            "http://localhost:3100",
+            "http://localhost:3101",
+            "http://localhost:3102",
+            "http://localhost:3103",
+            "http://localhost:3104",
+            "http://localhost:5173",
+            "http://localhost:5174",
             "https://votecapsule.yna.co.ke",
-            "https://admin.votecapsule.yna.co.ke"
+            "https://admin.votecapsule.yna.co.ke",
+            "https://authority.votecapsule.yna.co.ke",
+            "https://observer.votecapsule.yna.co.ke",
+            "https://party.votecapsule.yna.co.ke",
+            "https://candidate.votecapsule.yna.co.ke",
+            "https://public.votecapsule.yna.co.ke",
+            "https://transparency.votecapsule.yna.co.ke",
+            "https://candidate.votecapsule.co.ke",
+            "https://app.votecapsule.co.ke"
           ],
           "AllowMethods": ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
-          "AllowHeaders": ["Content-Type","Authorization","X-Agent-User-Id","X-Device-Id","X-Validator-User-Id","X-Resolver-User-Id"],
+          "AllowHeaders": [
+            "content-type",
+            "authorization",
+            "x-agent-user-id",
+            "x-device-id",
+            "x-validator-user-id",
+            "x-resolver-user-id",
+            "x-tenant-id",
+            "x-user-id",
+            "x-user-role",
+            "x-ward-code",
+            "x-constituency-code",
+            "x-candidate-id",
+            "x-platform-admin"
+          ],
           "MaxAge": 86400
         },
         "Tags": {

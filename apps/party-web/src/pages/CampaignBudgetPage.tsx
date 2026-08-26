@@ -13,10 +13,11 @@ import {
   DollarSign, TrendingUp, AlertTriangle, Plus, X, CheckCircle,
   Upload, Users, MapPin, Target, Brain, Lightbulb, Calculator,
   ClipboardList, Eye, EyeOff, Shield, Zap, PieChart as PieIcon,
-  Download,
+  Download, FileSpreadsheet, FileText,
 } from 'lucide-react';
 import { campaignApi } from '../api/campaignApi';
 import { PageErrorBoundary } from '../components/PageErrorBoundary';
+import { buildExportData, downloadCSV, downloadExcel, downloadPDF } from '../utils/budgetExport';
 
 const CATEGORY_COLORS = ['#7c3aed','#2563eb','#059669','#d97706','#dc2626','#0891b2','#6b7280','#ec4899','#14b8a6','#f97316'];
 
@@ -239,6 +240,61 @@ function PartyBudgetInsights({ budget, categories, expenses, campaigns }: { budg
   );
 }
 
+// ── Export Dropdown ───────────────────────────────────────────
+function ExportDropdown({ campaign, budget, iebc, categories, expenses }: {
+  campaign: any; budget: any; iebc: any; categories: any[]; expenses: any[];
+}) {
+  const [open, setOpen] = useState(false);
+
+  const handleExport = (format: 'csv' | 'excel' | 'pdf') => {
+    const data = buildExportData({
+      campaignName: campaign?.name ?? 'Party Campaign',
+      partyName: campaign?.partyName ?? '',
+      budget,
+      iebc: iebc ?? { iebcSpendingLimit: budget?.iebcSpendingLimit, percentageUsed: iebc?.percentageUsed },
+      categories,
+      expenses,
+    });
+
+    switch (format) {
+      case 'csv': downloadCSV(data); break;
+      case 'excel': downloadExcel(data); break;
+      case 'pdf': downloadPDF(data); break;
+    }
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium border border-gray-200 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+      >
+        <Download className="w-4 h-4" /> Export
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1 w-48">
+            <button onClick={() => handleExport('csv')} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 text-left">
+              <FileSpreadsheet className="w-4 h-4 text-emerald-500" />
+              <div><p className="font-medium">CSV</p><p className="text-[10px] text-gray-400">Spreadsheet compatible</p></div>
+            </button>
+            <button onClick={() => handleExport('excel')} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 text-left">
+              <FileSpreadsheet className="w-4 h-4 text-green-600" />
+              <div><p className="font-medium">Excel (.xls)</p><p className="text-[10px] text-gray-400">Microsoft Excel format</p></div>
+            </button>
+            <button onClick={() => handleExport('pdf')} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 text-left">
+              <FileText className="w-4 h-4 text-red-500" />
+              <div><p className="font-medium">PDF</p><p className="text-[10px] text-gray-400">Print-ready report</p></div>
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── Main Page ────────────────────────────────────────────────
 function CampaignBudgetContent(): React.JSX.Element {
   const qc = useQueryClient();
@@ -303,6 +359,7 @@ function CampaignBudgetContent(): React.JSX.Element {
           <p className="text-sm text-gray-500 mt-1">Party-wide budget tracking and IEBC compliance</p>
         </div>
         <div className="flex items-center gap-2">
+          <ExportDropdown campaign={campaign} budget={budget} iebc={iebcStatus} categories={categories} expenses={expenses} />
           <button onClick={() => setUpload(true)} className="px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2">
             <Upload className="w-4 h-4" /> Import File
           </button>

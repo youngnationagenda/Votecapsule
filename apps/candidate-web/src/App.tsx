@@ -36,6 +36,7 @@ const MyBudgetPage           = lazy(() => import('./pages/MyBudgetPage').then(m 
 const MyCampaignNeedsPage    = lazy(() => import('./pages/MyCampaignNeedsPage').then(m => ({ default: m.MyCampaignNeedsPage })));
 const MySMSPage              = lazy(() => import('./pages/MySMSPage').then(m => ({ default: m.MySMSPage })));
 const MyIncidentsPage        = lazy(() => import('./pages/MyIncidentsPage').then(m => ({ default: m.MyIncidentsPage })));
+const MyPrintingDesignPage   = lazy(() => import('./pages/MyPrintingDesignPage').then(m => ({ default: m.MyPrintingDesignPage })));
 
 function PageLoader(): React.JSX.Element {
   return (
@@ -112,6 +113,9 @@ export default function App(): React.JSX.Element {
           } />
           <Route path="/campaign/sms" element={
             <Suspense fallback={<PageLoader />}><MySMSPage /></Suspense>
+          } />
+          <Route path="/campaign/printing" element={
+            <Suspense fallback={<PageLoader />}><MyPrintingDesignPage /></Suspense>
           } />
           <Route path="/campaign/incidents" element={
             <Suspense fallback={<PageLoader />}><MyIncidentsPage /></Suspense>

@@ -1,0 +1,23 @@
+{
+  "CORSRules": [
+    {
+      "AllowedOrigins": [
+        "https://candidate.votecapsule.co.ke",
+        "https://app.votecapsule.co.ke",
+        "https://candidate.votecapsule.yna.co.ke",
+        "https://votecapsule.yna.co.ke",
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:3100",
+        "http://localhost:3101",
+        "http://localhost:3102",
+        "http://localhost:3103",
+        "http://localhost:3104"
+      ],
+      "AllowedMethods": ["GET", "HEAD", "PUT", "POST"],
+      "AllowedHeaders": ["*"],
+      "ExposeHeaders": ["ETag", "Content-Length", "Content-Type"],
+      "MaxAgeSeconds": 3600
+    }
+  ]
+}

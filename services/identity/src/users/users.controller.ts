@@ -40,6 +40,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ProvisionUserDto } from './dto/provision-user.dto';
+import { UpdateCognitoAttributesDto } from './dto/update-cognito-attributes.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -141,5 +142,40 @@ export class UsersController {
   ): Promise<void> {
     const userId = req.user?.sub ?? '';
     await this.usersService.updateProfile(userId, dto);
+  }
+
+  /**
+   * PATCH /users/:id/attributes
+   *
+   * Internal endpoint — called by Campaign Service after role assignment
+   * to sync custom:roles, custom:wardCode, custom:constituencyCode,
+   * custom:candidateId into Cognito so the JWT authorizer propagates
+   * them as x-* headers on the user's next request.
+   *
+   * Allowed by: PLATFORM_SUPER_ADMIN, TENANT_ADMIN, and internal
+   * service-to-service calls (x-internal-service: campaign header).
+   */
+  @Patch(':id/attributes')
+  @ApiOperation({ summary: 'Sync Cognito custom attributes after role assignment (internal)' })
+  @ApiResponse({ status: 200, description: 'Cognito attributes updated' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async updateAttributes(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateCognitoAttributesDto,
+    @Req() req: Request & { headers: Record<string, string | undefined> },
+  ): Promise<{ updated: string[] }> {
+    // Allow internal service-to-service calls OR admin roles
+    const isInternal = (req as any).headers?.['x-internal-service'] === 'campaign';
+    const jwtUser    = (req as any).user as (typeof req & { user?: { roles?: string[] } })['user'];
+    const roles      = jwtUser?.roles ?? [];
+    const isAdmin    = roles.includes('PLATFORM_SUPER_ADMIN') || roles.includes('TENANT_ADMIN');
+
+    if (!isInternal && !isAdmin) {
+      throw new (await import('@nestjs/common').then(m => m.ForbiddenException))(
+        'Only internal services or admins may update Cognito attributes',
+      );
+    }
+
+    return this.usersService.updateCognitoAttributes(id, dto);
   }
 }

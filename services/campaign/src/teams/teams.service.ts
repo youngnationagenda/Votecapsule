@@ -1,6 +1,9 @@
 import { Injectable, NotFoundException, ConflictException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
+import { firstValueFrom } from 'rxjs';
 import { CampaignTeam }       from './entities/campaign-team.entity';
 import { CampaignTeamMember } from './entities/campaign-team-member.entity';
 import { CampaignVolunteer }  from './entities/campaign-volunteer.entity';
@@ -8,12 +11,20 @@ import { CampaignVolunteer }  from './entities/campaign-volunteer.entity';
 @Injectable()
 export class TeamsService {
   private readonly logger = new Logger(TeamsService.name);
+  private readonly identityServiceUrl: string;
 
   constructor(
     @InjectRepository(CampaignTeam) private readonly teamRepo: Repository<CampaignTeam>,
     @InjectRepository(CampaignTeamMember) private readonly memberRepo: Repository<CampaignTeamMember>,
     @InjectRepository(CampaignVolunteer) private readonly volunteerRepo: Repository<CampaignVolunteer>,
-  ) {}
+    private readonly httpService: HttpService,
+    private readonly config: ConfigService,
+  ) {
+    this.identityServiceUrl = this.config.get<string>(
+      'IDENTITY_SERVICE_URL',
+      'http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/identity',
+    );
+  }
 
   // Teams
   async createTeam(campaignId: string, dto: any, tenantId: string, userId: string): Promise<CampaignTeam> {
@@ -71,7 +82,7 @@ export class TeamsService {
 
   async assignRole(
     campaignId: string,
-    dto: { userId: string; role: string; userName?: string; userEmail?: string; wardCode?: string; constituencyCode?: string; countyCode?: string },
+    dto: { userId: string; role: string; userName?: string; userEmail?: string; wardCode?: string; constituencyCode?: string; countyCode?: string; candidateId?: string },
     tenantId: string,
   ): Promise<CampaignTeamMember> {
     // Find or create a member record for this user in this campaign
@@ -81,25 +92,76 @@ export class TeamsService {
       if (dto.wardCode)          member.wardCode         = dto.wardCode;
       if (dto.constituencyCode)  member.constituencyCode = dto.constituencyCode;
       if (dto.countyCode)        member.countyCode       = dto.countyCode;
-      return this.memberRepo.save(member);
+      member = await this.memberRepo.save(member);
+    } else {
+      // Find default team for this campaign (or use null teamId as placeholder)
+      const team = await this.teamRepo.findOne({ where: { campaignId, tenantId } });
+      const entity = this.memberRepo.create({
+        teamId:           team?.id ?? '00000000-0000-0000-0000-000000000000',
+        campaignId,
+        tenantId,
+        userId:           dto.userId,
+        userName:         dto.userName         ?? null,
+        userEmail:        dto.userEmail        ?? null,
+        campaignRole:     dto.role,
+        wardCode:         dto.wardCode         ?? null,
+        constituencyCode: dto.constituencyCode ?? null,
+        countyCode:       dto.countyCode       ?? null,
+        status:           'active',
+      }) as unknown as CampaignTeamMember;
+      member = await this.memberRepo.save(entity);
     }
 
-    // Find default team for this campaign (or use null teamId as placeholder)
-    const team = await this.teamRepo.findOne({ where: { campaignId, tenantId } });
-    const entity = this.memberRepo.create({
-      teamId:          team?.id ?? '00000000-0000-0000-0000-000000000000',
-      campaignId,
-      tenantId,
-      userId:          dto.userId,
-      userName:        dto.userName ?? null,
-      userEmail:       dto.userEmail ?? null,
-      campaignRole:    dto.role,
-      wardCode:        dto.wardCode         ?? null,
-      constituencyCode: dto.constituencyCode ?? null,
-      countyCode:      dto.countyCode       ?? null,
-      status:          'active',
-    }) as unknown as CampaignTeamMember;
-    return this.memberRepo.save(entity);
+    // ── Sync role claims to Cognito via Identity Service ──────────
+    // This ensures the Lambda authorizer forwards x-user-role on the
+    // user's next request without waiting for a token refresh.
+    await this.syncRoleToIdentity(dto.userId, {
+      'custom:roles':           dto.role,
+      'custom:wardCode':        dto.wardCode         ?? undefined,
+      'custom:constituencyCode': dto.constituencyCode ?? undefined,
+      'custom:candidateId':     dto.candidateId      ?? undefined,
+    }, tenantId);
+
+    return member;
+  }
+
+  /**
+   * Sync role / geography claims to Cognito via Identity Service.
+   * Fires and forgets — a failure here must never block the DB operation.
+   */
+  private async syncRoleToIdentity(
+    userId: string,
+    attrs: Record<string, string | undefined>,
+    tenantId: string,
+  ): Promise<void> {
+    try {
+      // Remove undefined values before sending
+      const payload: Record<string, string> = {};
+      for (const [k, v] of Object.entries(attrs)) {
+        if (v !== undefined && v !== null) payload[k] = v;
+      }
+      if (Object.keys(payload).length === 0) return;
+
+      await firstValueFrom(
+        this.httpService.patch(
+          `${this.identityServiceUrl}/users/${userId}/attributes`,
+          payload,
+          {
+            headers: {
+              'x-tenant-id':         tenantId,
+              'x-internal-service':  'campaign',
+              'Content-Type':        'application/json',
+            },
+            timeout: 5000,
+          },
+        ),
+      );
+      this.logger.log(`Synced Cognito attributes for user ${userId}: ${JSON.stringify(payload)}`);
+    } catch (err: unknown) {
+      // Log but never throw — role is already written to DB
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.warn(`Failed to sync Cognito attributes for user ${userId}: ${msg}`);
+    }
   }
 
   async listRoles(
@@ -121,7 +183,12 @@ export class TeamsService {
     const member = await this.memberRepo.findOne({ where: { userId, campaignId, tenantId } });
     if (!member) throw new NotFoundException(`User ${userId} not found in campaign`);
     member.campaignRole = dto.role;
-    return this.memberRepo.save(member);
+    const saved = await this.memberRepo.save(member);
+
+    // Sync updated role to Cognito
+    await this.syncRoleToIdentity(userId, { 'custom:roles': dto.role }, tenantId);
+
+    return saved;
   }
 
   async removeRole(

@@ -34,9 +34,21 @@ export const campaignApi = {
 
   // ── Teams ────────────────────────────────────────────────
   teams: {
-    list:      (cid: string)                             => apiClient.get(`${BASE}/campaigns/${cid}/teams`),
-    create:    (cid: string, data: any)                  => apiClient.post(`${BASE}/campaigns/${cid}/teams`, data),
-    addMember: (cid: string, tid: string, data: any)     => apiClient.post(`${BASE}/campaigns/${cid}/teams/${tid}/members`, data),
+    list:         (cid: string)                             => apiClient.get(`${BASE}/campaigns/${cid}/teams`),
+    create:       (cid: string, data: any)                  => apiClient.post(`${BASE}/campaigns/${cid}/teams`, data),
+    addMember:    (cid: string, tid: string, data: any)     => apiClient.post(`${BASE}/campaigns/${cid}/teams/${tid}/members`, data),
+    removeMember: (cid: string, tid: string, uid: string)   => apiClient.delete(`${BASE}/campaigns/${cid}/teams/${tid}/members/${uid}`),
+  },
+
+  // ── Campaign Roles (assign management positions) ─────────
+  roles: {
+    assign: (cid: string, data: { userId: string; role: string; userName?: string; userEmail?: string; wardCode?: string; constituencyCode?: string; countyCode?: string }) =>
+      apiClient.post(`${BASE}/campaigns/${cid}/roles`, data),
+    list:   (cid: string) => apiClient.get(`${BASE}/campaigns/${cid}/roles`),
+    update: (cid: string, userId: string, data: { role: string }) =>
+      apiClient.patch(`${BASE}/campaigns/${cid}/roles/${userId}`, data),
+    remove: (cid: string, userId: string) =>
+      apiClient.delete(`${BASE}/campaigns/${cid}/roles/${userId}`),
   },
 
   // ── Volunteers ───────────────────────────────────────────
@@ -91,5 +103,15 @@ export const campaignApi = {
     list:    (cid: string, p?: any)           => apiClient.get(`${BASE}/campaigns/${cid}/incidents`, { params: p }),
     create:  (cid: string, data: any)         => apiClient.post(`${BASE}/campaigns/${cid}/incidents`, data),
     resolve: (cid: string, id: string, d: any) => apiClient.patch(`${BASE}/campaigns/${cid}/incidents/${id}/resolve`, d),
+  },
+
+  // ── Design Requests (Print & Brand Materials) ────────────
+  designs: {
+    list:     (cid: string, p?: any)        => apiClient.get(`${BASE}/campaigns/${cid}/designs`, { params: p }),
+    create:   (cid: string, data: any)      => apiClient.post(`${BASE}/campaigns/${cid}/designs`, data),
+    preview:  (cid: string, did: string)    => apiClient.get(`${BASE}/campaigns/${cid}/designs/${did}/preview`),
+    generate: (cid: string, did: string)    => apiClient.post(`${BASE}/campaigns/${cid}/designs/${did}/generate`),
+    approve:  (cid: string, did: string)    => apiClient.patch(`${BASE}/campaigns/${cid}/designs/${did}/approve`),
+    reject:   (cid: string, did: string, reason: string) => apiClient.patch(`${BASE}/campaigns/${cid}/designs/${did}/reject`, { reason }),
   },
 };

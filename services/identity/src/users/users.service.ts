@@ -27,6 +27,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ProvisionUserDto } from './dto/provision-user.dto';
+import { UpdateCognitoAttributesDto } from './dto/update-cognito-attributes.dto';
 import { PaginationQuery, PaginatedResponse } from '@vote-capsule/types';
 
 export interface User {
@@ -510,6 +511,59 @@ export class UsersService {
       // (different schema or first-time setup) — return nulls gracefully
       return { wardCode: null, constituencyCode: null, candidateId: null };
     }
+  }
+
+  /**
+   * updateCognitoAttributes — called by Campaign Service via
+   * PATCH /users/:id/attributes after a role assignment.
+   * Syncs custom Cognito attributes (custom:roles, custom:wardCode,
+   * custom:constituencyCode, custom:candidateId) so the JWT Lambda
+   * authorizer forwards them as x-* headers on the next request.
+   *
+   * Only the attributes present in the DTO are updated (partial patch).
+   */
+  async updateCognitoAttributes(
+    userId: string,
+    dto: UpdateCognitoAttributesDto,
+  ): Promise<{ updated: string[] }> {
+    const user = await this.findById(userId);
+    if (!user) throw new NotFoundException(`User ${userId} not found`);
+
+    if (!user.cognitoSub) {
+      this.logger.warn(`User ${userId} has no Cognito sub — skipping Cognito attribute update`);
+      return { updated: [] };
+    }
+
+    // Build the attribute list from the DTO (only defined keys)
+    const ALLOWED_ATTRS = [
+      'custom:roles',
+      'custom:wardCode',
+      'custom:constituencyCode',
+      'custom:candidateId',
+      'custom:tenantId',
+    ] as const;
+
+    const userAttributes: { Name: string; Value: string }[] = [];
+    for (const attrName of ALLOWED_ATTRS) {
+      const val = dto[attrName as keyof UpdateCognitoAttributesDto];
+      if (val !== undefined && val !== null) {
+        userAttributes.push({ Name: attrName, Value: String(val) });
+      }
+    }
+
+    if (userAttributes.length === 0) {
+      return { updated: [] };
+    }
+
+    await this.cognito.send(new AdminUpdateUserAttributesCommand({
+      UserPoolId:     this.userPoolId,
+      Username:       user.email,
+      UserAttributes: userAttributes,
+    }));
+
+    const updatedNames = userAttributes.map(a => a.Name);
+    this.logger.log(`Updated Cognito attributes for user ${userId}: ${updatedNames.join(', ')}`);
+    return { updated: updatedNames };
   }
 
   async logAuthEvent(payload: AuthEventPayload): Promise<void> {
