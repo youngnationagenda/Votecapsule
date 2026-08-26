@@ -102,6 +102,49 @@ export const campaignApi = {
     listProducts:   (supplierId: string, p?: any)      => apiClient.get(`${BASE}/suppliers/${supplierId}/products`, { params: p }),
     searchProducts: (params: any)                      => apiClient.get(`${BASE}/suppliers/products/search`, { params }),
     comparePrice:   (materialTypeId: string)           => apiClient.get(`${BASE}/suppliers/compare/${materialTypeId}`),
+    /**
+     * Fetch all supplier products with material type + category enrichment.
+     * Used by the supplier catalogue page.
+     */
+    listAllProducts: async (categoryFilter?: string): Promise<any[]> => {
+      const suppliersResp = await apiClient.get(`${BASE}/suppliers`);
+      const suppliers: any[] = suppliersResp.data?.data ?? suppliersResp.data ?? [];
+      if (suppliers.length === 0) return [];
+
+      const typesParams: any = {};
+      if (categoryFilter && categoryFilter !== 'all') typesParams.category = categoryFilter;
+      const typesResp = await apiClient.get(`${BASE}/materials/types`, { params: typesParams });
+      const types: any[] = typesResp.data?.data ?? typesResp.data ?? [];
+      const typeMap = new Map(types.map((t: any) => [t.id, t]));
+
+      const allProducts: any[] = [];
+      await Promise.all(
+        suppliers.map(async (supplier: any) => {
+          try {
+            const resp = await apiClient.get(`${BASE}/suppliers/${supplier.id}/products`, {
+              params: { limit: 300 },
+            });
+            const products: any[] = resp.data?.data ?? resp.data ?? [];
+            products.forEach((p: any) => {
+              const type = typeMap.get(p.materialTypeId);
+              allProducts.push({
+                ...p,
+                supplierName:     supplier.companyName,
+                supplierWebsite:  supplier.website,
+                materialTypeName: type?.name        ?? p.supplierProductName,
+                materialTypeCode: type?.code        ?? '',
+                categoryCode:     type?.category?.code ?? '',
+                categoryName:     type?.category?.name ?? '',
+                thumbnailUrl:     p.imageUrl ?? type?.thumbnailUrl ?? null,
+                minOrderQuantity: type?.minOrderQuantity ?? 50,
+                unit:             type?.unit ?? 'piece',
+              });
+            });
+          } catch { /* skip failed supplier */ }
+        })
+      );
+      return allProducts;
+    },
   },
 
   // ── Incidents ────────────────────────────────────────────

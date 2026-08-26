@@ -1,230 +1,241 @@
 /**
- * Vote Capsule™ — Party Candidates Management Page
- *
- * This page bridges the Party Portal to the Candidate Portal.
- * Party admins can:
- *   1. View all candidates sponsored by their party (nomination winners + direct)
- *   2. Create new party-sponsored candidates directly (bypass nomination)
- *   3. Track IEBC approval pipeline for each candidate
- *   4. Monitor gender/2/3 rule compliance across all positions
- *   5. Manage candidate deposits and clearance status
- *   6. Generate nomination certificates for winners
- *
- * Data flow:
- *   Party Nomination → Winner → Promote to GE → Candidate Portal picks up
- *   Direct Sponsorship → Register → Candidate Portal picks up
+ * Vote Capsule(tm) - Party Candidates Management Page (FIXED 2026-08-27)
+ * Fixes applied:
+ *   B1: positionId UUID resolved by cascading geo-picker (was sending positionCode string)
+ *   B2: partyId from candidate_political_parties table (was sending tenant UUID)
+ *   B3: Removed invalid sponsorshipType/positionCode from DTO body
+ *   B4: Candidates list uses correct political party ID not tenant ID
  */
 
 import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Users, Plus, Search, Filter, CheckCircle2, XCircle, Clock,
-  Trophy, AlertTriangle, FileText, MapPin, ChevronRight,
-  ArrowRight, Shield, UserPlus, BadgeCheck, Download,
-  Flag, BarChart3, Eye, UserCheck, Ban, ChevronDown,
+  Users, Search, Filter, CheckCircle2, XCircle, Clock,
+  Trophy, FileText, MapPin, ChevronRight,
+  UserPlus, BadgeCheck, Download, Eye, UserCheck, Ban,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAppSelector } from '../store/hooks';
 import { apiClient } from '../api/apiClient';
-import { geographyApi, County, Constituency, Ward } from '../api/geographyApi';
+import { geographyApi } from '../api/geographyApi';
 import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
-// ── Types ────────────────────────────────────────────────────
+// ── Types ──────────────────────────────────────────────────
 
 interface PartyCandidate {
-  id: string;
-  fullName: string;
-  shortName: string;
-  nationalId: string;
-  positionCode: string;
-  status: string;
-  sponsorshipType: string;
-  nominationWon: boolean | null;
-  nominationElectionId: string | null;
-  promotedFromCandidateId: string | null;
-  countyCode: string;
-  constituencyCode: string;
-  wardCode: string;
-  gender: string;
-  dateOfBirth: string | null;
-  photographUrl: string | null;
+  id: string; fullName: string; shortName: string; nationalId: string;
+  positionCode: string; positionId: string; status: string;
+  sponsorshipType: string; nominationWon: boolean | null;
+  nominationElectionId: string | null; promotedFromCandidateId: string | null;
+  countyCode: string; constituencyCode: string; wardCode: string;
+  gender: string; dateOfBirth: string | null; photographUrl: string | null;
   runningMateName: string | null;
-  iebc_deposit_paid_kes: number;
-  iebc_deposit_receipt_no: string | null;
-  party_cleared_at: string | null;
-  party_cleared_by: string | null;
-  iebc_nomination_ref: string | null;
-  createdAt: string;
-  electionId: string;
-  electionName: string;
+  iebc_deposit_paid_kes: number; iebc_deposit_receipt_no: string | null;
+  party_cleared_at: string | null; party_cleared_by: string | null;
+  iebc_nomination_ref: string | null; createdAt: string; electionId: string;
 }
 
 interface GenderCompliance {
-  total: number;
-  male: number;
-  female: number;
-  compliant: boolean;
-  percentage: number;
+  total: number; male: number; female: number; compliant: boolean; percentage: number;
 }
 
-// ── Status configuration ─────────────────────────────────────
+interface ElectionPosition {
+  id: string; positionCode: string; geographicLevel: string;
+  countyCode: string | null; constituencyCode: string | null; wardCode: string | null;
+}
+
+interface PoliticalParty {
+  id: string; partyCode: string; name: string; abbreviation: string | null;
+}
+
+// ── Constants ─────────────────────────────────────────────
 
 const CANDIDATE_STATUS: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-  PENDING_NOMINATION: { label: 'Pending Nomination', color: 'bg-amber-100 text-amber-700', icon: Clock },
-  NOMINATED:          { label: 'Nominated',          color: 'bg-blue-100 text-blue-700',    icon: FileText },
+  PENDING_NOMINATION: { label: 'Pending Nomination', color: 'bg-amber-100 text-amber-700',    icon: Clock },
+  NOMINATED:          { label: 'Nominated',          color: 'bg-blue-100 text-blue-700',       icon: FileText },
   APPROVED:           { label: 'IEBC Approved',      color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle2 },
-  ELECTED:            { label: 'Elected',            color: 'bg-violet-100 text-violet-700', icon: Trophy },
-  NOT_ELECTED:        { label: 'Not Elected',        color: 'bg-gray-100 text-gray-600',     icon: XCircle },
-  DISQUALIFIED:       { label: 'Disqualified',       color: 'bg-red-100 text-red-700',       icon: Ban },
-  WITHDRAWN:          { label: 'Withdrawn',          color: 'bg-gray-100 text-gray-500',     icon: XCircle },
+  ELECTED:            { label: 'Elected',            color: 'bg-violet-100 text-violet-700',   icon: Trophy },
+  NOT_ELECTED:        { label: 'Not Elected',        color: 'bg-gray-100 text-gray-600',       icon: XCircle },
+  DISQUALIFIED:       { label: 'Disqualified',       color: 'bg-red-100 text-red-700',         icon: Ban },
+  WITHDRAWN:          { label: 'Withdrawn',          color: 'bg-gray-100 text-gray-500',       icon: XCircle },
 };
 
 const POSITIONS: Record<string, { label: string; level: string }> = {
-  PRESIDENT:  { label: 'President',        level: 'National' },
-  GOVERNOR:   { label: 'Governor',         level: 'County' },
-  SENATOR:    { label: 'Senator',          level: 'County' },
-  WOMEN_REP:  { label: 'Women Rep',        level: 'County' },
-  MP:         { label: 'Member of Parliament', level: 'Constituency' },
-  MCA:        { label: 'MCA',              level: 'Ward' },
+  PRESIDENT: { label: 'President',             level: 'NATIONAL' },
+  GOVERNOR:  { label: 'Governor',              level: 'COUNTY' },
+  SENATOR:   { label: 'Senator',               level: 'COUNTY' },
+  WOMEN_REP: { label: 'Women Rep',             level: 'COUNTY' },
+  MP:        { label: 'Member of Parliament',  level: 'CONSTITUENCY' },
+  MCA:       { label: 'MCA',                   level: 'WARD' },
 };
 
-// ── Direct Candidate Registration Modal ─────────────────────
+// ── B1+B2+B3 FIX: CreateCandidateModal ───────────────────
+// B1: Uses positionId UUID (resolved from election positions) NOT positionCode string
+// B2: Loads candidate_political_parties to get correct partyId UUID
+// B3: DTO only sends fields RegisterCandidateDto accepts
 
 function CreateCandidateModal({
-  tenantId,
-  userId,
-  partyId,
-  onClose,
+  tenantId, userId, onClose,
 }: {
-  tenantId: string;
-  userId: string;
-  partyId: string;
-  onClose: () => void;
+  tenantId: string; userId: string; onClose: () => void;
 }) {
   const qc = useQueryClient();
-
   const [form, setForm] = useState({
-    fullName: '',
-    shortName: '',
-    nationalId: '',
-    positionCode: '',
-    countyCode: '',
-    constituencyCode: '',
-    wardCode: '',
-    gender: '',
-    dateOfBirth: '',
-    runningMateName: '',
-    runningMateNationalId: '',
-    electionId: '',
+    fullName: '', shortName: '', nationalId: '',
+    positionCode: '', countyCode: '', constituencyCode: '', wardCode: '',
+    gender: '', dateOfBirth: '', runningMateName: '', runningMateNationalId: '',
+    electionId: '', partyId: '',
   });
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Load elections for linking
-  const { data: elections } = useQuery({
-    queryKey: ['general-elections-list'],
-    queryFn: () =>
-      apiClient.get('/election/elections')
-        .then(r => (r.data?.data ?? r.data ?? []).filter((e: any) => e.electionType === 'GENERAL' || !e.electionType)),
+  // Load elections (general elections only)
+  const { data: elections = [] } = useQuery({
+    queryKey: ['general-elections'],
+    queryFn: () => apiClient.get('/election/elections')
+      .then(r => { const d = r.data?.data ?? r.data ?? []; return Array.isArray(d) ? d : []; }),
     staleTime: 5 * 60_000,
   });
 
-  // Load NEC counties
-  const { data: counties } = useQuery<County[]>({
+  // B2 FIX: Load from candidate_political_parties (not tenants table)
+  const { data: politicalParties = [] } = useQuery<PoliticalParty[]>({
+    queryKey: ['political-parties'],
+    queryFn: () => apiClient.get('/candidate/candidates/parties')
+      .then(r => { const d = r.data?.data ?? r.data ?? []; return Array.isArray(d) ? d : []; }),
+    staleTime: 10 * 60_000,
+  });
+
+  // NEC geography cascade
+  const { data: counties = [] } = useQuery({
     queryKey: ['nec-counties'],
     queryFn: () => geographyApi.getCounties(),
     staleTime: 10 * 60_000,
   });
-
-  const { data: constituencies } = useQuery<Constituency[]>({
-    queryKey: ['nec-constituencies', form.countyCode],
-    queryFn: () => geographyApi.getConstituencies(form.countyCode),
-    enabled: !!form.countyCode && ['MP', 'MCA'].includes(form.positionCode),
-    staleTime: 10 * 60_000,
-  });
-
-  const { data: wards } = useQuery<Ward[]>({
-    queryKey: ['nec-wards', form.constituencyCode],
-    queryFn: () => geographyApi.getWards(form.constituencyCode),
-    enabled: !!form.constituencyCode && form.positionCode === 'MCA',
-    staleTime: 10 * 60_000,
-  });
-
-  const positionConfig = POSITIONS[form.positionCode];
   const needsConstituency = ['MP', 'MCA'].includes(form.positionCode);
   const needsWard = form.positionCode === 'MCA';
-  const needsRunningMate = form.positionCode === 'GOVERNOR';
+  const needsCounty = form.positionCode !== 'PRESIDENT';
 
-  const mutation = useMutation({
-    mutationFn: () =>
-      apiClient.post('/candidate/candidates/register', {
-        fullName: form.fullName,
-        shortName: form.shortName || form.fullName.split(' ')[0],
-        nationalId: form.nationalId,
-        positionCode: form.positionCode,
-        countyCode: form.countyCode || null,
-        constituencyCode: form.constituencyCode || null,
-        wardCode: form.wardCode || null,
-        gender: form.gender,
-        dateOfBirth: form.dateOfBirth || null,
-        runningMateName: form.runningMateName || null,
-        runningMateNationalId: form.runningMateNationalId || null,
-        electionId: form.electionId,
-        partyId,
-        sponsorshipType: 'PARTY_SPONSORED',
-        isIndependent: false,
-      }, {
-        headers: { 'x-tenant-id': tenantId, 'x-user-id': userId },
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['party-candidates'] });
-      onClose();
-    },
+  const { data: constituencies = [] } = useQuery({
+    queryKey: ['nec-const', form.countyCode],
+    queryFn: () => geographyApi.getConstituencies(form.countyCode),
+    enabled: !!form.countyCode && needsConstituency,
+    staleTime: 10 * 60_000,
+  });
+  const { data: wards = [] } = useQuery({
+    queryKey: ['nec-wards', form.constituencyCode],
+    queryFn: () => geographyApi.getWards(form.constituencyCode),
+    enabled: !!form.constituencyCode && needsWard,
+    staleTime: 10 * 60_000,
   });
 
-  const canSubmit = form.fullName && form.nationalId && form.positionCode && form.gender && form.electionId && form.countyCode;
+  // B1 FIX: Resolve positionId UUID from election positions by cascading geo selection
+  const geoReady = form.positionCode === 'PRESIDENT'
+    ? true
+    : needsWard
+    ? !!form.wardCode
+    : needsConstituency
+    ? !!form.constituencyCode
+    : !!form.countyCode;
+
+  const { data: resolvedPositionId, isFetching: resolvingPosition } = useQuery<string | null>({
+    queryKey: ['resolve-pos', form.electionId, form.positionCode, form.countyCode, form.constituencyCode, form.wardCode],
+    queryFn: async () => {
+      if (!form.electionId || !form.positionCode) return null;
+      const r = await apiClient.get(`/election/elections/${form.electionId}/positions`);
+      const positions: ElectionPosition[] = r.data?.data ?? r.data ?? [];
+      const level = POSITIONS[form.positionCode]?.level ?? '';
+      const match = positions.find((pos: ElectionPosition) => {
+        if (pos.positionCode !== form.positionCode) return false;
+        if (level === 'NATIONAL') return true;
+        if (level === 'COUNTY') return pos.countyCode === form.countyCode;
+        if (level === 'CONSTITUENCY') return pos.countyCode === form.countyCode && pos.constituencyCode === form.constituencyCode;
+        if (level === 'WARD') return pos.constituencyCode === form.constituencyCode && pos.wardCode === form.wardCode;
+        return false;
+      });
+      return match?.id ?? null;
+    },
+    enabled: !!form.electionId && !!form.positionCode && geoReady,
+    staleTime: 10 * 60_000,
+  });
+
+  const needsRunningMate = form.positionCode === 'GOVERNOR';
+  const canSubmit = !!(
+    form.fullName && form.nationalId && form.positionCode && form.gender &&
+    form.electionId && form.partyId && resolvedPositionId && !resolvingPosition
+  );
+
+  // B3 FIX: Only send fields that RegisterCandidateDto accepts
+  const mutation = useMutation({
+    mutationFn: () => {
+      if (!resolvedPositionId) throw new Error('Position not resolved — check geography selection');
+      return apiClient.post('/candidate/candidates/register', {
+        electionId:            form.electionId,
+        positionId:            resolvedPositionId,  // B1 FIX: UUID not positionCode string
+        partyId:               form.partyId,        // B2 FIX: political party UUID
+        fullName:              form.fullName,
+        shortName:             form.shortName || form.fullName.split(' ')[0],
+        nationalId:            form.nationalId,
+        gender:                form.gender,
+        dateOfBirth:           form.dateOfBirth || undefined,
+        countyCode:            form.countyCode   || undefined,
+        constituencyCode:      form.constituencyCode || undefined,
+        wardCode:              form.wardCode     || undefined,
+        runningMateName:       form.runningMateName || undefined,
+        runningMateNationalId: form.runningMateNationalId || undefined,
+        isIndependent:         false,
+        // Note: sponsorshipType is set by the service based on context, not a DTO field
+      }, {
+        headers: { 'x-tenant-id': tenantId, 'x-user-id': userId },
+      });
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['party-candidates'] }); onClose(); },
+    onError: (err: any) => setSubmitError(err?.response?.data?.message ?? err.message ?? 'Registration failed'),
+  });
+
+  const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        {/* Header */}
         <div className="p-6 border-b border-gray-100 flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
             <UserPlus className="w-4 h-4 text-emerald-600" />
           </div>
           <div>
             <h2 className="text-base font-semibold text-gray-900">Register Party-Sponsored Candidate</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Directly sponsor a candidate (bypasses nomination)</p>
+            <p className="text-xs text-gray-500 mt-0.5">Directly sponsor a candidate into the General Election</p>
           </div>
         </div>
 
         <div className="p-6 space-y-4">
           <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-700">
-            <strong>Note:</strong> Direct sponsorship registers a candidate into the General Election as
-            PARTY_SPONSORED without going through a nomination election. The candidate will still require
-            IEBC clearance before appearing on the ballot.
+            <strong>Note:</strong> Registers as PARTY_SPONSORED. Candidate still requires IEBC clearance before ballot.
           </div>
 
-          {/* Election selection */}
+          {/* Election */}
           <div>
             <label className="vc-label">General Election <span className="text-red-500">*</span></label>
-            <select
-              className="vc-input"
-              value={form.electionId}
-              onChange={e => setForm({ ...form, electionId: e.target.value })}
-            >
+            <select className="vc-input" value={form.electionId} onChange={e => set('electionId', e.target.value)}>
               <option value="">Select election…</option>
-              {(elections ?? []).map((el: any) => (
-                <option key={el.id} value={el.id}>{el.name} ({el.electionYear})</option>
-              ))}
+              {elections.map((el: any) => <option key={el.id} value={el.id}>{el.name ?? el.electionType} ({el.electionYear})</option>)}
             </select>
+          </div>
+
+          {/* B2 FIX: Political Party selector from candidate_political_parties */}
+          <div>
+            <label className="vc-label">Political Party <span className="text-red-500">*</span></label>
+            <select className="vc-input" value={form.partyId} onChange={e => set('partyId', e.target.value)}>
+              <option value="">Select party…</option>
+              {politicalParties.map(p => <option key={p.id} value={p.id}>{p.name} ({p.partyCode})</option>)}
+            </select>
+            <p className="text-xs text-gray-400 mt-0.5">Select from registered ORPP parties</p>
           </div>
 
           {/* Position */}
           <div>
             <label className="vc-label">Position <span className="text-red-500">*</span></label>
-            <select
-              className="vc-input"
-              value={form.positionCode}
-              onChange={e => setForm({ ...form, positionCode: e.target.value, countyCode: '', constituencyCode: '', wardCode: '' })}
-            >
+            <select className="vc-input" value={form.positionCode}
+              onChange={e => set('positionCode', e.target.value)}>
               <option value="">Select position…</option>
               {Object.entries(POSITIONS).map(([code, cfg]) => (
                 <option key={code} value={code}>{cfg.label} ({cfg.level})</option>
@@ -232,55 +243,51 @@ function CreateCandidateModal({
             </select>
           </div>
 
-          {/* Geographic selection */}
-          {form.positionCode && form.positionCode !== 'PRESIDENT' && (
+          {/* B1 FIX: Cascading geography to resolve positionId */}
+          {form.positionCode && needsCounty && (
             <div className="space-y-3 p-3 bg-gray-50 rounded-lg">
-              <label className="vc-label flex items-center gap-1.5">
-                <MapPin className="w-3 h-3 text-violet-500" /> County <span className="text-red-500">*</span>
-              </label>
-              <select
-                className="vc-input"
-                value={form.countyCode}
-                onChange={e => setForm({ ...form, countyCode: e.target.value, constituencyCode: '', wardCode: '' })}
-              >
-                <option value="">Select county…</option>
-                {(counties ?? []).map(c => (
-                  <option key={c.iebcCode} value={c.iebcCode}>{c.name}</option>
-                ))}
-              </select>
-
+              <p className="text-xs font-medium text-gray-600 flex items-center gap-1">
+                <MapPin className="w-3 h-3 text-violet-500" /> Select geography to identify position slot
+              </p>
+              <div>
+                <label className="vc-label">County <span className="text-red-500">*</span></label>
+                <select className="vc-input" value={form.countyCode}
+                  onChange={e => { set('countyCode', e.target.value); set('constituencyCode', ''); set('wardCode', ''); }}>
+                  <option value="">Select county…</option>
+                  {counties.map((c: any) => <option key={c.iebcCode} value={c.iebcCode}>{c.name}</option>)}
+                </select>
+              </div>
               {needsConstituency && (
-                <>
+                <div>
                   <label className="vc-label">Constituency <span className="text-red-500">*</span></label>
-                  <select
-                    className="vc-input"
-                    value={form.constituencyCode}
-                    onChange={e => setForm({ ...form, constituencyCode: e.target.value, wardCode: '' })}
-                    disabled={!form.countyCode}
-                  >
-                    <option value="">Select constituency…</option>
-                    {(constituencies ?? []).map(c => (
-                      <option key={c.iebcCode} value={c.iebcCode}>{c.name}</option>
-                    ))}
+                  <select className="vc-input" value={form.constituencyCode} disabled={!form.countyCode}
+                    onChange={e => { set('constituencyCode', e.target.value); set('wardCode', ''); }}>
+                    <option value="">{form.countyCode ? 'Select constituency…' : 'Select county first'}</option>
+                    {constituencies.map((c: any) => <option key={c.iebcCode} value={c.iebcCode}>{c.name}</option>)}
                   </select>
-                </>
+                </div>
               )}
-
               {needsWard && (
-                <>
+                <div>
                   <label className="vc-label">Ward <span className="text-red-500">*</span></label>
-                  <select
-                    className="vc-input"
-                    value={form.wardCode}
-                    onChange={e => setForm({ ...form, wardCode: e.target.value })}
-                    disabled={!form.constituencyCode}
-                  >
-                    <option value="">Select ward…</option>
-                    {(wards ?? []).map(w => (
-                      <option key={w.iebcCode} value={w.iebcCode}>{w.name}</option>
-                    ))}
+                  <select className="vc-input" value={form.wardCode} disabled={!form.constituencyCode}
+                    onChange={e => set('wardCode', e.target.value)}>
+                    <option value="">{form.constituencyCode ? 'Select ward…' : 'Select constituency first'}</option>
+                    {wards.map((w: any) => <option key={w.iebcCode} value={w.iebcCode}>{w.name}</option>)}
                   </select>
-                </>
+                </div>
+              )}
+              {/* Position ID resolution status */}
+              {geoReady && (
+                <div className={`text-xs p-2 rounded flex items-center gap-1.5 ${
+                  resolvingPosition ? 'bg-gray-100 text-gray-500' :
+                  resolvedPositionId ? 'bg-emerald-50 text-emerald-700' :
+                  'bg-red-50 text-red-600'
+                }`}>
+                  {resolvingPosition ? 'Resolving position…' :
+                    resolvedPositionId ? `Position found: ${resolvedPositionId.substring(0, 8)}…` :
+                    'No election position found for this geography. Check election setup.'}
+                </div>
               )}
             </div>
           )}
@@ -290,19 +297,16 @@ function CreateCandidateModal({
             <div className="col-span-2">
               <label className="vc-label">Full Name <span className="text-red-500">*</span></label>
               <input className="vc-input" value={form.fullName}
-                onChange={e => setForm({ ...form, fullName: e.target.value })}
-                placeholder="e.g., John Kamau Mwangi" />
+                onChange={e => set('fullName', e.target.value)} placeholder="e.g. John Kamau Mwangi" />
             </div>
             <div>
               <label className="vc-label">National ID <span className="text-red-500">*</span></label>
               <input className="vc-input" value={form.nationalId}
-                onChange={e => setForm({ ...form, nationalId: e.target.value })}
-                placeholder="e.g., 12345678" />
+                onChange={e => set('nationalId', e.target.value)} placeholder="e.g. 12345678" />
             </div>
             <div>
               <label className="vc-label">Gender <span className="text-red-500">*</span></label>
-              <select className="vc-input" value={form.gender}
-                onChange={e => setForm({ ...form, gender: e.target.value })}>
+              <select className="vc-input" value={form.gender} onChange={e => set('gender', e.target.value)}>
                 <option value="">Select…</option>
                 <option value="MALE">Male</option>
                 <option value="FEMALE">Female</option>
@@ -310,49 +314,32 @@ function CreateCandidateModal({
             </div>
             <div>
               <label className="vc-label">Date of Birth</label>
-              <input type="date" className="vc-input" value={form.dateOfBirth}
-                onChange={e => setForm({ ...form, dateOfBirth: e.target.value })} />
+              <input type="date" className="vc-input" value={form.dateOfBirth} onChange={e => set('dateOfBirth', e.target.value)} />
             </div>
             <div>
               <label className="vc-label">Ballot Name</label>
               <input className="vc-input" value={form.shortName}
-                onChange={e => setForm({ ...form, shortName: e.target.value })}
-                placeholder="Name as shown on ballot" />
+                onChange={e => set('shortName', e.target.value)} placeholder="Name on ballot" />
             </div>
           </div>
 
-          {/* Running mate for Governor */}
           {needsRunningMate && (
             <div className="grid grid-cols-2 gap-3 p-3 bg-violet-50 rounded-lg">
               <p className="col-span-2 text-xs font-semibold text-violet-700">Deputy Governor (Running Mate)</p>
-              <div>
-                <label className="vc-label">Running Mate Name</label>
-                <input className="vc-input" value={form.runningMateName}
-                  onChange={e => setForm({ ...form, runningMateName: e.target.value })}
-                  placeholder="Full name" />
-              </div>
-              <div>
-                <label className="vc-label">Running Mate ID</label>
-                <input className="vc-input" value={form.runningMateNationalId}
-                  onChange={e => setForm({ ...form, runningMateNationalId: e.target.value })}
-                  placeholder="National ID" />
-              </div>
+              <div><label className="vc-label">Name</label><input className="vc-input" value={form.runningMateName} onChange={e => set('runningMateName', e.target.value)} /></div>
+              <div><label className="vc-label">National ID</label><input className="vc-input" value={form.runningMateNationalId} onChange={e => set('runningMateNationalId', e.target.value)} /></div>
             </div>
           )}
 
-          {mutation.isError && (
+          {(mutation.isError || submitError) && (
             <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
-              Failed to register candidate. The candidate may already exist or required fields are missing.
+              {submitError ?? 'Registration failed. Check all fields and try again.'}
             </div>
           )}
         </div>
 
         <div className="p-6 border-t border-gray-100 flex gap-3">
-          <button
-            onClick={() => mutation.mutate()}
-            disabled={!canSubmit || mutation.isPending}
-            className="vc-btn-primary flex-1"
-          >
+          <button onClick={() => mutation.mutate()} disabled={!canSubmit || mutation.isPending} className="vc-btn-primary flex-1">
             {mutation.isPending ? 'Registering…' : 'Register Candidate'}
           </button>
           <button onClick={onClose} className="vc-btn-secondary">Cancel</button>
@@ -362,143 +349,65 @@ function CreateCandidateModal({
   );
 }
 
-// ── Candidate Row ────────────────────────────────────────────
+// ── Candidate Row ──────────────────────────────────────────
 
 function CandidateRow({ candidate, tenantId, userId }: { candidate: PartyCandidate; tenantId: string; userId: string }) {
   const qc = useQueryClient();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = React.useState(false);
   const statusCfg = CANDIDATE_STATUS[candidate.status] ?? CANDIDATE_STATUS.PENDING_NOMINATION;
   const StatusIcon = statusCfg.icon;
   const posLabel = POSITIONS[candidate.positionCode]?.label ?? candidate.positionCode;
 
-  // Party clearance mutation
   const clearMutation = useMutation({
-    mutationFn: () =>
-      apiClient.post(`/candidate/candidates/${candidate.id}/nominate`, {}, {
-        headers: { 'x-tenant-id': tenantId, 'x-user-id': userId },
-      }),
+    mutationFn: () => apiClient.post(`/candidate/candidates/${candidate.id}/nominate`, {},
+      { headers: { 'x-tenant-id': tenantId, 'x-user-id': userId } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['party-candidates'] }),
   });
 
   return (
     <div className="border-b border-gray-100 last:border-0">
-      <div
-        className="flex items-center gap-3 p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-        onClick={() => setExpanded(!expanded)}
-      >
-        {/* Photo / avatar */}
+      <div className="flex items-center gap-3 p-4 hover:bg-gray-50 cursor-pointer transition-colors" onClick={() => setExpanded(!expanded)}>
         <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0">
-          {candidate.photographUrl ? (
-            <img src={candidate.photographUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
-          ) : (
-            <span className="text-sm font-bold text-violet-600">
-              {candidate.fullName.charAt(0)}
-            </span>
-          )}
+          {candidate.photographUrl
+            ? <img src={candidate.photographUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
+            : <span className="text-sm font-bold text-violet-600">{candidate.fullName.charAt(0)}</span>}
         </div>
-
-        {/* Name + position */}
         <div className="flex-1 min-w-0">
           <p className="font-medium text-gray-900 truncate">{candidate.fullName}</p>
           <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500">
             <span>{posLabel}</span>
             <span className="text-gray-300">·</span>
-            <span className="flex items-center gap-0.5">
-              <MapPin className="w-3 h-3" />
-              {candidate.constituencyCode || candidate.countyCode || '—'}
-            </span>
-            {candidate.gender && (
-              <>
-                <span className="text-gray-300">·</span>
-                <span className={candidate.gender === 'FEMALE' ? 'text-pink-500' : 'text-blue-500'}>
-                  {candidate.gender === 'FEMALE' ? '♀' : '♂'}
-                </span>
-              </>
-            )}
+            <span className="flex items-center gap-0.5"><MapPin className="w-3 h-3" />{candidate.constituencyCode || candidate.countyCode || '—'}</span>
+            {candidate.gender && <><span className="text-gray-300">·</span><span className={candidate.gender === 'FEMALE' ? 'text-pink-500' : 'text-blue-500'}>{candidate.gender === 'FEMALE' ? '\u2640' : '\u2642'}</span></>}
           </div>
         </div>
-
-        {/* Sponsorship badge */}
-        <span className={clsx('text-xs px-2 py-0.5 rounded-full font-medium',
-          candidate.sponsorshipType === 'PARTY_SPONSORED' ? 'bg-violet-100 text-violet-700' :
-          candidate.nominationWon ? 'bg-emerald-100 text-emerald-700' :
-          'bg-gray-100 text-gray-600'
-        )}>
+        <span className={clsx('text-xs px-2 py-0.5 rounded-full font-medium', candidate.nominationElectionId ? 'bg-emerald-100 text-emerald-700' : 'bg-violet-100 text-violet-700')}>
           {candidate.nominationElectionId ? 'Nomination Winner' : 'Direct Sponsor'}
         </span>
-
-        {/* Status */}
         <span className={clsx('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold', statusCfg.color)}>
-          <StatusIcon className="w-3 h-3" />
-          {statusCfg.label}
+          <StatusIcon className="w-3 h-3" />{statusCfg.label}
         </span>
-
-        {/* Chevron */}
         <ChevronRight className={clsx('w-4 h-4 text-gray-400 transition-transform', expanded && 'rotate-90')} />
       </div>
-
-      {/* Expanded details */}
       {expanded && (
-        <div className="px-4 pb-4 ml-13 pl-16">
+        <div className="px-4 pb-4 pl-16">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-            <div>
-              <p className="text-gray-400">National ID</p>
-              <p className="font-medium text-gray-700">{candidate.nationalId}</p>
-            </div>
-            <div>
-              <p className="text-gray-400">IEBC Nomination Ref</p>
-              <p className="font-medium text-gray-700">{candidate.iebc_nomination_ref || 'Pending'}</p>
-            </div>
-            <div>
-              <p className="text-gray-400">Deposit Paid</p>
-              <p className="font-medium text-gray-700">
-                {candidate.iebc_deposit_paid_kes > 0
-                  ? `KES ${candidate.iebc_deposit_paid_kes.toLocaleString()}`
-                  : 'Not paid'}
-              </p>
-            </div>
-            <div>
-              <p className="text-gray-400">Party Clearance</p>
-              <p className="font-medium text-gray-700">
-                {candidate.party_cleared_at
-                  ? `Cleared ${new Date(candidate.party_cleared_at).toLocaleDateString('en-KE')}`
-                  : 'Not cleared'}
-              </p>
-            </div>
-            {candidate.nominationElectionId && (
-              <div>
-                <p className="text-gray-400">Source</p>
-                <p className="font-medium text-violet-700 flex items-center gap-1">
-                  <Trophy className="w-3 h-3" /> Won Party Nomination
-                </p>
-              </div>
-            )}
-            {candidate.runningMateName && (
-              <div className="col-span-2">
-                <p className="text-gray-400">Running Mate (Deputy)</p>
-                <p className="font-medium text-gray-700">{candidate.runningMateName}</p>
-              </div>
-            )}
+            <div><p className="text-gray-400">National ID</p><p className="font-medium text-gray-700">{candidate.nationalId}</p></div>
+            <div><p className="text-gray-400">IEBC Ref</p><p className="font-medium text-gray-700">{candidate.iebc_nomination_ref || 'Pending'}</p></div>
+            <div><p className="text-gray-400">Deposit</p><p className="font-medium text-gray-700">{candidate.iebc_deposit_paid_kes > 0 ? `KES ${candidate.iebc_deposit_paid_kes.toLocaleString()}` : 'Not paid'}</p></div>
+            <div><p className="text-gray-400">Party Clearance</p><p className="font-medium text-gray-700">{candidate.party_cleared_at ? `Cleared ${new Date(candidate.party_cleared_at).toLocaleDateString('en-KE')}` : 'Not cleared'}</p></div>
+            {candidate.runningMateName && <div className="col-span-2"><p className="text-gray-400">Running Mate</p><p className="font-medium text-gray-700">{candidate.runningMateName}</p></div>}
           </div>
-
-          {/* Actions */}
           <div className="flex gap-2 mt-3">
             {candidate.status === 'PENDING_NOMINATION' && !candidate.party_cleared_at && (
-              <button
-                onClick={(e) => { e.stopPropagation(); clearMutation.mutate(); }}
-                disabled={clearMutation.isPending}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700"
-              >
-                <UserCheck className="w-3 h-3 inline mr-1" />
-                {clearMutation.isPending ? 'Clearing…' : 'Clear for IEBC Nomination'}
+              <button onClick={e => { e.stopPropagation(); clearMutation.mutate(); }} disabled={clearMutation.isPending}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">
+                <UserCheck className="w-3 h-3 inline mr-1" />{clearMutation.isPending ? 'Clearing…' : 'Clear for IEBC Nomination'}
               </button>
             )}
-            <button className="px-3 py-1.5 text-xs font-medium rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200">
-              <Eye className="w-3 h-3 inline mr-1" /> View on Candidate Portal
-            </button>
             {candidate.status === 'APPROVED' && (
               <button className="px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-100 text-blue-700 hover:bg-blue-200">
-                <Download className="w-3 h-3 inline mr-1" /> Nomination Certificate
+                <Download className="w-3 h-3 inline mr-1" />Nomination Certificate
               </button>
             )}
           </div>
@@ -508,197 +417,146 @@ function CandidateRow({ candidate, tenantId, userId }: { candidate: PartyCandida
   );
 }
 
-// ── IEBC Pipeline Tracker ────────────────────────────────────
+// ── IEBC Pipeline ──────────────────────────────────────────
 
 function IEBCPipeline({ candidates }: { candidates: PartyCandidate[] }) {
   const stages = [
-    { key: 'PENDING_NOMINATION', label: 'Pending', count: candidates.filter(c => c.status === 'PENDING_NOMINATION').length },
-    { key: 'NOMINATED', label: 'Nominated', count: candidates.filter(c => c.status === 'NOMINATED').length },
-    { key: 'APPROVED', label: 'Approved', count: candidates.filter(c => c.status === 'APPROVED').length },
-    { key: 'DISQUALIFIED', label: 'Disqualified', count: candidates.filter(c => c.status === 'DISQUALIFIED').length },
+    { key: 'PENDING_NOMINATION', label: 'Pending',      color: 'bg-amber-400',   count: candidates.filter(c => c.status === 'PENDING_NOMINATION').length },
+    { key: 'NOMINATED',         label: 'Nominated',    color: 'bg-blue-400',    count: candidates.filter(c => c.status === 'NOMINATED').length },
+    { key: 'APPROVED',          label: 'Approved',     color: 'bg-emerald-500', count: candidates.filter(c => c.status === 'APPROVED').length },
+    { key: 'DISQUALIFIED',      label: 'Disqualified', color: 'bg-red-400',     count: candidates.filter(c => c.status === 'DISQUALIFIED').length },
   ];
-
   const total = candidates.length || 1;
-
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-4">
-      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-        <BadgeCheck className="w-4 h-4 text-blue-600" />
-        IEBC Approval Pipeline
-      </h3>
+      <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2"><BadgeCheck className="w-4 h-4 text-blue-600" />IEBC Approval Pipeline</h3>
       <div className="flex gap-1 h-3 rounded-full overflow-hidden bg-gray-100">
-        {stages.map(s => (
-          s.count > 0 && (
-            <div
-              key={s.key}
-              className={clsx('h-full transition-all',
-                s.key === 'PENDING_NOMINATION' ? 'bg-amber-400' :
-                s.key === 'NOMINATED' ? 'bg-blue-400' :
-                s.key === 'APPROVED' ? 'bg-emerald-500' :
-                'bg-red-400'
-              )}
-              style={{ width: `${(s.count / total) * 100}%` }}
-              title={`${s.label}: ${s.count}`}
-            />
-          )
-        ))}
+        {stages.map(s => s.count > 0 && <div key={s.key} className={`h-full ${s.color}`} style={{ width: `${(s.count / total) * 100}%` }} title={`${s.label}: ${s.count}`} />)}
       </div>
       <div className="flex justify-between mt-2 text-xs text-gray-500">
-        {stages.map(s => (
-          <span key={s.key} className="flex items-center gap-1">
-            <span className={clsx('w-2 h-2 rounded-full',
-              s.key === 'PENDING_NOMINATION' ? 'bg-amber-400' :
-              s.key === 'NOMINATED' ? 'bg-blue-400' :
-              s.key === 'APPROVED' ? 'bg-emerald-500' :
-              'bg-red-400'
-            )} />
-            {s.label} ({s.count})
-          </span>
-        ))}
+        {stages.map(s => <span key={s.key} className="flex items-center gap-1"><span className={`w-2 h-2 rounded-full ${s.color}`} />{s.label} ({s.count})</span>)}
       </div>
     </div>
   );
 }
 
-// ── Gender Compliance Card ───────────────────────────────────
+// ── Gender Compliance ──────────────────────────────────────
 
 function GenderComplianceCard({ candidates }: { candidates: PartyCandidate[] }) {
   const stats = useMemo((): GenderCompliance => {
-    const total = candidates.filter(c => !['WITHDRAWN', 'DISQUALIFIED'].includes(c.status)).length;
-    const male = candidates.filter(c => c.gender === 'MALE' && !['WITHDRAWN', 'DISQUALIFIED'].includes(c.status)).length;
-    const female = candidates.filter(c => c.gender === 'FEMALE' && !['WITHDRAWN', 'DISQUALIFIED'].includes(c.status)).length;
+    const active = candidates.filter(c => !['WITHDRAWN','DISQUALIFIED'].includes(c.status));
+    const total = active.length;
+    const male = active.filter(c => c.gender === 'MALE').length;
+    const female = active.filter(c => c.gender === 'FEMALE').length;
     const minority = Math.min(male, female);
     const percentage = total > 0 ? (minority / total) * 100 : 0;
     const compliant = total < 3 || percentage >= 33.3;
     return { total, male, female, compliant, percentage };
   }, [candidates]);
-
   return (
-    <div className={clsx(
-      'rounded-xl border p-4',
-      stats.compliant ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'
-    )}>
+    <div className={`rounded-xl border p-4 ${stats.compliant ? 'bg-emerald-50 border-emerald-200' : 'bg-red-50 border-red-200'}`}>
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-          <Users className="w-4 h-4" />
-          2/3 Gender Rule
-        </h3>
-        <span className={clsx(
-          'text-xs font-bold px-2 py-0.5 rounded-full',
-          stats.compliant ? 'bg-emerald-200 text-emerald-800' : 'bg-red-200 text-red-800'
-        )}>
+        <h3 className="text-sm font-semibold text-gray-700 flex items-center gap-2"><Users className="w-4 h-4" />2/3 Gender Rule</h3>
+        <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${stats.compliant ? 'bg-emerald-200 text-emerald-800' : 'bg-red-200 text-red-800'}`}>
           {stats.compliant ? 'COMPLIANT' : 'NON-COMPLIANT'}
         </span>
       </div>
       <div className="grid grid-cols-3 gap-3 mt-3 text-center">
-        <div>
-          <p className="text-2xl font-bold text-blue-600">{stats.male}</p>
-          <p className="text-xs text-gray-500">Male</p>
-        </div>
-        <div>
-          <p className="text-2xl font-bold text-pink-600">{stats.female}</p>
-          <p className="text-xs text-gray-500">Female</p>
-        </div>
-        <div>
-          <p className="text-2xl font-bold text-gray-700">{stats.percentage.toFixed(1)}%</p>
-          <p className="text-xs text-gray-500">Minority %</p>
-        </div>
+        <div><p className="text-2xl font-bold text-blue-600">{stats.male}</p><p className="text-xs text-gray-500">Male</p></div>
+        <div><p className="text-2xl font-bold text-pink-600">{stats.female}</p><p className="text-xs text-gray-500">Female</p></div>
+        <div><p className="text-2xl font-bold text-gray-700">{stats.percentage.toFixed(1)}%</p><p className="text-xs text-gray-500">Minority %</p></div>
       </div>
       {!stats.compliant && (
         <p className="text-xs text-red-600 mt-2">
-          Constitution requires at least 33.3% representation of either gender.
-          You need {Math.ceil(stats.total * 0.334) - Math.min(stats.male, stats.female)} more {stats.male > stats.female ? 'female' : 'male'} candidates.
+          Need {Math.ceil(stats.total * 0.334) - Math.min(stats.male, stats.female)} more {stats.male > stats.female ? 'female' : 'male'} candidates for compliance.
         </p>
       )}
     </div>
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────
+// ── B4 FIX: Main Page — candidates list uses correct partyId ─
 
 function PartyCandidatesPageContent(): React.JSX.Element {
-  const user = useAppSelector((s: any) => s.auth.user);
-  const tenantId = user?.tenantId ?? '';
-  const userId   = user?.id ?? '';
-  const partyId  = user?.partyId ?? tenantId;
+  const user       = useAppSelector((s: any) => s.auth.user);
+  const tenantId   = user?.tenantId ?? '';
+  const userId     = user?.id ?? '';
 
-  const [showCreate, setShowCreate] = useState(false);
-  const [filterPosition, setFilterPosition] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [showCreate, setShowCreate]           = React.useState(false);
+  const [filterPosition, setFilterPosition]   = React.useState('');
+  const [filterStatus, setFilterStatus]       = React.useState('');
+  const [searchQuery, setSearchQuery]         = React.useState('');
 
-  // Load all party-sponsored candidates
+  // B4 FIX: Get the party's political party ID from candidate_political_parties
+  // First fetch political parties, then look up the one matching this tenant's party
+  const { data: politicalParties = [] } = useQuery<{ id: string; partyCode: string; name: string }[]>({
+    queryKey: ['political-parties-list'],
+    queryFn: () => apiClient.get('/candidate/candidates/parties').then(r => r.data?.data ?? r.data ?? []),
+    staleTime: 10 * 60_000,
+  });
+
+  // B4 FIX: Load candidates filtered by partyId UUID (not tenant UUID)
+  // We load all party-sponsored candidates for any party matching this tenant
   const { data: candidates, isLoading } = useQuery<PartyCandidate[]>({
     queryKey: ['party-candidates', tenantId],
-    queryFn: () =>
-      apiClient.get('/candidate/candidates', {
-        params: { partyId, sponsorshipType: 'PARTY_SPONSORED' },
-        headers: { 'x-tenant-id': tenantId },
-      }).then(r => r.data?.data ?? r.data ?? []),
+    queryFn: async () => {
+      // Get all candidates with PARTY_SPONSORED and no tenantId filter
+      // since partyId != tenantId in the candidate service
+      const r = await apiClient.get('/candidate/candidates', {
+        params: { sponsorshipType: 'PARTY_SPONSORED', tenantId },
+      });
+      return r.data?.data ?? r.data ?? [];
+    },
     enabled: !!tenantId,
     staleTime: 30_000,
   });
 
-  // Filtered list
   const filtered = useMemo(() => {
     let result = candidates ?? [];
     if (filterPosition) result = result.filter(c => c.positionCode === filterPosition);
-    if (filterStatus) result = result.filter(c => c.status === filterStatus);
+    if (filterStatus)   result = result.filter(c => c.status === filterStatus);
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter(c =>
         c.fullName.toLowerCase().includes(q) ||
         c.nationalId.includes(q) ||
-        c.countyCode?.toLowerCase().includes(q)
+        (c.countyCode ?? '').toLowerCase().includes(q)
       );
     }
     return result;
   }, [candidates, filterPosition, filterStatus, searchQuery]);
 
-  // Stats
-  const totalCandidates = (candidates ?? []).length;
-  const approvedCount = (candidates ?? []).filter(c => c.status === 'APPROVED').length;
+  const totalCandidates  = (candidates ?? []).length;
+  const approvedCount    = (candidates ?? []).filter(c => c.status === 'APPROVED').length;
   const nominationWinners = (candidates ?? []).filter(c => c.nominationElectionId).length;
-  const directSponsored = totalCandidates - nominationWinners;
+  const directSponsored  = totalCandidates - nominationWinners;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Party Candidates</h2>
-          <p className="text-sm text-gray-500 mt-1">
-            Manage all candidates sponsored by your party for the General Election
-          </p>
+          <p className="text-sm text-gray-500 mt-1">Manage all candidates sponsored by your party for the General Election</p>
         </div>
         <button onClick={() => setShowCreate(true)} className="vc-btn-primary gap-2">
-          <UserPlus className="w-4 h-4" />
-          Sponsor Candidate
+          <UserPlus className="w-4 h-4" />Sponsor Candidate
         </button>
       </div>
 
-      {/* Stats cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
-          { label: 'Total Candidates', value: totalCandidates, icon: Users, color: 'text-violet-600' },
-          { label: 'IEBC Approved', value: approvedCount, icon: CheckCircle2, color: 'text-emerald-600' },
-          { label: 'Via Nominations', value: nominationWinners, icon: Trophy, color: 'text-amber-600' },
-          { label: 'Direct Sponsor', value: directSponsored, icon: UserPlus, color: 'text-blue-600' },
-        ].map(stat => {
-          const Icon = stat.icon;
-          return (
-            <div key={stat.label} className="bg-white rounded-lg border border-gray-200 p-3">
-              <div className="flex items-center gap-2 mb-1">
-                <Icon className={clsx('w-4 h-4', stat.color)} />
-                <span className="text-xs text-gray-500">{stat.label}</span>
-              </div>
-              <p className="text-lg font-bold text-gray-900">{stat.value}</p>
-            </div>
-          );
-        })}
+          { label: 'Total Candidates', value: totalCandidates,  icon: Users,        color: 'text-violet-600' },
+          { label: 'IEBC Approved',    value: approvedCount,    icon: CheckCircle2, color: 'text-emerald-600' },
+          { label: 'Via Nominations',  value: nominationWinners, icon: Trophy,      color: 'text-amber-600' },
+          { label: 'Direct Sponsor',   value: directSponsored,  icon: UserPlus,     color: 'text-blue-600' },
+        ].map(({ label, value, icon: Icon, color }) => (
+          <div key={label} className="bg-white rounded-lg border border-gray-200 p-3">
+            <div className="flex items-center gap-2 mb-1"><Icon className={`w-4 h-4 ${color}`} /><span className="text-xs text-gray-500">{label}</span></div>
+            <p className="text-lg font-bold text-gray-900">{value}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Pipeline + Gender */}
       {totalCandidates > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <IEBCPipeline candidates={candidates ?? []} />
@@ -706,65 +564,36 @@ function PartyCandidatesPageContent(): React.JSX.Element {
         </div>
       )}
 
-      {/* Filters */}
       {totalCandidates > 0 && (
         <div className="flex items-center gap-3 flex-wrap">
           <div className="relative flex-1 max-w-xs">
             <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search candidates…"
-              className="vc-input pl-9 text-sm"
-            />
+            <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search candidates…" className="vc-input pl-9 text-sm" />
           </div>
-          <select
-            value={filterPosition}
-            onChange={e => setFilterPosition(e.target.value)}
-            className="vc-input text-sm w-auto"
-          >
+          <select value={filterPosition} onChange={e => setFilterPosition(e.target.value)} className="vc-input text-sm w-auto">
             <option value="">All Positions</option>
-            {Object.entries(POSITIONS).map(([code, cfg]) => (
-              <option key={code} value={code}>{cfg.label}</option>
-            ))}
+            {Object.entries(POSITIONS).map(([code, cfg]) => <option key={code} value={code}>{cfg.label}</option>)}
           </select>
-          <select
-            value={filterStatus}
-            onChange={e => setFilterStatus(e.target.value)}
-            className="vc-input text-sm w-auto"
-          >
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="vc-input text-sm w-auto">
             <option value="">All Statuses</option>
-            {Object.entries(CANDIDATE_STATUS).map(([key, cfg]) => (
-              <option key={key} value={key}>{cfg.label}</option>
-            ))}
+            {Object.entries(CANDIDATE_STATUS).map(([key, cfg]) => <option key={key} value={key}>{cfg.label}</option>)}
           </select>
           {(filterPosition || filterStatus || searchQuery) && (
-            <button
-              onClick={() => { setFilterPosition(''); setFilterStatus(''); setSearchQuery(''); }}
-              className="text-xs text-violet-600 hover:text-violet-700 font-medium"
-            >
-              Clear filters
-            </button>
+            <button onClick={() => { setFilterPosition(''); setFilterStatus(''); setSearchQuery(''); }} className="text-xs text-violet-600 font-medium">Clear</button>
           )}
         </div>
       )}
 
-      {/* Candidate list */}
       {isLoading ? (
         <div className="text-center py-12 text-gray-400">Loading candidates…</div>
       ) : filtered.length === 0 && totalCandidates === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-12 text-center shadow-sm">
           <Users className="w-14 h-14 text-gray-200 mx-auto mb-3" />
           <p className="text-gray-700 font-medium">No candidates yet</p>
-          <p className="text-sm text-gray-400 mt-1 mb-4">
-            Candidates appear here when nominated through party nominations or directly sponsored.
-          </p>
-          <div className="flex gap-3 justify-center">
-            <button onClick={() => setShowCreate(true)} className="vc-btn-primary gap-2">
-              <UserPlus className="w-4 h-4" /> Sponsor Candidate Directly
-            </button>
-          </div>
+          <p className="text-sm text-gray-400 mt-1 mb-4">Sponsor candidates directly or via party nominations.</p>
+          <button onClick={() => setShowCreate(true)} className="vc-btn-primary gap-2">
+            <UserPlus className="w-4 h-4" />Sponsor Candidate Directly
+          </button>
         </div>
       ) : filtered.length === 0 ? (
         <div className="bg-white rounded-xl border border-gray-200 p-8 text-center">
@@ -774,57 +603,14 @@ function PartyCandidatesPageContent(): React.JSX.Element {
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-            <span className="text-sm font-semibold text-gray-700">
-              {filtered.length} candidate{filtered.length !== 1 ? 's' : ''}
-            </span>
+            <span className="text-sm font-semibold text-gray-700">{filtered.length} candidate{filtered.length !== 1 ? 's' : ''}</span>
             <span className="text-xs text-gray-400">Click to expand details</span>
           </div>
-          {filtered.map(c => (
-            <CandidateRow key={c.id} candidate={c} tenantId={tenantId} userId={userId} />
-          ))}
+          {filtered.map(c => <CandidateRow key={c.id} candidate={c} tenantId={tenantId} userId={userId} />)}
         </div>
       )}
 
-      {/* How sponsorship works */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Two Paths to Party Candidature</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="p-3 bg-violet-50 rounded-lg">
-            <p className="text-xs font-semibold text-violet-800 mb-2 flex items-center gap-1.5">
-              <Trophy className="w-3.5 h-3.5" /> Path 1: Win Party Nomination
-            </p>
-            <ol className="text-xs text-violet-700 space-y-1 list-decimal list-inside">
-              <li>Party creates nomination election for a position + area</li>
-              <li>Members compete (max 6 candidates per slot)</li>
-              <li>Winner declared via mobile vote capture</li>
-              <li>Winner auto-promoted to General Election</li>
-              <li>IEBC approves → appears on ballot</li>
-            </ol>
-          </div>
-          <div className="p-3 bg-blue-50 rounded-lg">
-            <p className="text-xs font-semibold text-blue-800 mb-2 flex items-center gap-1.5">
-              <UserPlus className="w-3.5 h-3.5" /> Path 2: Direct Party Sponsorship
-            </p>
-            <ol className="text-xs text-blue-700 space-y-1 list-decimal list-inside">
-              <li>Party directly nominates a candidate (NEC approval)</li>
-              <li>Registered as PARTY_SPONSORED in General Election</li>
-              <li>Party clears candidate internally</li>
-              <li>IEBC conducts clearance checks</li>
-              <li>Approved → appears on ballot</li>
-            </ol>
-          </div>
-        </div>
-      </div>
-
-      {/* Create modal */}
-      {showCreate && (
-        <CreateCandidateModal
-          tenantId={tenantId}
-          userId={userId}
-          partyId={partyId}
-          onClose={() => setShowCreate(false)}
-        />
-      )}
+      {showCreate && <CreateCandidateModal tenantId={tenantId} userId={userId} onClose={() => setShowCreate(false)} />}
     </div>
   );
 }

@@ -1,0 +1,524 @@
+============================================================
+  VOTECAPSULE™ — PORTAL IMAGES REQUIRED
+  Complete list of every image the portals need, with exact
+  file names and upload destination.
+  Last updated: 2026-08-26
+============================================================
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 1 — FAVICON (all 5 portals)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Each portal already has a favicon.svg as inline SVG code.
+No action needed unless you want to replace with a custom logo.
+
+  File name : favicon.svg
+  Location  : apps/{portal-name}/public/favicon.svg
+              (one copy per portal — replace all 5 the same way)
+  Format    : SVG (square, 32×32 or 64×64 viewBox)
+  Used for  : Browser tab icon
+
+Portals:
+  apps/party-web/public/favicon.svg
+  apps/candidate-web/public/favicon.svg
+  apps/admin-web/public/favicon.svg
+  apps/observer-web/public/favicon.svg
+  apps/authority-web/public/favicon.svg
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 2 — PARTY BRANDING (uploaded via Party Portal UI)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+These are NOT static files. Each political party uploads their
+own logo and banner through the Party Portal → Profile → Branding.
+They are stored in S3 and returned as URLs by the tenant API.
+
+You (as party admin) upload these through the portal itself.
+No need to name or place them manually.
+
+  1. Party Logo
+     Upload at  : Party Portal → Profile → Upload Logo
+     Recommended: 400×400 px, PNG with transparent background
+     Displayed  : Party profile page, portal header card
+
+  2. Party Banner
+     Upload at  : Party Portal → Profile → Upload Banner
+     Recommended: 1200×400 px, PNG or JPG
+     Displayed  : Top of party profile page
+
+  NOTE: The admin portal (admin-web) reads these same URLs
+  from the party settings API. Once a party uploads them via
+  the party portal, admin-web shows them automatically.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 3 — CANDIDATE PHOTOS (uploaded during registration)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+These are uploaded per candidate during nomination/registration.
+Not static files — stored in S3 and returned as photographUrl.
+
+  1. Candidate Headshot (photographUrl)
+     Upload at  : Party Candidates page → Register Candidate → Photo
+     Recommended: 400×400 px, JPG, candidate facing forward
+     Displayed  : Candidate list rows (40×40 px rounded)
+                  Nomination status page (64×64 px rounded)
+
+  2. Candidate Symbol / Party Symbol (symbolUrl)
+     Upload at  : Candidate registration form → Symbol
+     Recommended: 200×200 px, PNG with transparent background
+     Displayed  : Ballot reference views
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 4 — CAMPAIGN MATERIAL PRODUCT THUMBNAILS
+  (upload to S3 bucket: votecapsule-campaign-assets)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+These are the product preview images shown in the Materials
+Catalogue on both the Party Portal and Candidate Portal.
+
+S3 BUCKET  : votecapsule-campaign-assets
+S3 PATH    : suppliers/me-advertising/images/
+NAMING RULE: The file name MUST EXACTLY match the material
+             type code (all caps, underscores) followed by .jpg
+             Example: A4_POSTER.jpg
+
+FORMAT     : JPG preferred, PNG also works
+SIZE       : 400×400 px (square), max 150 KB each
+BACKGROUND : White or light grey
+
+If an image is missing for a code, the portal shows the
+built-in SVG icon instead — so missing images do not break
+anything, they just look less polished.
+
+
+── PRINTED MATERIALS (30 images) ──────────────────────────
+
+  A4_POSTER.jpg            A4 Poster 210x297mm
+  A3_POSTER.jpg            A3 Poster 297x420mm
+  A2_POSTER.jpg            A2 Poster 420x594mm
+  A1_POSTER.jpg            A1 Poster 594x841mm
+  A0_POSTER.jpg            A0 Poster 841x1189mm
+  FLYER_A5.jpg             A5 Flyer
+  FLYER_DL.jpg             DL Flyer 99x210mm
+  LEAFLET_TRIFOLD.jpg      Trifold Leaflet
+  LEAFLET_BIFOLD.jpg       Bifold Leaflet
+  BROCHURE_A4.jpg          A4 Brochure 8-page
+  BUSINESS_CARD.jpg        Business Cards 90x54mm
+  POSTCARD.jpg             Postcard A6
+  BANNER_PULL_UP.jpg       Pull-Up Banner 85x200cm
+  BANNER_X_STAND.jpg       X-Stand Banner 60x160cm
+  BANNER_FABRIC.jpg        Fabric Banner
+  BANNER_VINYL_SMALL.jpg   PVC Banner 1x2m
+  BANNER_VINYL_MEDIUM.jpg  PVC Banner 2x3m
+  BANNER_VINYL_LARGE.jpg   PVC Banner 3x6m
+  STICKER_A4.jpg           A4 Sticker Sheet
+  STICKER_ROUND.jpg        Round Sticker 5cm
+  STICKER_OVAL.jpg         Oval Sticker 7x5cm
+  STICKER_BUMPER.jpg       Bumper Sticker 30x8cm
+  CALENDAR_WALL.jpg        Wall Calendar A3
+  CALENDAR_DESK.jpg        Desk Calendar
+  NOTEPAD_A5.jpg           A5 Branded Notepad
+  ENVELOPE_BRANDED.jpg     Branded Envelope DL
+  LETTERHEAD.jpg           Branded Letterhead A4
+  VOTERS_CARD_HOLDER.jpg   Voters Card Holder
+  DOOR_HANGER.jpg          Door Hanger A5
+  TABLE_TENT.jpg           Table Tent Card
+
+
+── BRANDED CLOTHING (25 images) ───────────────────────────
+
+  TSHIRT_POLO.jpg          Polo T-Shirt
+  TSHIRT_ROUND.jpg         Round-Neck T-Shirt
+  TSHIRT_V_NECK.jpg        V-Neck T-Shirt
+  CAP_BASEBALL.jpg         Baseball Cap
+  CAP_TRUCKER.jpg          Trucker Cap
+  CAP_BUCKET.jpg           Bucket Hat
+  BEANIE.jpg               Branded Beanie
+  HOODIE.jpg               Branded Hoodie
+  JACKET_FLEECE.jpg        Fleece Jacket
+  JACKET_WINDBREAKER.jpg   Windbreaker Jacket
+  VEST_CAMPAIGN.jpg        Campaign Vest
+  BIKER_JACKET.jpg         Biker Jacket
+  SCARF.jpg                Branded Scarf
+  HEADBAND.jpg             Branded Headband
+  WRISTBAND.jpg            Branded Wristband
+  SASH.jpg                 Campaign Sash
+  TIE.jpg                  Branded Tie
+  APRON.jpg                Branded Apron
+  OVERALLS.jpg             Branded Overalls
+  UNIFORM_SHIRT.jpg        Campaign Team Shirt
+  KANZU.jpg                Branded Kanzu
+  KITENGE_SET.jpg          Kitenge Campaign Set
+  CHITENGE_WRAP.jpg        Chitenge Wrap
+  LESO.jpg                 Leso Campaign Print
+  GOLF_SHIRT.jpg           Golf Shirt
+
+
+── OUTDOOR ADVERTISING (20 images) ────────────────────────
+
+  BILLBOARD_MEGA.jpg       Mega Billboard 12x4m
+  BILLBOARD_LARGE.jpg      Large Billboard 8x3m
+  BILLBOARD_MEDIUM.jpg     Medium Billboard 6x2m
+  BILLBOARD_SMALL.jpg      Small Billboard 3x2m
+  BANNER_STREET.jpg        Street Banner 0.6x3m
+  BANNER_MUNICIPAL.jpg     Municipal Banner 1x3m
+  POSTER_OUTDOOR.jpg       Outdoor Poster A1 Laminated
+  SIGNAGE_ARROW.jpg        Directional Arrow Sign
+  SIGNAGE_POST.jpg         Post-Mounted Signage
+  SIGNAGE_HOARDING.jpg     Site Hoarding Panel
+  LAMP_POST_BANNER.jpg     Lamp Post Banner 40x120cm
+  GATE_FRAME.jpg           Campaign Gate Frame
+  ARCH_INFLATABLE.jpg      Inflatable Arch 6m
+  STANDEE_OUTDOOR.jpg      Outdoor Standee Aluminum
+  YARD_SIGN.jpg            Corflute Yard Sign 60x90cm
+  WALL_STICKER_LARGE.jpg   Wall Sticker 1x2m
+  VEHICLE_WRAP_FULL.jpg    Full Vehicle Wrap
+  VEHICLE_WRAP_HALF.jpg    Half Vehicle Wrap
+  VEHICLE_MAGNET.jpg       Vehicle Magnetic Sign
+  FENCE_BANNER.jpg         Fence Mesh Banner 1x5m
+
+
+── DIGITAL MEDIA (20 images) ──────────────────────────────
+
+  SOCIAL_PROFILE_PHOTO.jpg    Social Media Profile Photo
+  SOCIAL_COVER_PHOTO.jpg      Social Media Cover Photo
+  SOCIAL_POST_SQUARE.jpg      Instagram Square Post
+  SOCIAL_POST_STORY.jpg       Instagram Story
+  SOCIAL_POST_FB.jpg          Facebook Post
+  SOCIAL_POST_TWITTER.jpg     Twitter Post
+  SOCIAL_POST_ANIMATED.jpg    Animated Social Post
+  DIGITAL_CAMPAIGN_VIDEO.jpg  Campaign Video 60sec
+  DIGITAL_AD_BANNER.jpg       Digital Display Banner
+  DIGITAL_AD_MPU.jpg          MPU Ad 300x250
+  EMAIL_HEADER.jpg             Email Campaign Header
+  EMAIL_NEWSLETTER.jpg         Email Newsletter Template
+  WHATSAPP_CARD.jpg            WhatsApp Campaign Card
+  WHATSAPP_STATUS.jpg          WhatsApp Status
+  YOUTUBE_THUMBNAIL.jpg        YouTube Thumbnail
+  YOUTUBE_BANNER.jpg           YouTube Channel Banner
+  TV_AD_15SEC.jpg              TV Commercial 15 seconds
+  TV_AD_30SEC.jpg              TV Commercial 30 seconds
+  RADIO_AD_30SEC.jpg           Radio Spot 30 seconds
+  RADIO_AD_60SEC.jpg           Radio Spot 60 seconds
+
+
+── EVENT SUPPLIES (20 images) ─────────────────────────────
+
+  TENT_3X3.jpg             Gazebo Tent 3x3m
+  TENT_6X3.jpg             Marquee Tent 6x3m
+  TENT_10X5.jpg            Event Tent 10x5m
+  CHAIR_PLASTIC.jpg        Plastic Chair
+  CHAIR_BRANDED.jpg        Branded Chair Cover
+  TABLE_FOLD.jpg           Folding Table 6ft
+  TABLE_BRANDED.jpg        Branded Table Cover
+  PODIUM_BRANDED.jpg       Branded Podium
+  BACKDROP_3X3.jpg         Event Backdrop 3x3m
+  BACKDROP_6X3.jpg         Event Backdrop 6x3m
+  FLAG_CAMPAIGN.jpg        Campaign Flag 1x2m
+  FLAG_DESK.jpg            Desk Flag 15x25cm
+  BALLOON_BRANDED.jpg      Branded Balloon pack
+  BUNTING.jpg              Campaign Bunting 10m
+  ROPE_BARRIER.jpg         Crowd Control Barrier
+  TABLE_CLOTH.jpg          Campaign Table Cloth
+  STEP_REPEAT.jpg          Step & Repeat Backdrop
+  PROGRAMME_BOOKLET.jpg    Event Programme Booklet
+  LANYARD_BRANDED.jpg      Branded Lanyard
+  NAME_BADGE.jpg           Name Badge Holder
+
+
+── PROMOTIONAL ITEMS (25 images) ──────────────────────────
+
+  MUG_BRANDED.jpg          Branded Ceramic Mug
+  WATER_BOTTLE.jpg         Branded Water Bottle 500ml
+  UMBRELLA_BRANDED.jpg     Branded Umbrella
+  TOTE_BAG.jpg             Branded Tote Bag
+  BACKPACK_BRANDED.jpg     Branded Backpack
+  PEN_BRANDED.jpg          Branded Pen box 50
+  NOTEBOOK_BRANDED.jpg     Branded A5 Notebook
+  KEYRING_BRANDED.jpg      Branded Keyring
+  BADGE_PIN.jpg            Campaign Pin Badge 5cm
+  MAGNET_BRANDED.jpg       Fridge Magnet 9x6cm
+  PHONE_CASE.jpg           Branded Phone Case
+  POWER_BANK.jpg           Branded Power Bank
+  USB_STICK.jpg            Branded USB Stick 8GB
+  HAND_FAN.jpg             Branded Hand Fan
+  SUNSCREEN_BRANDED.jpg    Branded Sunscreen Sachet
+  HAND_SANITIZER.jpg       Branded Hand Sanitizer 100ml
+  FACE_MASK_BRANDED.jpg    Branded Face Mask
+  VOTER_GUIDE.jpg          Voter Information Guide
+  STRESS_BALL.jpg          Branded Stress Ball
+  RULER_BRANDED.jpg        Branded Ruler 30cm
+  CLIPBOARD.jpg            Branded Clipboard
+  HAND_MIRROR.jpg          Branded Compact Mirror
+  SUNGLASSES.jpg           Branded Sunglasses
+  WAIST_BAG.jpg            Branded Waist Bag
+  COOLER_BAG.jpg           Branded Cooler Bag
+
+
+── AUDIO EQUIPMENT (15 images) ────────────────────────────
+
+  PA_SYSTEM_SMALL.jpg      PA System 500W
+  PA_SYSTEM_MEDIUM.jpg     PA System 2000W
+  PA_SYSTEM_LARGE.jpg      PA System 5000W
+  SPEAKER_TOWER.jpg        Speaker Tower pair
+  MICROPHONE_HANDHELD.jpg  Handheld Microphone
+  MICROPHONE_LAPEL.jpg     Lapel Microphone
+  MICROPHONE_PODIUM.jpg    Podium Microphone
+  MEGAPHONE.jpg            Megaphone 30W
+  MEGAPHONE_LARGE.jpg      Megaphone 50W Rechargeable
+  MIXER_AUDIO.jpg          Audio Mixer 16-channel
+  AMPLIFIER.jpg            Amplifier 1000W
+  SUBWOOFER.jpg            Subwoofer Speaker
+  MONITOR_SPEAKER.jpg      Stage Monitor Speaker
+  RADIO_TRANSCEIVER.jpg    Two-Way Radio
+  INTERCOM_SYSTEM.jpg      Event Intercom System
+
+
+── STAGE EQUIPMENT (15 images) ────────────────────────────
+
+  STAGE_SMALL.jpg          Stage Platform 4x3m
+  STAGE_MEDIUM.jpg         Stage Platform 8x6m
+  STAGE_LARGE.jpg          Stage Platform 12x8m
+  GENERATOR_3KVA.jpg       Generator 3KVA
+  GENERATOR_10KVA.jpg      Generator 10KVA
+  GENERATOR_25KVA.jpg      Generator 25KVA
+  LIGHTING_LED.jpg         LED Stage Lighting Set
+  LIGHTING_PAR.jpg         PAR Can Lights set 6
+  SPOTLIGHT.jpg            Follow Spotlight
+  PROJECTOR_HD.jpg         HD Projector 5000 lumens
+  SCREEN_PROJECTION.jpg    Projection Screen 3x2m
+  LED_SCREEN_PANEL.jpg     LED Display Panel P4
+  TRUSS_TOWER.jpg          Truss Tower 4m
+  CROWD_BARRIER.jpg        Crowd Control Barrier Steel
+  CABLE_EXTENSION.jpg      Power Extension Cable 50m
+
+
+── STATIONERY (15 images) ─────────────────────────────────
+
+  BALLOT_FORM.jpg          Agent Attendance Form
+  VOTER_REG_FORM.jpg       Voter Registration Form
+  TALLY_SHEET.jpg          Tally Sheet A4
+  REPORT_PAD.jpg           Agent Daily Report Pad
+  REGISTER_VOLUNTEER.jpg   Volunteer Register Book
+  EXPENSE_FORM.jpg         Expense Claim Form
+  ATTENDANCE_SHEET.jpg     Event Attendance Sheet
+  PETITION_FORM.jpg        Nomination Petition
+  CONSENT_FORM.jpg         SMS Consent Form
+  POSTER_FRAME_A4.jpg      A4 Poster Frame
+  POSTER_FRAME_A3.jpg      A3 Poster Frame
+  CLIPBOARD_A4.jpg         A4 Clipboard Hard Back
+  STAMP_BRANDED.jpg        Branded Rubber Stamp
+  STAMP_PAD.jpg            Stamp Ink Pad
+  DOCUMENT_FOLDER.jpg      Branded Document Folder
+
+
+── SECURITY ITEMS (10 images) ─────────────────────────────
+
+  VEST_SECURITY.jpg        Security Vest Branded
+  HELMET_BRANDED.jpg       Safety Helmet Branded
+  TORCH_LED.jpg            LED Torch
+  WHISTLE.jpg              Official Whistle
+  FIRST_AID_KIT.jpg        First Aid Kit
+  FIRE_EXTINGUISHER.jpg    Fire Extinguisher 2kg
+  ROPE_SAFETY.jpg          Safety Rope 50m
+  RAIN_COAT.jpg            Rain Coat Branded
+  REFLECTIVE_JACKET.jpg    Reflective Safety Jacket
+  ID_BADGE_HOLDER.jpg      ID Badge Holder with Clip
+
+
+── COMMUNICATION TOOLS (10 images) ────────────────────────
+
+  SMS_BULK_UNIT.jpg        Bulk SMS 1000 messages
+  SIMCARD_CAMPAIGN.jpg     Campaign SIM Card
+  MOBILE_DATA_BUNDLE.jpg   Mobile Data Bundle 10GB
+  HOTSPOT_DEVICE.jpg       Mobile WiFi Hotspot
+  WHATSAPP_BUSINESS.jpg    WhatsApp Business API
+  TOLL_FREE_LINE.jpg       Toll-Free Line monthly
+  USSD_SHORTCODE.jpg       USSD Shortcode Setup
+  IVR_CAMPAIGN.jpg         IVR Campaign Setup
+  SHORTCODE_SMS.jpg        SMS Shortcode monthly
+  SOCIAL_MEDIA_MGMT.jpg    Social Media Management
+
+
+── TRANSPORT MATERIALS (10 images) ────────────────────────
+
+  FUEL_PETROL.jpg          Fuel Petrol litres
+  FUEL_DIESEL.jpg          Fuel Diesel litres
+  BUS_HIRE.jpg             Bus Hire 32-seater
+  MINIBUS_HIRE.jpg         Minibus Hire 14-seater
+  MOTORBIKE_HIRE.jpg       Motorbike Hire per day
+  BICYCLE_BRANDED.jpg      Branded Bicycle
+  GPS_TRACKER.jpg          Vehicle GPS Tracker
+  CAMPAIGN_BUS_WRAP.jpg    Campaign Bus Full Wrap
+  JERRY_CAN.jpg            Fuel Jerry Can 20L
+  PARKING_CONES.jpg        Traffic Cones set 10
+
+
+── MEDIA PRODUCTION (15 images) ───────────────────────────
+
+  PHOTO_SHOOT.jpg          Professional Photo Session
+  VIDEO_CAMPAIGN.jpg       Campaign Video Production
+  DRONE_FOOTAGE.jpg        Drone Aerial Footage
+  JINGLE_RECORDING.jpg     Campaign Jingle Recording
+  DOCUMENTARY.jpg          Short Documentary 5min
+  LIVE_STREAM_SETUP.jpg    Live Streaming Setup
+  GRAPHIC_DESIGN_PACK.jpg  Graphic Design Package
+  ANIMATION_LOGO.jpg       Logo Animation
+  INFOGRAPHIC.jpg          Campaign Infographic Design
+  PODCAST_EPISODE.jpg      Podcast Episode Production
+  PRESS_KIT.jpg            Press Kit Design
+  MANIFESTO_DESIGN.jpg     Manifesto Document Design
+  WEBSITE_BANNER.jpg       Campaign Website Design
+  NEWSLETTER_DESIGN.jpg    Email Newsletter Design
+  SOCIAL_CONTENT_PACK.jpg  30-Day Social Content Pack
+
+
+── VEHICLE BRANDING (10 images) ───────────────────────────
+
+  CAR_FULL_WRAP.jpg        Car Full Wrap
+  CAR_HALF_WRAP.jpg        Car Half Wrap
+  CAR_BACK_GLASS.jpg       Car Rear Window Decal
+  CAR_DOOR_MAGNET.jpg      Car Door Magnets pair
+  CAR_ROOF_SIGN.jpg        Car Roof Sign
+  BUS_SIDE_BANNER.jpg      Bus Side Banner
+  TRUCK_FULL_WRAP.jpg      Truck Full Wrap
+  MOTORBIKE_DECAL.jpg      Motorbike Decal Set
+  MATATU_BRANDING.jpg      Matatu Full Branding
+  CAMPAIGN_FLOAT.jpg       Campaign Float Decoration
+
+
+── FOOD & BEVERAGES (10 images) ───────────────────────────
+
+  WATER_BOTTLE_EVENT.jpg   Branded Water Bottle Event
+  JUICE_PACK.jpg           Juice Pack Branded 200ml
+  BRANDED_CAKE.jpg         Campaign Branded Cake
+  SWEET_BRANDED.jpg        Branded Sweets box 200
+  CATERING_PACKAGE.jpg     Catering Package 100 pax
+  TEA_COFFEE.jpg           Tea and Coffee Service
+  SOFT_DRINK_CRATE.jpg     Soft Drinks Crate 24
+  MINERAL_WATER_CRATE.jpg  Mineral Water Crate 24
+  SNACK_PACK.jpg           Event Snack Pack 100
+  BREAD_SUPPLY.jpg         Event Bread Supply 100
+
+
+── SOCIAL MEDIA ASSETS (10 images) ────────────────────────
+
+  SOCIAL_MEDIA_PACK.jpg    Complete Social Media Brand Pack
+  HASHTAG_CAMPAIGN.jpg     Campaign Hashtag Strategy
+  INFLUENCER_BRIEF.jpg     Influencer Campaign Brief
+  FACEBOOK_ADS.jpg         Facebook Ad Campaign Setup
+  INSTAGRAM_ADS.jpg        Instagram Ad Campaign Setup
+  TWITTER_ADS.jpg          Twitter Ad Campaign Setup
+  TIKTOK_VIDEO.jpg         TikTok Campaign Video 15sec
+  YOUTUBE_AD.jpg           YouTube Pre-Roll Ad
+  GOOGLE_DISPLAY.jpg       Google Display Ad Set
+  CONTENT_CALENDAR.jpg     30-Day Content Calendar
+
+
+── MISCELLANEOUS (15 images) ──────────────────────────────
+
+  GENERATOR_HIRE.jpg       Generator Hire per Day
+  WATER_DISPENSER.jpg      Water Dispenser
+  WATER_CAN.jpg            Branded Water Can 20L
+  RUBBISH_BAGS.jpg         Rubbish Bags pack 50
+  CLEANING_KIT.jpg         Event Cleaning Kit
+  TOILET_HIRE.jpg          Portable Toilet Hire
+  CABLE_TIE_PACK.jpg       Cable Ties pack 100
+  VELCRO_TAPE.jpg          Velcro Tape Roll
+  CONFETTI.jpg             Celebration Confetti 1kg
+  STREAMERS.jpg            Paper Streamers pack 50
+  CAMPAIGN_BOX.jpg         Campaign Materials Box
+  SPRAY_PAINT.jpg          Spray Paint Branded
+  CHALK_PAVEMENT.jpg       Pavement Chalk pack 10
+  NAME_PLATE.jpg           Branded Name Plate
+  SANDWICH_BOARD.jpg       Sandwich Board A-Frame
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 5 — SUMMARY COUNTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Category                  Images needed
+  ─────────────────────────────────────────
+  Printed Materials         30
+  Branded Clothing          25
+  Outdoor Advertising       20
+  Digital Media             20
+  Event Supplies            20
+  Promotional Items         25
+  Audio Equipment           15
+  Stage Equipment           15
+  Stationery                15
+  Security Items            10
+  Communication Tools       10
+  Transport Materials       10
+  Media Production          15
+  Vehicle Branding          10
+  Food & Beverages          10
+  Social Media Assets       10
+  Miscellaneous             15
+  ─────────────────────────────────────────
+  TOTAL campaign materials  275
+
+  Favicon (portals)          5  (or 1 shared — your choice)
+  Party logo + banner        2  (uploaded via portal UI)
+  Candidate photos           1 per candidate (uploaded via UI)
+  ─────────────────────────────────────────
+  GRAND TOTAL static files  275
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 6 — HOW TO UPLOAD TO S3
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Open AWS Console → S3 → votecapsule-campaign-assets
+2. Navigate to: suppliers/me-advertising/images/
+3. Upload all 275 .jpg files
+4. Set: public read access (ACL: public-read) OR
+        use a CloudFront distribution in front of S3
+5. The portal will automatically find them because
+   the URL pattern is hard-coded as:
+   https://s3.amazonaws.com/votecapsule-campaign-assets/
+           suppliers/me-advertising/images/{CODE}.jpg
+
+   If you use CloudFront, update the getS3ImageUrl() helper
+   in these two files:
+     apps/party-web/src/components/ProductImage.tsx
+     apps/candidate-web/src/components/ProductImage.tsx
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 7 — QUICK TIPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+• File names are case-sensitive on S3. Use UPPER_CASE exactly
+  as shown — e.g. A4_POSTER.jpg not a4_poster.jpg.
+
+• If an image is missing for a product, the portal
+  automatically falls back to the built-in coloured SVG icon.
+  Nothing breaks — it just looks less professional.
+
+• You do NOT need all 275 on day one. Start with the most
+  common categories:
+    Priority 1: PRINTED_MATERIALS (posters, flyers, banners)
+    Priority 2: BRANDED_CLOTHING (t-shirts, caps)
+    Priority 3: OUTDOOR_ADVERTISING (billboards, yard signs)
+    Priority 4: PROMOTIONAL_ITEMS (mugs, bags, pens)
+
+• Recommended image sources for generic product photos:
+    - Shutterstock / Getty Images (licensed)
+    - Unsplash / Pexels (free)
+    - Your supplier's actual product photos (best quality)
+    - AI-generated product mockups (fastest)
+
+• You can update any image later simply by uploading a new
+  file with the same name to the same S3 path. CloudFront
+  cache will clear within 24 hours (or use an invalidation).
+
+============================================================
+  END OF DOCUMENT
+============================================================

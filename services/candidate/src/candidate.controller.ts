@@ -432,6 +432,31 @@ export class CandidateController {
   }
 
   /**
+   * POST /candidates/register/bulk
+   * Bulk-register up to 500 candidates in one request.
+   * Each row is processed independently — failures are reported without aborting the batch.
+   * Returns { succeeded: [], failed: [] }
+   * Header: X-Tenant-Id, X-User-Id
+   */
+  @Post('register/bulk')
+  @HttpCode(HttpStatus.CREATED)
+  async bulkRegisterCandidates(
+    @Body() dto: { candidates: RegisterCandidateDto[] },
+    @Headers('x-tenant-id') tenantId: string,
+    @Headers('x-user-id')   userId:   string,
+  ) {
+    if (!tenantId) throw new BadRequestException('X-Tenant-Id header is required');
+    if (!userId)   throw new BadRequestException('X-User-Id header is required');
+    if (!Array.isArray(dto?.candidates) || dto.candidates.length === 0) {
+      throw new BadRequestException('candidates array is required and must not be empty');
+    }
+    if (dto.candidates.length > 500) {
+      throw new BadRequestException('Maximum 500 candidates per bulk upload');
+    }
+    return this.service.bulkRegisterCandidates(dto.candidates, tenantId, userId);
+  }
+
+  /**
    * GET /candidates
    * List candidates with optional filters.
    * Query: electionId, positionId, partyId, countyCode,

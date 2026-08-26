@@ -16,12 +16,14 @@ export class SuppliersController {
     @Headers('x-tenant-id')      t: string,
     @Headers('x-platform-admin') platformAdmin: string,
   ) {
-    // Platform admin sees all suppliers across all tenants
+    // Platform admin sees all suppliers across all tenants (raw admin view)
     if (platformAdmin === 'true') {
       return this.service.listAll();
     }
-    if (!t) throw new BadRequestException('X-Tenant-Id required');
-    return this.service.list(t);
+    // All authenticated portal users: return their tenant suppliers + global shared suppliers.
+    // x-tenant-id may be absent for campaign team members with geo-scoped roles —
+    // fall back to global-only in that case (still shows Me Advertising catalogue).
+    return this.service.list(t || 'c3d4e5f6-a7b8-9012-cdef-123456789012');
   }
 
   @Post()

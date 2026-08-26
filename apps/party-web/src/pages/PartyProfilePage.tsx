@@ -220,8 +220,8 @@ function PartyProfilePageContent(): React.JSX.Element {
   useEffect(() => {
     if (!tenantId) return;
     Promise.all([
-      apiClient.get(`/tenant/${tenantId}/kyc`).then(r => r.data?.data ?? r.data).catch(() => null),
-      apiClient.get(`/tenant/${tenantId}/branding`).then(r => r.data?.data ?? r.data).catch(() => null),
+      apiClient.get(`/tenant/tenants/${tenantId}/kyc`).then(r => r.data?.data ?? r.data).catch(() => null),
+      apiClient.get(`/tenant/tenants/${tenantId}/branding`).then(r => r.data?.data ?? r.data).catch(() => null),
     ]).then(([kycData, brandData]) => {
       if (kycData) {
         setKyc({
@@ -257,7 +257,7 @@ function PartyProfilePageContent(): React.JSX.Element {
         const formData = new FormData();
         formData.append('file', logoFile);
         formData.append('type', 'logo');
-        const res = await apiClient.post(`/tenant/${tenantId}/upload`, formData, {
+        const res = await apiClient.post(`/tenant/tenants/${tenantId}/upload`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
         logoUrl = res.data?.url ?? res.data?.data?.url ?? logoUrl;
@@ -267,14 +267,14 @@ function PartyProfilePageContent(): React.JSX.Element {
         const formData = new FormData();
         formData.append('file', bannerFile);
         formData.append('type', 'banner');
-        const res = await apiClient.post(`/tenant/${tenantId}/upload`, formData, {
+        const res = await apiClient.post(`/tenant/tenants/${tenantId}/upload`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
         bannerUrl = res.data?.url ?? res.data?.data?.url ?? bannerUrl;
       }
 
       // Save branding
-      await apiClient.patch(`/tenant/${tenantId}/branding`, {
+      await apiClient.patch(`/tenant/tenants/${tenantId}/branding`, {
         logoUrl,
         bannerUrl,
         primaryColor: branding.primaryColor,
@@ -282,7 +282,7 @@ function PartyProfilePageContent(): React.JSX.Element {
       });
 
       // Save KYC (mutable fields only)
-      await apiClient.patch(`/tenant/${tenantId}/kyc`, {
+      await apiClient.patch(`/tenant/tenants/${tenantId}/kyc`, {
         slogan: kyc.slogan,
         headOfficeAddress: kyc.headOfficeAddress,
         postalAddress: kyc.postalAddress,

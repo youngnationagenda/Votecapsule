@@ -19,6 +19,8 @@ export class CampaignMaterialType {
   @Column({ type: 'text', nullable: true }) description: string | null;
   @Column({ type: 'varchar', length: 500, name: 'thumbnail_key', nullable: true }) thumbnailKey: string | null;
   @Column({ type: 'varchar', length: 500, name: 'preview_key', nullable: true }) previewKey: string | null;
+  /** Full S3 URL — source of truth for catalogue images (thumbnail_key is legacy/unused) */
+  @Column({ type: 'varchar', length: 1000, name: 'thumbnail_url', nullable: true }) thumbnailUrl: string | null;
   @Column({ type: 'jsonb', name: 'available_sizes', default: '[]' }) availableSizes: Record<string, unknown>[];
   @Column({ type: 'jsonb', default: '{}' }) specifications: Record<string, unknown>;
   @Column({ type: 'jsonb', name: 'branding_zones', default: '[]' }) brandingZones: Record<string, unknown>[];

@@ -276,73 +276,41 @@ aws cloudfront create-invalidation --distribution-id <DIST_ID> --paths "/*"
 
 **Problem:** Both the Identity service and Tenant service have `JwtAuthGuard` that validates tokens using a local `JWT_SECRET` (HS256). However, ALL portals send Cognito RS256 tokens. The API Gateway Lambda Authorizer already validates these Cognito tokens, so re-validating is REDUNDANT and causes 401s.
 
-**CTO HAS ALREADY FIXED THIS IN CODE:**
-- **Identity Service**: All controllers already use `GatewayAuthGuard` (check `services/identity/src/auth/guards/gateway-auth.guard.ts`)
-- **Tenant Service**: All 3 controllers (tenants, subscriptions, members) now use `GatewayAuthGuard` (check `services/tenant/src/common/guards/gateway-auth.guard.ts`)
+**STATUS: CODE IS DONE — JUST DEPLOY.**
 
-**Your only task: DEPLOY both services.**
+CTO has already completed ALL code changes:
+- **Identity Service**: All controllers use `GatewayAuthGuard` (see `services/identity/src/auth/guards/gateway-auth.guard.ts`)
+- **Tenant Service**: All 3 controllers (tenants, subscriptions, members) use `GatewayAuthGuard` (see `services/tenant/src/common/guards/gateway-auth.guard.ts`)
 
-**Affected endpoints (ALL cause immediate portal logout when accessed):**
-- `GET /identity/users` — was UsersController
-- `POST /identity/invitations` — was InvitationsController
-- `GET /tenant/tenants/:id/nomination-limits` — was TenantsController ← **CAUSES NOMINATIONS PAGE CRASH**
-- `GET /tenant/tenants/:id/subscription` — was SubscriptionsController
-- `GET /tenant/tenants/:id/members` — was MembersController
+**What you need to do:**
 
-**Endpoints that work fine (NO guard — trust gateway headers):**
-- `POST /identity/auth/login` ✓
-- `POST /identity/auth/refresh` ✓
-- `POST /identity/auth/mfa/verify` ✓
-- `GET/POST/PATCH/DELETE /identity/assignments/*` ✓
+```bash
+# 1. Deploy Identity Service
+docker build -t 683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/identity-service:latest \
+  -f services/identity/Dockerfile .
+docker push 683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/identity-service:latest
+aws ecs update-service --cluster vote-capsule-services --service vc-identity --force-new-deployment
 
-**Fix — Option A (Recommended): Remove JwtAuthGuard, trust the Gateway**
-
-Since these endpoints sit behind the API Gateway which already validates Cognito tokens, the internal JwtAuthGuard is redundant. Replace it with a lightweight header-check guard that just verifies `x-user-id` and `x-user-role` headers are present (injected by the Lambda authorizer):
-
-```typescript
-// services/identity/src/auth/guards/gateway-auth.guard.ts
-import { Injectable, CanActivate, ExecutionContext, UnauthorizedException } from '@nestjs/common';
-
-@Injectable()
-export class GatewayAuthGuard implements CanActivate {
-  canActivate(context: ExecutionContext): boolean {
-    const req = context.switchToHttp().getRequest();
-    const userId = req.headers['x-user-id'];
-    if (!userId) throw new UnauthorizedException('Missing x-user-id header — request must pass through API Gateway');
-    return true;
-  }
-}
+# 2. Deploy Tenant Service
+docker build -t 683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/tenant-service:latest \
+  -f services/tenant/Dockerfile .
+docker push 683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/tenant-service:latest
+aws ecs update-service --cluster vote-capsule-services --service vc-tenant --force-new-deployment
 ```
 
-Then replace `JwtAuthGuard` with `GatewayAuthGuard` in:
-- `services/identity/src/users/users.controller.ts` (line 51)
-- `services/identity/src/invitations/invitations.controller.ts` (lines 41, 56, 73, 88)
-- `services/identity/src/roles/roles.controller.ts` (line 37)
-- `services/identity/src/devices/devices.controller.ts` (line 34)
-
-Keep the `RolesGuard` — it reads `x-user-role` header and checks permissions. Just remove the JWT re-validation.
-
-**Fix — Option B: Make JwtAuthGuard validate Cognito RS256 tokens**
-
-Modify `services/identity/src/auth/guards/jwt-auth.guard.ts` to use `jwks-rsa` to verify against the Cognito JWKS endpoint:
-
-```typescript
-import * as jwksRsa from 'jwks-rsa';
-import * as jwt from 'jsonwebtoken';
-
-const client = jwksRsa({
-  jwksUri: 'https://cognito-idp.us-east-1.amazonaws.com/us-east-1_i3N2tg34A/.well-known/jwks.json',
-  cache: true,
-  rateLimit: true,
-});
-
-// In the guard's validate method:
-const decoded = jwt.decode(token, { complete: true });
-const key = await client.getSigningKey(decoded.header.kid);
-const verified = jwt.verify(token, key.getPublicKey(), { algorithms: ['RS256'] });
+**Verify after deploy:**
+```bash
+# These should return 200, NOT 401:
+curl -H "x-user-id: test" -H "x-user-role: PARTY_ADMIN" -H "x-tenant-id: any" \
+  https://api.votecapsule.co.ke/api/v1/tenant/tenants/ANY_ID/nomination-limits
 ```
 
-**Recommendation: Go with Option A.** It's simpler, faster, and eliminates the redundant validation. The API Gateway is the security boundary — services behind it should trust its headers.
+**Affected endpoints (ALL were causing logout, now fixed in code):**
+- `GET /identity/users` — UsersController
+- `POST /identity/invitations` — InvitationsController
+- `GET /tenant/tenants/:id/nomination-limits` — TenantsController ← **caused Nominations page crash**
+- `GET /tenant/tenants/:id/subscription` — SubscriptionsController
+- `GET /tenant/tenants/:id/members` — MembersController
 
 ---
 
@@ -395,24 +363,39 @@ The frontend `ProductImage` component handles missing images gracefully (shows i
 
 ---
 
-## UPDATED Summary Checklist
+## UPDATED Summary Checklist (as of 2026-08-26 deep audit)
 
-| # | Task | Priority | Blocking? |
-|---|------|----------|-----------|
-| **11** | **Fix Identity JwtAuthGuard (Option A — GatewayAuthGuard)** | **CRITICAL** | **Yes — Coordinators page, Invitations, Roles pages ALL broken** |
-| **12** | **Deploy ALL 5 frontend portals** | **CRITICAL** | **Yes — token refresh + campaign creation won't work until deployed** |
-| 1 | Add CORS headers to API Gateway | HIGH | Yes — browsers will reject |
-| 5 | Run migrations 134-142 on production | HIGH | Yes — tables must exist |
-| 6 | Deploy campaign service image | HIGH | Yes — latest code must be live |
-| 2 | Identity Service: `PATCH /users/:id/attributes` endpoint | HIGH | Yes — roles won't propagate to JWT |
-| 3 | Campaign service: call identity after assignRole | HIGH | Yes — roles won't propagate |
-| 13 | Upload product images to S3 | MED | No — fallback icons work |
-| 7 | Verify canvas/sharp deps in Dockerfile | MED | Design mockups will fail without |
-| 8 | S3 CORS for campaign assets bucket | MED | Preview images won't load |
-| 9 | IAM: verify AdminUpdateUserAttributes | MED | Role sync will 403 |
-| 4 | Verify ALB routing for campaign service | LOW | Probably already done |
+| # | Task | Priority | CTO Status | Sonie Status |
+|---|------|----------|------------|--------------|
+| **11** | **Deploy Identity + Tenant services (GatewayAuthGuard)** | **CRITICAL** | **CODE DONE** | **DEPLOY NEEDED** |
+| **12** | **Deploy ALL 5 frontend portals** | **CRITICAL** | **CODE DONE** | **DEPLOY NEEDED** |
+| 5 | Run migrations 134-142 on production | HIGH | CODE DONE | DEPLOY NEEDED |
+| 1 | Add CORS headers to API Gateway | HIGH | N/A | AWS CLI command ready |
+| 6 | Deploy campaign service image | HIGH | CODE DONE | DEPLOY NEEDED |
+| 2 | Identity Service: `PATCH /users/:id/attributes` endpoint | HIGH | TODO | BUILD NEEDED |
+| 3 | Campaign service: call identity after assignRole | HIGH | TODO | BUILD NEEDED |
+| 13 | Upload product images to S3 | MED | N/A | OPTIONAL (fallback icons work) |
+| 7 | Verify canvas/sharp deps in Dockerfile | MED | N/A | CHECK |
+| 8 | S3 CORS for campaign assets bucket | MED | N/A | AWS CLI command ready |
+| 9 | IAM: verify AdminUpdateUserAttributes | MED | N/A | CHECK |
+| 4 | Verify ALB routing for campaign service | LOW | N/A | Probably already done |
 
-**Order of operations:** **11 → 12 → 5 → 1** → 6 → 2 → 3 → 7 → 8 → 9 → 13 → 4
+**Order of operations:** **11 → 5 → 6 → 12 → 1** → 2 → 3 → 7 → 8 → 9 → 13 → 4
+
+### What CTO fixed in the deep audit (2026-08-26):
+
+**All 5 portals audited — fixes applied:**
+
+1. **observer-web**: Login was BROKEN — request interceptor blocked all POSTs including `/identity/auth/login`. Fixed by adding auth paths to whitelist.
+2. **party-web**: 12 wrong tenant API paths (missing `/tenants/` segment) in PartyProfilePage, PartyOfficialsPage, SocialMediaPage. Fixed.
+3. **party-web**: All nomination/election paths fixed (`/candidate/nominations` → `/candidate/candidates/nominations`).
+4. **admin-web**: Wrong nomination path in ElectionsPage (`/nominations` → `/candidates/nominations`). Fixed.
+5. **admin-web**: Wrong client for member deletion (identityClient → tenantClient). Fixed.
+6. **candidate-web**: `/team` route now redirects to `/campaign/team` (old page called admin-only Identity endpoint). Fixed.
+
+**Zero debug statements (console.log)** across all 5 portals.
+**Zero broken imports** — all lazy page loads resolve.
+**All icons correctly imported** from lucide-react.
 
 ---
 

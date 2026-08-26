@@ -203,7 +203,7 @@ export class ElectionController {
     @Query('limit') limit?: string,
   ) {
     if (!q) throw new BadRequestException('Query param "q" is required');
-    return this.service.listPollingStations({});  // search handled via get below
+    return this.service.searchStations(q, limit ? parseInt(limit, 10) : 20);
   }
 
   /**

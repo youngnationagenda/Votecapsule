@@ -281,7 +281,9 @@ export function InviteUserModal({ onClose }: Props): React.JSX.Element {
             <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg p-3">
               <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
               <p className="text-sm text-red-700">
-                {(mutation.error as Error)?.message ?? 'Failed to create user. Please try again.'}
+                {(mutation.error as any)?.response?.status === 409
+                  ? 'A user with this email already exists in the system.'
+                  : (mutation.error as Error)?.message ?? 'Failed to create user. Please try again.'}
               </p>
             </div>
           )}

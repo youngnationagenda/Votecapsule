@@ -6,6 +6,7 @@ import React from 'react';
 import { Bell, Search, User, LogOut } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { logout } from '../../store/slices/authSlice';
+import { identityClient } from '../../api/apiClient';
 import { useNavigate } from 'react-router-dom';
 
 export function TopHeader(): React.JSX.Element {
@@ -13,7 +14,8 @@ export function TopHeader(): React.JSX.Element {
   const navigate = useNavigate();
   const user = useAppSelector((state) => state.auth.user);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try { await identityClient.post('/auth/logout', {}); } catch { /* non-fatal */ }
     dispatch(logout());
     navigate('/login');
   };

@@ -88,6 +88,16 @@ export class UsersService {
     );
     const total = parseInt(countResult.rows[0]?.count ?? '0', 10);
 
+    // sortBy and sortOrder are validated against whitelists above — safe to interpolate
+    // (no user-supplied values reach this point without going through the whitelist check)
+    const validSortColumns: Record<string, string> = {
+      email:      'u.email',
+      created_at: 'u.created_at',
+      status:     'u.status',
+    };
+    const orderCol   = validSortColumns[sortBy] ?? 'u.created_at';
+    const orderDir   = sortOrder === 'ASC' ? 'ASC' : 'DESC';
+
     const result = await this.db.query<User>(
       `SELECT u.id, u.email, u.email_verified as "emailVerified", u.cognito_sub as "cognitoSub",
               u.status, u.last_login_at as "lastLoginAt", u.created_at as "createdAt",
@@ -104,7 +114,7 @@ export class UsersService {
                WHERE tm.user_id = u.id AND tm.status = 'active'
                LIMIT 1) as "tenantId"
        FROM users u WHERE u.deleted_at IS NULL
-       ORDER BY u.${sortBy} ${sortOrder}
+       ORDER BY ${orderCol} ${orderDir}
        LIMIT $1 OFFSET $2`,
       [limit, offset],
     );

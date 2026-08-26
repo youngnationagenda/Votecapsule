@@ -49,7 +49,7 @@ function IncidentTrackingPageContent(): React.JSX.Element {
             <thead><tr><th>Title</th><th>Station</th><th>Severity</th><th>Logged At</th><th>Status</th></tr></thead>
             <tbody>
               {incidents.map((inc: any) => (
-                <tr key={inc.id}><td className="font-medium">{inc.title}</td><td className="font-mono text-xs">{inc.pollingStationCode ?? '—'}</td><td><span className={`vc-badge ${severityBadge[inc.severity] ?? 'bg-gray-100'}`}>{inc.severity}</span></td><td className="text-xs">{inc.createdAt ? new Date(inc.createdAt).toLocaleString() : '—'}</td><td><span className="vc-badge bg-blue-100 text-blue-700">{inc.status ?? 'OPEN'}</span></td></tr>
+                <tr key={inc.id}><td className="font-medium">{inc.metadata?.title ?? inc.action ?? '—'}</td><td className="font-mono text-xs">{inc.metadata?.pollingStationCode ?? '—'}</td><td><span className={`vc-badge ${severityBadge[inc.metadata?.severity ?? 'MEDIUM'] ?? 'bg-gray-100'}`}>{inc.metadata?.severity ?? 'MEDIUM'}</span></td><td className="text-xs">{inc.createdAt ? new Date(inc.createdAt).toLocaleString() : '—'}</td><td><span className="vc-badge bg-blue-100 text-blue-700">{inc.status ?? 'OPEN'}</span></td></tr>
               ))}
             </tbody>
           </table>

@@ -6,12 +6,36 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://483uyy43nc.execut
 
 export const apiClient = axios.create({ baseURL: BASE_URL, timeout: 30_000, headers: { 'Content-Type': 'application/json' } });
 
-// Observer — read-only. No write operations permitted.
+/**
+ * Observer portal write policy:
+ *  - All mutating methods (POST/PUT/PATCH/DELETE) are blocked by default.
+ *  - Exception: POST /audit/logs is permitted so observers can log field incidents.
+ *    This is a write to audit trail only — it does not modify election data.
+ */
+const ALLOWED_WRITE_PATHS = [
+  '/audit/logs',
+  '/identity/auth/login',
+  '/identity/auth/refresh',
+  '/identity/auth/mfa/verify',
+];
+
+// Observer — strictly read-only with narrow audit write exception + auth paths.
 apiClient.interceptors.request.use((config) => {
-  const token = store.getState().auth.accessToken;
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  if (['POST','PUT','PATCH','DELETE'].includes(config.method?.toUpperCase() ?? '')) {
-    console.warn('[Observer Portal] Write operation blocked by policy:', config.method, config.url);
+  const { auth } = store.getState();
+  if (auth.accessToken)         config.headers.Authorization  = `Bearer ${auth.accessToken}`;
+  if (auth.user?.tenantId)      config.headers['x-tenant-id'] = auth.user.tenantId;
+  if (auth.user?.id)            config.headers['x-user-id']   = auth.user.id;
+  if (auth.user?.roles?.length) config.headers['x-user-role'] = auth.user.roles[0];
+
+  const method  = config.method?.toUpperCase() ?? '';
+  const url     = config.url ?? '';
+  const isWrite = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
+  const isAllowedWrite = ALLOWED_WRITE_PATHS.some((p) => url.includes(p));
+
+  if (isWrite && !isAllowedWrite) {
+    return Promise.reject(
+      new Error(`[Observer Portal] Mutating request blocked: ${method} ${url}`)
+    );
   }
   return config;
 });

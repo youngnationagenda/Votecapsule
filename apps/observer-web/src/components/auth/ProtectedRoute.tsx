@@ -2,8 +2,21 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAppSelector } from '../../store/hooks';
 
-/** Required roles for observer portal (read-only) */
-const REQUIRED_ROLES = ['OBSERVER', 'ELECTION_AUTHORITY', 'SUPER_ADMIN', 'PLATFORM_SUPER_ADMIN'];
+/**
+ * Required roles for observer portal (read-only).
+ * OBSERVER_ADMIN is the canonical DB role (packages/types SystemRole enum).
+ * OBSERVER and OBSERVER_AGENT are additional recognised values.
+ * ELECTION_COMMISSIONER allows authority staff to view observer dashboards.
+ */
+const REQUIRED_ROLES = [
+  'OBSERVER_ADMIN',          // canonical DB role
+  'OBSERVER_AGENT',          // observer field agent
+  'OBSERVER',                // legacy alias
+  'ELECTION_COMMISSIONER',   // canonical authority role
+  'ELECTION_AUTHORITY',      // legacy alias
+  'SUPER_ADMIN',
+  'PLATFORM_SUPER_ADMIN',
+];
 
 export function ProtectedRoute(): React.JSX.Element {
   const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated);

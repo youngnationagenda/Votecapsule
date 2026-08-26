@@ -157,15 +157,39 @@ export const MOBILE_ROLES: SystemRole[] = [
 ];
 
 // ── Role → human label mapping ─────────────────────────────────
+// Includes BOTH the enum names used in the frontend AND the actual
+// DB role names (which differ in some cases) so user badges render
+// correctly regardless of which format is stored.
 export const ROLE_LABELS: Record<string, { label: string; color: string; emoji: string }> = {
-  CAPSULE_AGENT:        { label: 'Field Agent',          color: 'bg-blue-50 text-blue-700',    emoji: '📷' },
-  VALIDATOR:            { label: 'Validator',             color: 'bg-purple-50 text-purple-700', emoji: '🔍' },
-  OBSERVER:             { label: 'Observer',              color: 'bg-teal-50 text-teal-700',    emoji: '👁️' },
-  CANDIDATE:            { label: 'Candidate',             color: 'bg-orange-50 text-orange-700', emoji: '🏛️' },
-  PARTY_ADMIN:          { label: 'Party Admin',           color: 'bg-pink-50 text-pink-700',    emoji: '🎗️' },
-  TENANT_ADMIN:         { label: 'Tenant Admin',          color: 'bg-indigo-50 text-indigo-700', emoji: '🏢' },
-  ELECTION_AUTHORITY:   { label: 'Election Authority',    color: 'bg-amber-50 text-amber-700',  emoji: '⚖️' },
-  RETURNING_OFFICER:    { label: 'Returning Officer',     color: 'bg-cyan-50 text-cyan-700',    emoji: '📋' },
-  SUPPORT_ADMIN:        { label: 'Support Admin',         color: 'bg-slate-50 text-slate-700',  emoji: '🛠️' },
-  PLATFORM_SUPER_ADMIN: { label: 'Super Admin',           color: 'bg-red-50 text-red-700',      emoji: '👑' },
+  // Standard system roles
+  CAPSULE_AGENT:              { label: 'Field Agent',           color: 'bg-blue-50 text-blue-700',    emoji: '📷' },
+  VALIDATOR:                  { label: 'Validator',              color: 'bg-purple-50 text-purple-700', emoji: '🔍' },
+  OBSERVER:                   { label: 'Observer',               color: 'bg-teal-50 text-teal-700',    emoji: '👁️' },
+  OBSERVER_ADMIN:             { label: 'Observer Admin',         color: 'bg-teal-50 text-teal-700',    emoji: '👁️' },
+  CANDIDATE:                  { label: 'Candidate',              color: 'bg-orange-50 text-orange-700', emoji: '🏛️' },
+  PARTY_ADMIN:                { label: 'Party Admin',            color: 'bg-pink-50 text-pink-700',    emoji: '🎗️' },
+  TENANT_ADMIN:               { label: 'Tenant Admin',           color: 'bg-indigo-50 text-indigo-700', emoji: '🏢' },
+  ELECTION_AUTHORITY:         { label: 'Election Authority',     color: 'bg-amber-50 text-amber-700',  emoji: '⚖️' },
+  ELECTION_COMMISSIONER:      { label: 'Election Commissioner',  color: 'bg-amber-50 text-amber-700',  emoji: '⚖️' },
+  RETURNING_OFFICER:          { label: 'Returning Officer',      color: 'bg-cyan-50 text-cyan-700',    emoji: '📋' },
+  PRESIDING_OFFICER:          { label: 'Presiding Officer',      color: 'bg-cyan-50 text-cyan-700',    emoji: '📋' },
+  SUPPORT_ADMIN:              { label: 'Support Admin',          color: 'bg-slate-50 text-slate-700',  emoji: '🛠️' },
+  PLATFORM_SUPER_ADMIN:       { label: 'Super Admin',            color: 'bg-red-50 text-red-700',      emoji: '👑' },
+  // Campaign roles
+  CAMPAIGN_MANAGER:           { label: 'Campaign Manager',       color: 'bg-violet-50 text-violet-700', emoji: '🎯' },
+  PARTY_CAMPAIGN_DIRECTOR:    { label: 'Campaign Director',      color: 'bg-violet-50 text-violet-700', emoji: '🏆' },
+  CANDIDATE_CAMPAIGN_PRINCIPAL:{ label: 'Campaign Principal',    color: 'bg-violet-50 text-violet-700', emoji: '🗳️' },
+  WARD_COORDINATOR:           { label: 'Ward Coordinator',       color: 'bg-emerald-50 text-emerald-700', emoji: '📍' },
+  CONSTITUENCY_COORDINATOR:   { label: 'Constituency Coord.',    color: 'bg-emerald-50 text-emerald-700', emoji: '📍' },
+  LOGISTICS_OFFICER:          { label: 'Logistics Officer',      color: 'bg-yellow-50 text-yellow-700', emoji: '🚛' },
+  FINANCE_OFFICER:            { label: 'Finance Officer',        color: 'bg-green-50 text-green-700',  emoji: '💰' },
+  COMMUNICATIONS_OFFICER:     { label: 'Communications Officer', color: 'bg-sky-50 text-sky-700',      emoji: '📡' },
+  BRAND_MANAGER:              { label: 'Brand Manager',          color: 'bg-rose-50 text-rose-700',    emoji: '🎨' },
+  CAMPAIGN_VOLUNTEER:         { label: 'Volunteer',              color: 'bg-gray-50 text-gray-600',    emoji: '🤝' },
+  // Media roles
+  MEDIA_ADMIN:                { label: 'Media Admin',            color: 'bg-sky-50 text-sky-700',      emoji: '📺' },
+  MEDIA_REPORTER:             { label: 'Media Reporter',         color: 'bg-sky-50 text-sky-700',      emoji: '🎙️' },
+  // Other
+  PUBLIC:                     { label: 'Public',                 color: 'bg-gray-50 text-gray-500',    emoji: '👤' },
+  PARTY_AGENT:                { label: 'Party Agent',            color: 'bg-pink-50 text-pink-700',    emoji: '🎗️' },
 };

@@ -451,18 +451,24 @@ function MyMaterialsContent(): React.JSX.Element {
   });
   const campaign = campaigns.find((c: any) => c.status === 'active') ?? campaigns[0];
 
-  // Material categories
+  // Material categories — backend returns raw array
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ['material-categories'],
-    queryFn: () => campaignApi.materials.listCategories().then((r: any) => r.data?.data ?? r.data ?? []),
+    queryFn: () => campaignApi.materials.listCategories().then((r: any) => {
+      const d = r.data;
+      return Array.isArray(d) ? d : (d?.data ?? []);
+    }),
   });
 
-  // Material types
+  // Material types — backend returns raw array with thumbnailUrl
   const { data: types = [], isLoading } = useQuery<MaterialType[]>({
     queryKey: ['material-types', selectedCat],
     queryFn: () => campaignApi.materials.listTypes(
       selectedCat !== 'all' ? { category: selectedCat } : undefined
-    ).then((r: any) => r.data?.data ?? r.data ?? []),
+    ).then((r: any) => {
+      const d = r.data;
+      return Array.isArray(d) ? d : (d?.data ?? []);
+    }),
   });
 
   const filtered = useMemo(() => {

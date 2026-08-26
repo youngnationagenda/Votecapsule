@@ -83,11 +83,15 @@ export class EvidenceController {
    */
   @Get('capsules')
   async listCapsules(
-    @Query('stationCode') stationCode?: string,
+    @Query('stationCode')  stationCode?:  string,
     @Query('positionCode') positionCode?: string,
-    @Query('countyCode') countyCode?: string,
-    @Query('status') status?: string,
+    @Query('countyCode')   countyCode?:   string,
+    @Query('status')       status?:       string,
+    @Query('tenantId')     tenantId?:     string,
+    @Query('limit')        limit?:        string,
+    @Query('page')         page?:         string,
   ) {
+    // Narrowed queries — use optimised service methods
     if (stationCode) {
       return this.evidenceService.getCapsulesByStation(stationCode, positionCode);
     }
@@ -97,9 +101,8 @@ export class EvidenceController {
         status as CapsuleStatus | undefined,
       );
     }
-    throw new BadRequestException(
-      'At least one query parameter required: stationCode or countyCode'
-    );
+    // Generic list — used by admin portal (no station/county filter required)
+    return this.evidenceService.getStats(tenantId);
   }
 
   /**

@@ -34,7 +34,7 @@ const isTokenLikelyValid = stored && expiryTime > Date.now();
 
 const initialState: AuthState = {
   isAuthenticated: !!isTokenLikelyValid,
-  user: storedUser ? JSON.parse(storedUser) : null,
+  user: isTokenLikelyValid && storedUser ? JSON.parse(storedUser) : null,
   accessToken: isTokenLikelyValid ? stored : null,
   refreshToken: storedRefresh,
   tokenExpiresAt: expiryTime || null,

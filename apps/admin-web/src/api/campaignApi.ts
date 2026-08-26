@@ -112,10 +112,11 @@ function unwrap<T>(body: unknown): T {
   return body as T;
 }
 
-// Headers for super admin — no tenant scoping (sees all)
+// Headers for super admin — no tenant scoping (sees all tenants).
+// x-user-id is pulled from localStorage so the real user UUID is attributed in audit logs.
 const adminHeaders = () => ({
   'x-tenant-id': 'platform',
-  'x-user-id':   'admin',
+  'x-user-id':   localStorage.getItem('vc_user_id') ?? 'platform-admin',
 });
 
 export const campaignApi = {

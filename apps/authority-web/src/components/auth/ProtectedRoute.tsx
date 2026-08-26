@@ -2,8 +2,18 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAppSelector } from '../../store/hooks';
 
-/** Required roles for authority portal (IEBC staff) */
-const REQUIRED_ROLES = ['ELECTION_AUTHORITY', 'RETURNING_OFFICER', 'SUPER_ADMIN', 'PLATFORM_SUPER_ADMIN'];
+/**
+ * Required roles for authority portal (IEBC staff).
+ * ELECTION_COMMISSIONER is the canonical DB role (packages/types SystemRole enum).
+ * ELECTION_AUTHORITY is the legacy alias kept for backward-compat during auth hydration.
+ */
+const REQUIRED_ROLES = [
+  'ELECTION_COMMISSIONER',   // canonical DB role
+  'ELECTION_AUTHORITY',      // legacy alias — some Cognito tokens still carry this value
+  'RETURNING_OFFICER',
+  'SUPER_ADMIN',
+  'PLATFORM_SUPER_ADMIN',
+];
 
 export function ProtectedRoute(): React.JSX.Element {
   const isAuthenticated = useAppSelector((s) => s.auth.isAuthenticated);

@@ -425,40 +425,12 @@ function MySupplierCatalogueContent(): React.JSX.Element {
     queryFn: () => campaignApi.materials.listCategories().then((r: any) => r.data?.data ?? r.data ?? []),
   });
 
-  // Supplier products
+  // Supplier products — via correct suppliers API with material type enrichment
   const { data: products = [], isLoading } = useQuery<SupplierProduct[]>({
     queryKey: ['supplier-products', selectedCat],
-    queryFn: () => {
-      const params: any = { includeSupplier: true };
-      if (selectedCat !== 'all') params.category = selectedCat;
-      return campaignApi.materials.listTypes(params).then((r: any) => {
-        const raw = r.data?.supplierProducts ?? r.data?.data ?? r.data ?? [];
-        return raw.map((item: any) => ({
-          id: item.supplierProductId || item.id,
-          supplierId: item.supplierId || '',
-          materialTypeId: item.materialTypeId || item.id,
-          supplierProductName: item.supplierProductName || item.name,
-          supplierSku: item.supplierSku || item.code,
-          unitPrice: item.unitPrice ?? item.typicalCostMin ?? null,
-          currency: item.currency || 'KES',
-          bulkPrice: item.bulkPrice ?? null,
-          bulkMinQuantity: item.bulkMinQuantity ?? null,
-          productUrl: item.productUrl || '',
-          imageUrl: item.imageUrl || item.thumbnailUrl || null,
-          description: item.description || '',
-          specifications: item.specifications || {},
-          isAvailable: item.isAvailable ?? true,
-          leadTimeDays: item.leadTimeDays ?? null,
-          metadata: item.metadata || {},
-          materialTypeName: item.materialTypeName || item.name,
-          materialTypeCode: item.materialTypeCode || item.code,
-          categoryCode: item.categoryCode || '',
-          categoryName: item.categoryName || '',
-          minOrderQuantity: item.minOrderQuantity || 50,
-          unit: item.unit || 'piece',
-        }));
-      });
-    },
+    queryFn: () => campaignApi.suppliers.listAllProducts(
+      selectedCat !== 'all' ? selectedCat : undefined
+    ),
   });
 
   // Filter + sort

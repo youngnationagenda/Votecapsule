@@ -19,10 +19,20 @@ export class SuppliersService {
   ) {}
 
   async list(tenantId: string): Promise<CampaignSupplier[]> {
-    return this.repo.find({
-      where: { tenantId, isActive: true },
-      order: { companyName: 'ASC' },
-    });
+    // Return tenant-specific suppliers first, then fall back to global (platform) suppliers.
+    // Global suppliers are seeded with the YNA demo tenant ID (c3d4e5f6-a7b8-9012-cdef-123456789012)
+    // and are visible to ALL tenants since Me Advertising is the platform-wide catalogue.
+    const PLATFORM_TENANT_ID = 'c3d4e5f6-a7b8-9012-cdef-123456789012';
+    const tenantIds = [tenantId];
+    if (tenantId !== PLATFORM_TENANT_ID) {
+      tenantIds.push(PLATFORM_TENANT_ID); // always include global suppliers
+    }
+    return this.repo
+      .createQueryBuilder('s')
+      .where('s.tenant_id = ANY(:ids)', { ids: tenantIds })
+      .andWhere('s.is_active = true')
+      .orderBy('s.company_name', 'ASC')
+      .getMany();
   }
 
   async listAll(): Promise<CampaignSupplier[]> {

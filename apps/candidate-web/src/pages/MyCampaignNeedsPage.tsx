@@ -82,17 +82,21 @@ function AddNeedModal({ wardCount, voters, stations, onAdd, onClose }: {
   const [priority, setPriority] = useState<'critical' | 'high' | 'medium' | 'low'>('medium');
   const [notes, setNotes] = useState('');
 
-  const { data: categories = [] } = useQuery({
+  const { data: categories = [], isLoading: catsLoading } = useQuery({
     queryKey: ['material-categories'],
     queryFn: () => campaignApi.materials.listCategories().then(r => r.data?.data ?? r.data ?? []),
+    retry: 1,
+    staleTime: 5 * 60_000,
   });
 
-  const { data: types = [] } = useQuery({
+  const { data: types = [], isLoading: typesLoading, isError: typesError } = useQuery({
     queryKey: ['material-types'],
     queryFn: () => campaignApi.materials.listTypes().then(r => r.data?.data ?? r.data ?? []),
+    retry: 1,
+    staleTime: 5 * 60_000,
   });
 
-  const filteredTypes = catFilter === 'all' ? types : types.filter((t: any) => t.categoryId === catFilter || t.categoryCode === catFilter);
+  const filteredTypes = catFilter === 'all' ? types : types.filter((t: any) => t.categoryId === catFilter || t.category?.id === catFilter || t.category?.code === catFilter);
 
   const handleSelect = (t: any) => {
     setSelected(t);
@@ -102,12 +106,12 @@ function AddNeedModal({ wardCount, voters, stations, onAdd, onClose }: {
 
   const handleSubmit = () => {
     if (!selectedType) return;
-    const cost = selectedType.typicalCostMin ?? 0;
+    const cost = Number(selectedType.typicalCostMin) || 0;
     onAdd({
       materialTypeId: selectedType.id,
       materialTypeName: selectedType.name,
       materialTypeCode: selectedType.code,
-      categoryName: selectedType.categoryName ?? '',
+      categoryName: selectedType.category?.name ?? selectedType.categoryName ?? '',
       quantity,
       recommendedQty: calculateRecommended(selectedType.code, wardCount, voters, stations),
       unitCost: cost,
@@ -140,6 +144,22 @@ function AddNeedModal({ wardCount, voters, stations, onAdd, onClose }: {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Material Type *</label>
             <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-xl">
+              {filteredTypes.length === 0 && (
+                <div className="px-3 py-4 text-center text-sm text-gray-400">
+                  {typesLoading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="w-3 h-3 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin" />
+                      Loading materials…
+                    </span>
+                  ) : typesError ? (
+                    <span className="text-red-500">Failed to load materials. Check that Campaign service is running.</span>
+                  ) : types.length === 0 ? (
+                    'No materials found — migration may not have run yet.'
+                  ) : (
+                    'No items in this category'
+                  )}
+                </div>
+              )}
               {filteredTypes.map((t: any) => (
                 <button
                   key={t.id}
@@ -150,9 +170,9 @@ function AddNeedModal({ wardCount, voters, stations, onAdd, onClose }: {
                 >
                   <div>
                     <p className="font-medium text-gray-900">{t.name}</p>
-                    <p className="text-[10px] text-gray-400">{t.categoryName ?? t.code}</p>
+                    <p className="text-[10px] text-gray-400">{t.category?.name ?? t.categoryName ?? t.code}</p>
                   </div>
-                  {t.typicalCostMin && <span className="text-xs text-gray-500">~KES {t.typicalCostMin.toLocaleString()}</span>}
+                  {t.typicalCostMin && <span className="text-xs text-gray-500">~KES {Number(t.typicalCostMin).toLocaleString()}</span>}
                 </button>
               ))}
             </div>

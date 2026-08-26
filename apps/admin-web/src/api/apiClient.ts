@@ -10,6 +10,8 @@
  */
 
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { store } from '../store';
+import { tokenRefreshed, logout as storeLogout } from '../store/slices/authSlice';
 
 const API_BASE = (import.meta.env['VITE_API_GATEWAY_URL'] as string | undefined)
   ?? 'https://483uyy43nc.execute-api.us-east-1.amazonaws.com';
@@ -53,11 +55,13 @@ function createApiClient(servicePrefix: string): AxiosInstance {
     const token  = localStorage.getItem('vc_access_token');
     const userId = localStorage.getItem('vc_user_id');
     if (config.headers) {
-      if (token)  config.headers.Authorization   = `Bearer ${token}`;
-      if (userId) config.headers['x-user-id']    = userId;
-      // Super admin — bypass tenant isolation on campaign + candidate services
-      config.headers['x-user-role']       = 'PLATFORM_SUPER_ADMIN';
-      config.headers['x-platform-admin']  = 'true';
+      if (token)  config.headers.Authorization  = `Bearer ${token}`;
+      if (userId) config.headers['x-user-id']   = userId;
+      // Admin portal users are always PLATFORM_SUPER_ADMIN — injected here so
+      // the backend campaign/candidate role guards pass without per-request headers.
+      // The JWT itself also carries this role; this header is the fast-path fallback.
+      config.headers['x-user-role']      = localStorage.getItem('vc_user_role') ?? 'PLATFORM_SUPER_ADMIN';
+      config.headers['x-platform-admin'] = 'true';
     }
     return config;
   });
@@ -81,8 +85,9 @@ function createApiClient(servicePrefix: string): AxiosInstance {
         return Promise.reject(error);
       }
 
-      const refreshToken = localStorage.getItem('vc_refresh_token');
+      const refreshToken = store.getState().auth.refreshToken ?? localStorage.getItem('vc_refresh_token');
       if (!refreshToken) {
+        store.dispatch(storeLogout());
         doLogout();
         return Promise.reject(error);
       }
@@ -106,9 +111,12 @@ function createApiClient(servicePrefix: string): AxiosInstance {
         const result = data.data ?? data;
         const newToken = result.accessToken;
 
-        localStorage.setItem('vc_access_token', newToken);
-        if (result.refreshToken) localStorage.setItem('vc_refresh_token', result.refreshToken);
-        if (result.expiresIn) localStorage.setItem('vc_token_exp', String(Date.now() + result.expiresIn * 1000));
+        // Update both Redux store and localStorage
+        store.dispatch(tokenRefreshed({
+          accessToken: newToken,
+          expiresIn: result.expiresIn,
+          refreshToken: result.refreshToken,
+        }));
 
         onTokenRefreshed(newToken);
         isRefreshing = false;
@@ -118,6 +126,7 @@ function createApiClient(servicePrefix: string): AxiosInstance {
       } catch {
         isRefreshing = false;
         refreshSubscribers = [];
+        store.dispatch(storeLogout());
         doLogout();
         return Promise.reject(error);
       }

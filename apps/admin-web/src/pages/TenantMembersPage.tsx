@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { tenantApi } from '../api/tenantApi';
 import { usersApi, ROLE_LABELS, MOBILE_ROLES, type User } from '../api/usersApi';
-import { identityClient } from '../api/apiClient';
+import { identityClient, tenantClient } from '../api/apiClient';
 import { clsx } from 'clsx';
 import { PageErrorBoundary } from '../components/PageErrorBoundary';
 import { useAppDispatch } from '../store/hooks';
@@ -77,7 +77,7 @@ function TenantMembersPageContent(): React.JSX.Element {
   // Remove member mutation
   const removeMemberMutation = useMutation({
     mutationFn: async (userId: string) => {
-      await identityClient.delete(`/tenants/${tenantId}/members/${userId}`).catch(() => {
+      await tenantClient.delete(`/tenants/${tenantId}/members/${userId}`).catch(() => {
         // Fallback: update user to remove tenantId
         return usersApi.update(userId, { roles: [] });
       });

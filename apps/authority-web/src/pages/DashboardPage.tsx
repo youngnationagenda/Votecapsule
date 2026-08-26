@@ -83,10 +83,10 @@ function DashboardContent(): React.JSX.Element {
 
   const stats: StatCard[] = [
     { label: 'Active Elections', value: '1', sub: '2027 General Election', icon: Vote, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: 'Polling Stations', value: geoStats?.totalPollingStations?.toLocaleString() ?? '45,805', sub: 'Nationwide', icon: MapPin, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Polling Stations', value: (geoStats?.pollingStations ?? geoStats?.totalPollingStations)?.toLocaleString() ?? '45,805', sub: 'Nationwide', icon: MapPin, color: 'text-blue-600', bg: 'bg-blue-50' },
     { label: 'Capsules Submitted', value: '0', sub: 'Awaiting election day', icon: CheckSquare, color: 'text-violet-600', bg: 'bg-violet-50' },
     { label: 'AI Flagged', value: '0', sub: 'Requires review', icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50' },
-    { label: 'Registered Voters', value: geoStats?.totalRegisteredVoters?.toLocaleString() ?? '22,102,532', sub: 'NEC Registry', icon: Users, color: 'text-sky-600', bg: 'bg-sky-50' },
+    { label: 'Registered Voters', value: (geoStats?.totalRegisteredVoters ?? geoStats?.registeredVoters)?.toLocaleString() ?? '22,102,532', sub: 'NEC Registry', icon: Users, color: 'text-sky-600', bg: 'bg-sky-50' },
     { label: 'Candidates Approved', value: '0', sub: 'Pending approval', icon: TrendingUp, color: 'text-pink-600', bg: 'bg-pink-50' },
     { label: 'Validators Active', value: '0', sub: 'Online validators', icon: Activity, color: 'text-teal-600', bg: 'bg-teal-50' },
     { label: 'Time to Election', value: 'TBD', sub: '2027 Election countdown', icon: Clock, color: 'text-orange-600', bg: 'bg-orange-50' },
@@ -134,12 +134,12 @@ function DashboardContent(): React.JSX.Element {
           <h3 className="text-base font-semibold text-gray-900 mb-4">NEC Geography Summary</h3>
           <div className="space-y-2">
             {[
-              { label: 'Counties', value: geoStats?.totalCounties ?? 47 },
-              { label: 'Constituencies', value: geoStats?.totalConstituencies ?? 290 },
-              { label: 'Wards', value: geoStats?.totalWards ?? 1450 },
-              { label: 'Registration Centres', value: geoStats?.totalRegistrationCentres?.toLocaleString() ?? '27,286' },
-              { label: 'Polling Stations', value: geoStats?.totalPollingStations?.toLocaleString() ?? '45,805' },
-              { label: 'Registered Voters', value: geoStats?.totalRegisteredVoters?.toLocaleString() ?? '22,102,532' },
+              { label: 'Counties',           value: (geoStats?.counties           ?? geoStats?.totalCounties)                                   ?? 47 },
+              { label: 'Constituencies',     value: (geoStats?.constituencies      ?? geoStats?.totalConstituencies)                             ?? 290 },
+              { label: 'Wards',              value: (geoStats?.wards               ?? geoStats?.totalWards)                                      ?? 1450 },
+              { label: 'Registration Centres', value: (geoStats?.registrationCentres ?? geoStats?.totalRegistrationCentres)?.toLocaleString()   ?? '27,286' },
+              { label: 'Polling Stations',   value: (geoStats?.pollingStations      ?? geoStats?.totalPollingStations)?.toLocaleString()         ?? '45,805' },
+              { label: 'Registered Voters',  value: (geoStats?.totalRegisteredVoters ?? geoStats?.registeredVoters)?.toLocaleString()           ?? '22,102,532' },
             ].map(({ label, value }) => (
               <div key={label} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
                 <span className="text-sm text-gray-600">{label}</span>

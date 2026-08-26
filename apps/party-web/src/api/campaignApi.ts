@@ -4,15 +4,19 @@
 import { apiClient } from './apiClient';
 
 const BASE = '/campaign';
+const ELECTION_BASE = '/election';
 
 // ── Campaigns ─────────────────────────────────────────────────
 export const campaignApi = {
-  create:       (data: any)                     => apiClient.post(`${BASE}/campaigns`, data),
-  list:         (params?: any)                  => apiClient.get(`${BASE}/campaigns`, { params }),
-  get:          (id: string)                    => apiClient.get(`${BASE}/campaigns/${id}`),
-  update:       (id: string, data: any)         => apiClient.put(`${BASE}/campaigns/${id}`, data),
-  updateStatus: (id: string, status: string)    => apiClient.patch(`${BASE}/campaigns/${id}/status`, { status }),
-  dashboard:    (id: string)                    => apiClient.get(`${BASE}/campaigns/${id}/dashboard`),
+  create:          (data: any)                  => apiClient.post(`${BASE}/campaigns`, data),
+  list:            (params?: any)               => apiClient.get(`${BASE}/campaigns`, { params }),
+  get:             (id: string)                 => apiClient.get(`${BASE}/campaigns/${id}`),
+  update:          (id: string, data: any)      => apiClient.put(`${BASE}/campaigns/${id}`, data),
+  updateStatus:    (id: string, status: string) => apiClient.patch(`${BASE}/campaigns/${id}/status`, { status }),
+  dashboard:       (id: string)                 => apiClient.get(`${BASE}/campaigns/${id}/dashboard`),
+  // ── Elections (for campaign creation) ─────────────────────
+  activeElection:  ()                           => apiClient.get(`${ELECTION_BASE}/elections/active`),
+  listElections:   (params?: any)               => apiClient.get(`${ELECTION_BASE}/elections`, { params }),
 
   // Events
   events: {
@@ -99,6 +103,53 @@ export const campaignApi = {
     getProduct:       (supplierId: string, pid: string)  => apiClient.get(`${BASE}/suppliers/${supplierId}/products/${pid}`),
     searchProducts:   (params: any)                      => apiClient.get(`${BASE}/suppliers/products/search`, { params }),
     comparePrice:     (materialTypeId: string)           => apiClient.get(`${BASE}/suppliers/compare/${materialTypeId}`),
+    /**
+     * Fetch all supplier products across all suppliers for the catalogue pages.
+     * Gets the first supplier, then all its products (since Me Advertising is the
+     * single global supplier with 275 products).
+     * Returns enriched products with materialTypeCode/categoryCode joined via
+     * the material types list.
+     */
+    listAllProducts: async (categoryFilter?: string): Promise<any[]> => {
+      // 1. Get suppliers (global + tenant)
+      const suppliersResp = await apiClient.get(`${BASE}/suppliers`);
+      const suppliers: any[] = suppliersResp.data?.data ?? suppliersResp.data ?? [];
+      if (suppliers.length === 0) return [];
+
+      // 2. Get material types (with thumbnailUrl + category info) for enrichment
+      const typesParams: any = {};
+      if (categoryFilter && categoryFilter !== 'all') typesParams.category = categoryFilter;
+      const typesResp = await apiClient.get(`${BASE}/materials/types`, { params: typesParams });
+      const types: any[] = typesResp.data?.data ?? typesResp.data ?? [];
+      const typeMap = new Map(types.map((t: any) => [t.id, t]));
+
+      // 3. Fetch products from all suppliers (parallel)
+      const allProducts: any[] = [];
+      await Promise.all(
+        suppliers.map(async (supplier: any) => {
+          try {
+            const resp = await apiClient.get(`${BASE}/suppliers/${supplier.id}/products`, {
+              params: { limit: 300 },
+            });
+            const products: any[] = resp.data?.data ?? resp.data ?? [];
+            products.forEach((p: any) => {
+              const type = typeMap.get(p.materialTypeId);
+              allProducts.push({
+                ...p,
+                supplierName:      supplier.companyName,
+                supplierWebsite:   supplier.website,
+                materialTypeName:  type?.name        ?? p.supplierProductName,
+                materialTypeCode:  type?.code        ?? '',
+                categoryCode:      type?.category?.code ?? '',
+                categoryName:      type?.category?.name ?? '',
+                thumbnailUrl:      p.imageUrl ?? type?.thumbnailUrl ?? null,
+              });
+            });
+          } catch { /* skip failed supplier */ }
+        })
+      );
+      return allProducts;
+    },
   },
 
   // Incidents

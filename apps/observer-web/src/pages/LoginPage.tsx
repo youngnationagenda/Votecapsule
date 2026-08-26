@@ -24,7 +24,7 @@ export function LoginPage(): React.JSX.Element {
       if (result.challengeName === 'SOFTWARE_TOKEN_MFA') { setMfaRequired(true); setSession(result.session ?? ''); dispatch(loginFailure('')); return; }
       const user = result.user ?? {};
       dispatch(loginSuccess({
-        user: { id: user.id ?? '', email: user.email ?? email, roles: Array.isArray(user.roles) ? user.roles : ['OBSERVER'] },
+        user: { id: user.id ?? '', email: user.email ?? email, roles: Array.isArray(user.roles) ? user.roles : ['OBSERVER_ADMIN'] },
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
         expiresIn: result.expiresIn,
@@ -41,7 +41,7 @@ export function LoginPage(): React.JSX.Element {
       const result = data.data ?? data;
       const user = result.user ?? {};
       dispatch(loginSuccess({
-        user: { id: user.id ?? '', email: user.email ?? email, roles: Array.isArray(user.roles) ? user.roles : ['OBSERVER'] },
+        user: { id: user.id ?? '', email: user.email ?? email, roles: Array.isArray(user.roles) ? user.roles : ['OBSERVER_ADMIN'] },
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
         expiresIn: result.expiresIn,

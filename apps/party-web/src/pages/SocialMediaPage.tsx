@@ -222,7 +222,7 @@ function SocialMediaPageContent(): React.JSX.Element {
   // Fetch existing social links
   useEffect(() => {
     if (!tenantId) return;
-    apiClient.get(`/tenant/${tenantId}/social-media`)
+    apiClient.get(`/tenant/tenants/${tenantId}/social-media`)
       .then(r => {
         const data = r.data?.data ?? r.data;
         if (data) {
@@ -261,7 +261,7 @@ function SocialMediaPageContent(): React.JSX.Element {
     setErrors({});
     setSaving(true);
     try {
-      await apiClient.patch(`/tenant/${tenantId}/social-media`, links);
+      await apiClient.patch(`/tenant/tenants/${tenantId}/social-media`, links);
       setToast({ message: 'Social media links saved successfully', type: 'success' });
     } catch {
       setToast({ message: 'Failed to save social media links. Please try again.', type: 'error' });

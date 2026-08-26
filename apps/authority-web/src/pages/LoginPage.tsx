@@ -30,7 +30,7 @@ export function LoginPage(): React.JSX.Element {
       }
       const u = result.user ?? {};
       dispatch(loginSuccess({
-        user: { id: u.id ?? result.userId ?? '', email: u.email ?? email, roles: Array.isArray(u.roles) ? u.roles : (result.roles ?? ['ELECTION_AUTHORITY']), tenantId: u.tenantId },
+        user: { id: u.id ?? result.userId ?? '', email: u.email ?? email, roles: Array.isArray(u.roles) ? u.roles : (result.roles ?? ['ELECTION_COMMISSIONER']), tenantId: u.tenantId },
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
         expiresIn: result.expiresIn,
@@ -49,7 +49,7 @@ export function LoginPage(): React.JSX.Element {
       const result = data.data ?? data;
       const u = result.user ?? {};
       dispatch(loginSuccess({
-        user: { id: u.id ?? '', email: u.email ?? email, roles: Array.isArray(u.roles) ? u.roles : ['ELECTION_AUTHORITY'], tenantId: u.tenantId },
+        user: { id: u.id ?? '', email: u.email ?? email, roles: Array.isArray(u.roles) ? u.roles : ['ELECTION_COMMISSIONER'], tenantId: u.tenantId },
         accessToken: result.accessToken,
         refreshToken: result.refreshToken,
         expiresIn: result.expiresIn,

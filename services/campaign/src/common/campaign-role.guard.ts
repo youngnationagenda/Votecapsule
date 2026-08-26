@@ -40,15 +40,19 @@ const LIMITED_ROLES: Record<string, string[]> = {
 // Paths that bypass all role checks (health, webhooks, catalogue)
 // Match against the full request path (includes /api/v1/campaign prefix)
 const BYPASS_PATHS = [
-  '/health',                          // direct hit without prefix (internal)
-  '/api/v1/campaign/health',          // ALB health check path (with full prefix)
+  '/health',                                    // direct hit without prefix (internal)
+  '/api/v1/campaign/health',                    // ALB health check path (with full prefix)
   '/metrics',
   '/api/v1/campaign/webhooks/',
   '/webhooks/',
+  // ── Read-only catalogue endpoints — accessible by all authenticated roles ──
   '/api/v1/campaign/materials/categories',
   '/materials/categories',
   '/api/v1/campaign/materials/types',
   '/materials/types',
+  // Suppliers catalogue — global shared read (all campaign roles need to browse)
+  '/api/v1/campaign/suppliers',
+  '/suppliers',
   '/api/v1/campaign/mockup-templates',
   '/mockup-templates',
 ];
@@ -121,7 +125,10 @@ export class CampaignRoleGuard implements CanActivate {
     if (LIMITED_ROLES[role]) {
       const allowedModules = LIMITED_ROLES[role];
       // Extract path segment after /campaigns/:id/
-      const pathAfterCampaign = path.replace(/^\/campaigns\/[^/]+\//, '');
+      // Strip any leading prefix (/api/v1/campaign) then extract module segment
+      const pathAfterCampaign = path
+        .replace(/^\/api\/v1\/campaign/, '')
+        .replace(/^\/campaigns\/[^/]+\//, '');
       const moduleSeg = pathAfterCampaign.split('/')[0] ?? '';
 
       // Allow root campaign path (GET /campaigns/:id is always allowed for context)

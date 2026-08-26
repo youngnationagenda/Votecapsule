@@ -10,6 +10,7 @@ import {
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { toggleSidebar } from '../store/slices/uiSlice';
 import { logout } from '../store/slices/authSlice';
+import { apiClient } from '../api/apiClient';
 
 interface NavItem {
   to: string;
@@ -18,6 +19,20 @@ interface NavItem {
   highlight?: boolean;
   badge?: string;
 }
+
+// ── Role-based nav access ─────────────────────────────────────
+// Mirrors campaign-role.guard.ts LIMITED_ROLES mapping
+const FULL_ACCESS_ROLES = ['PARTY_ADMIN', 'TENANT_ADMIN', 'PARTY_CAMPAIGN_DIRECTOR', 'PLATFORM_SUPER_ADMIN'];
+const CAMPAIGN_NAV_BY_ROLE: Record<string, string[]> = {
+  LOGISTICS_OFFICER:      ['/campaign', '/campaign/calendar', '/campaign/tasks', '/campaign/materials', '/campaign/suppliers'],
+  FINANCE_OFFICER:        ['/campaign', '/campaign/budget', '/campaign/calendar', '/campaign/tasks'],
+  COMMUNICATIONS_OFFICER: ['/campaign', '/campaign/sms', '/campaign/calendar', '/campaign/tasks'],
+  BRAND_MANAGER:          ['/campaign', '/campaign/materials', '/campaign/suppliers', '/campaign/tasks'],
+  CAMPAIGN_VOLUNTEER:     ['/campaign', '/campaign/calendar', '/campaign/tasks'],
+  CAMPAIGN_MANAGER:       [], // full campaign access
+  WARD_COORDINATOR:       [], // full campaign access (geo-scoped on backend)
+  CONSTITUENCY_COORDINATOR: [], // full campaign access (geo-scoped on backend)
+};
 
 const coreNavItems: NavItem[] = [
   { to: '/dashboard',         icon: LayoutDashboard, label: 'Party Dashboard' },
@@ -90,7 +105,10 @@ export function PartyLayout(): React.JSX.Element {
   const navigate = useNavigate();
   const collapsed = useAppSelector((s) => s.ui.sidebarCollapsed);
   const user = useAppSelector((s) => s.auth.user);
-  const handleLogout = () => { dispatch(logout()); navigate('/login'); };
+  const handleLogout = async () => {
+    try { await apiClient.post('/identity/auth/logout', {}); } catch { /* non-fatal */ }
+    dispatch(logout()); navigate('/login');
+  };
 
   const initials = user?.firstName
     ? `${user.firstName.charAt(0)}${user.lastName?.charAt(0) ?? ''}`.toUpperCase()
@@ -115,12 +133,20 @@ export function PartyLayout(): React.JSX.Element {
           )}
         </div>
 
-        {/* Nav */}
+        {/* Nav — filtered by user role */}
         <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-          {/* Core navigation */}
-          <NavSection items={coreNavItems} collapsed={collapsed} />
+          {/* Core navigation — admin items hidden for limited campaign roles */}
+          {(() => {
+            const primaryRole = user?.roles?.[0] ?? '';
+            const isFullAccess = FULL_ACCESS_ROLES.includes(primaryRole) || !primaryRole;
+            const adminPaths = ['/invitations', '/subscription', '/billing', '/candidates', '/coordinators', '/agents'];
+            const visibleCore = isFullAccess
+              ? coreNavItems
+              : coreNavItems.filter(item => !adminPaths.includes(item.to));
+            return <NavSection items={visibleCore} collapsed={collapsed} />;
+          })()}
 
-          {/* Campaign Manager section */}
+          {/* Campaign Manager section — filtered by role */}
           <div className={`pt-3 mt-3 border-t border-gray-100 ${collapsed ? '' : ''}`}>
             {!collapsed && (
               <p className="px-3 pb-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -129,7 +155,16 @@ export function PartyLayout(): React.JSX.Element {
               </p>
             )}
             {collapsed && <div className="pb-1" />}
-            <NavSection items={campaignNavItems} collapsed={collapsed} />
+            {(() => {
+              const primaryRole = user?.roles?.[0] ?? '';
+              const isFullAccess = FULL_ACCESS_ROLES.includes(primaryRole) || !primaryRole;
+              const allowedPaths = CAMPAIGN_NAV_BY_ROLE[primaryRole];
+              // Full access roles or roles with empty allowedPaths (= full campaign access)
+              const visibleCampaign = (isFullAccess || !allowedPaths || allowedPaths.length === 0)
+                ? campaignNavItems
+                : campaignNavItems.filter(item => allowedPaths.includes(item.to));
+              return <NavSection items={visibleCampaign} collapsed={collapsed} />;
+            })()}
           </div>
 
           {/* Party Settings section */}

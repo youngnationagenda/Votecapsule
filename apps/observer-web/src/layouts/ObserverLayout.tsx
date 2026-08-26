@@ -4,6 +4,7 @@ import { LayoutDashboard, MapPin, BarChart3, AlertTriangle, Brain, Shield, FileT
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { toggleSidebar } from '../store/slices/uiSlice';
 import { logout } from '../store/slices/authSlice';
+import { apiClient } from '../api/apiClient';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'National Dashboard' },
@@ -22,7 +23,10 @@ export function ObserverLayout(): React.JSX.Element {
   const navigate = useNavigate();
   const collapsed = useAppSelector((s) => s.ui.sidebarCollapsed);
   const user = useAppSelector((s) => s.auth.user);
-  const handleLogout = () => { dispatch(logout()); navigate('/login'); };
+  const handleLogout = async () => {
+    try { await apiClient.post('/identity/auth/logout', {}); } catch { /* non-fatal */ }
+    dispatch(logout()); navigate('/login');
+  };
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">

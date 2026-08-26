@@ -8,6 +8,7 @@ import {
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { toggleSidebar } from '../store/slices/uiSlice';
 import { logout } from '../store/slices/authSlice';
+import { apiClient } from '../api/apiClient';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -30,7 +31,8 @@ export function AuthorityLayout(): React.JSX.Element {
   const collapsed = useAppSelector((s) => s.ui.sidebarCollapsed);
   const user = useAppSelector((s) => s.auth.user);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try { await apiClient.post('/identity/auth/logout', {}); } catch { /* non-fatal */ }
     dispatch(logout());
     navigate('/login');
   };

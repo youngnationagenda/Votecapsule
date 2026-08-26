@@ -661,6 +661,39 @@ export class CandidateService {
     });
   }
 
+  /**
+   * Bulk-register up to 500 candidates in a single call.
+   * Each row is attempted independently — failures do not abort the rest.
+   * Returns { succeeded[], failed[] } so the caller can show a summary.
+   */
+  async bulkRegisterCandidates(
+    candidates: RegisterCandidateDto[],
+    tenantId: string,
+    userId: string,
+  ): Promise<{ succeeded: any[]; failed: Array<{ row: number; fullName: string; error: string }> }> {
+    const succeeded: any[] = [];
+    const failed: Array<{ row: number; fullName: string; error: string }> = [];
+
+    for (let i = 0; i < candidates.length; i++) {
+      const dto = candidates[i];
+      try {
+        const result = await this.registerCandidate(dto, tenantId, userId);
+        succeeded.push({ id: result.id, fullName: result.fullName, nationalId: result.nationalId });
+      } catch (err: any) {
+        failed.push({
+          row: i + 1,
+          fullName: dto.fullName ?? `Row ${i + 1}`,
+          error: err?.message ?? 'Unknown error',
+        });
+      }
+    }
+
+    this.logger.log(
+      `Bulk registration complete: ${succeeded.length} succeeded, ${failed.length} failed (tenant=${tenantId})`,
+    );
+    return { succeeded, failed };
+  }
+
   async getCandidate(id: string): Promise<Candidate> {
     const candidate = await this.candidateRepo.findOne({
       where: { id },

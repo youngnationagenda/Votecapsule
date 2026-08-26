@@ -25,6 +25,7 @@ interface CampaignForm {
   totalBudget: string;
   iebcSpendingLimit: string;
   candidateName: string;
+  candidateUserId: string;  // UUID of the candidate user in the system
   headquartersAddress: string;
 }
 
@@ -46,6 +47,7 @@ const TARGET_POSITIONS = [
 
 function CreateCampaignContent(): React.JSX.Element {
   const navigate = useNavigate();
+  const user     = useAppSelector((s) => s.auth.user);
   const tenantId = useAppSelector((s) => s.auth.tenantId ?? s.auth.user?.tenantId ?? '');
 
   const [form, setForm] = useState<CampaignForm>({
@@ -60,9 +62,22 @@ function CreateCampaignContent(): React.JSX.Element {
     totalBudget: '',
     iebcSpendingLimit: '',
     candidateName: '',
+    candidateUserId: '',
     headquartersAddress: '',
   });
   const [step, setStep] = useState<1 | 2 | 3>(1);
+
+  // Active election — auto-populated for campaign creation
+  const { data: activeElection } = useQuery({
+    queryKey: ['active-election'],
+    queryFn: async () => {
+      try {
+        const r = await campaignApi.activeElection();
+        const el = r.data?.data ?? r.data;
+        return el?.id ? el : null;
+      } catch { return null; }
+    },
+  });
 
   // NEC Geography
   const { data: counties = [] } = useQuery<County[]>({
@@ -79,20 +94,39 @@ function CreateCampaignContent(): React.JSX.Element {
   });
 
   const createMutation = useMutation({
-    mutationFn: () => campaignApi.create({
-      ...form,
-      tenantId,
-      totalBudget: form.totalBudget ? parseFloat(form.totalBudget) : undefined,
-      iebcSpendingLimit: form.iebcSpendingLimit ? parseFloat(form.iebcSpendingLimit) : undefined,
-      targetWards: [],
-    }),
+    mutationFn: () => {
+      if (!activeElection?.id) throw new Error('No active election found');
+      return campaignApi.create({
+        name:              form.name,
+        description:       form.description || undefined,
+        tenantId,
+        // electionId is required by CreateCampaignDto
+        electionId:        activeElection.id,
+        // candidateId: use the supplied userId if a candidate is being assigned,
+        // otherwise use the current party admin's user ID as placeholder
+        candidateId:       form.candidateUserId || user?.id || '',
+        countyCode:        form.countyCode        || undefined,
+        constituencyCode:  form.constituencyCode  || undefined,
+        campaignStartDate: form.campaignStartDate || undefined,
+        campaignEndDate:   form.electionDate      || undefined,
+        headquarters:      form.headquartersAddress || undefined,
+        targetWards:       [],
+        goals: {
+          targetPosition:  form.targetPosition,
+          campaignType:    form.campaignType,
+          candidateName:   form.candidateName,
+          totalBudget:     form.totalBudget ? parseFloat(form.totalBudget) : null,
+          iebcSpendingLimit: form.iebcSpendingLimit ? parseFloat(form.iebcSpendingLimit) : null,
+        },
+      });
+    },
     onSuccess: () => navigate('/campaign'),
   });
 
   const set = (field: keyof CampaignForm, value: string) =>
     setForm((f) => ({ ...f, [field]: value }));
 
-  const canGoNext1 = form.name && form.campaignType && form.targetPosition;
+  const canGoNext1 = form.name && form.campaignType && form.targetPosition && !!activeElection;
   const canGoNext2 = form.countyCode && form.campaignStartDate;
   const canSubmit  = canGoNext1 && canGoNext2 && !createMutation.isPending;
 
@@ -177,15 +211,42 @@ function CreateCampaignContent(): React.JSX.Element {
               </div>
             </div>
 
-            <div>
-              <label className="vc-label">Candidate Name</label>
-              <input
-                className="vc-input"
-                value={form.candidateName}
-                onChange={(e) => set('candidateName', e.target.value)}
-                placeholder="Full name of the candidate being supported"
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="vc-label">Candidate Name</label>
+                <input
+                  className="vc-input"
+                  value={form.candidateName}
+                  onChange={(e) => set('candidateName', e.target.value)}
+                  placeholder="Full name of the candidate"
+                />
+              </div>
+              <div>
+                <label className="vc-label">Candidate User ID <span className="text-xs text-gray-400">(optional)</span></label>
+                <input
+                  className="vc-input font-mono text-xs"
+                  value={form.candidateUserId}
+                  onChange={(e) => set('candidateUserId', e.target.value)}
+                  placeholder="UUID from Candidates page"
+                />
+              </div>
             </div>
+
+            {/* Active election indicator */}
+            {activeElection ? (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <div>
+                  <p className="text-xs text-emerald-600 font-medium">Election</p>
+                  <p className="text-sm font-semibold text-emerald-800">{activeElection.name ?? 'Kenya General Election 2027'}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                <p className="text-sm text-amber-700">No active election found. Contact your administrator.</p>
+              </div>
+            )}
 
             <div>
               <label className="vc-label">Description</label>

@@ -17,7 +17,7 @@
 import {
   Controller, Post, Get, Put, Delete,
   Body, Param, Query, HttpCode, HttpStatus,
-  ParseUUIDPipe, ParseIntPipe, DefaultValuePipe,
+  ParseIntPipe, DefaultValuePipe,
   Logger, BadRequestException,
 } from '@nestjs/common';
 import { NotificationService }                      from './notification.service';
@@ -88,11 +88,11 @@ export class NotificationController {
    */
   @Put('read')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async markAsRead(
-    @Body('userId', ParseUUIDPipe) userId: string,
-    @Body() dto: MarkReadDto,
-  ) {
-    await this.notificationService.markAsRead(userId, dto.notificationIds);
+  async markAsRead(@Body() dto: MarkReadDto & { userId: string }) {
+    // Validate userId ourselves — ParseUUIDPipe on @Body('userId') conflicts
+    // with @Body() dto sharing the same request body deserialization slot
+    if (!dto.userId) throw new BadRequestException('userId is required');
+    await this.notificationService.markAsRead(dto.userId, dto.notificationIds);
   }
 
   /**
@@ -121,10 +121,11 @@ export class NotificationController {
   @Delete('devices')
   @HttpCode(HttpStatus.NO_CONTENT)
   async deregisterDevice(
-    @Body('userId', ParseUUIDPipe) userId: string,
-    @Body('deviceToken') deviceToken: string,
+    @Body() body: { userId: string; deviceToken: string },
   ) {
-    await this.notificationService.deregisterDevice(userId, deviceToken);
+    if (!body.userId)      throw new BadRequestException('userId is required');
+    if (!body.deviceToken) throw new BadRequestException('deviceToken is required');
+    await this.notificationService.deregisterDevice(body.userId, body.deviceToken);
   }
 
   /**

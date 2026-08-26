@@ -27,17 +27,35 @@ function CreateCampaignForm(): React.JSX.Element {
   const [error, setError]             = useState<string | null>(null);
 
   // Fetch active election for auto-population
+  // activeElection() → GET /election/elections/active (requires x-tenant-id header)
   const { data: activeElection } = useQuery({
-    queryKey: ['active-election'],
-    queryFn:  () => campaignApi.activeElection().then((r) => r.data?.data ?? r.data).catch(() => null),
+    queryKey: ['active-election', user?.tenantId],
+    queryFn:  async () => {
+      try {
+        const r = await campaignApi.activeElection();
+        const el = r.data?.data ?? r.data;
+        // Null means no active election found — return null gracefully
+        return el?.id ? el : null;
+      } catch {
+        return null;
+      }
+    },
+    enabled: !!user?.tenantId,
   });
 
-  // Fallback: list all elections
-  const { data: elections = [] } = useQuery({
+  // Fallback: list all elections and filter to usable statuses client-side
+  // (Backend listElections doesn't accept a status filter param — it returns all)
+  const { data: electionsRaw = [] } = useQuery({
     queryKey: ['elections-list'],
-    queryFn:  () => campaignApi.listElections({ status: 'active,nomination,campaign_period' }).then((r) => r.data?.data ?? r.data ?? []),
-    enabled:  !activeElection,
+    queryFn:  () => campaignApi.listElections().then((r) => {
+      const all: any[] = r.data?.data ?? r.data ?? [];
+      // Show elections that are in a state where campaigns make sense
+      const usable = ['PLANNING', 'NOMINATION', 'CAMPAIGN', 'ACTIVE', 'active', 'nomination', 'campaign', 'planning'];
+      return all.filter((el: any) => usable.includes(el.status) || el.isActive === true || el.is_active === true);
+    }),
+    enabled: !activeElection,
   });
+  const elections = electionsRaw;
 
   const [selectedElectionId, setSelectedElectionId] = useState('');
   const electionId = activeElection?.id ?? selectedElectionId;
@@ -167,10 +185,12 @@ function MyCampaignDashboardContent(): React.JSX.Element {
   const navigate = useNavigate();
   const user     = useAppSelector((s) => s.auth.user);
 
-  // Candidate has exactly one active campaign
+  // Fetch campaigns scoped to this candidate's own user ID
+  // Backend: GET /campaign/campaigns?candidateId=<userId>
   const { data: campaigns = [], isLoading } = useQuery({
-    queryKey: ['my-campaigns'],
-    queryFn:  () => campaignApi.list({ candidate: true }).then((r) => r.data?.data ?? r.data ?? []),
+    queryKey: ['my-campaigns', user?.id],
+    queryFn:  () => campaignApi.list({ candidateId: user?.id }).then((r) => r.data?.data ?? r.data ?? []),
+    enabled:  !!user?.id,
   });
 
   const campaign = campaigns.find((c: any) => c.status === 'active') ?? campaigns[0];

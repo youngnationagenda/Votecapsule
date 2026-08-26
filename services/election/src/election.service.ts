@@ -107,12 +107,12 @@ export class ElectionService {
 
   /** GET /elections/active — active election for tenant */
   async getActiveElection(tenantId: string) {
+    // Pass tenantId as a query param — Candidate Service filters by it
     return this.get(
       this.candidateUrl,
       '/candidates/elections/active',
-      undefined,
+      { tenantId },
     );
-    // Tenant header passed separately — see controller
   }
 
   /** GET /elections/:id — single election */
@@ -220,6 +220,14 @@ export class ElectionService {
       this.geographyUrl,
       `/geography/polling-stations/${code}/validate`,
     );
+  }
+
+  /** GET /polling-stations/search — free-text station name search */
+  async searchStations(q: string, limit = 20) {
+    return this.get(this.geographyUrl, '/geography/polling-stations/search', {
+      q,
+      limit: String(limit),
+    });
   }
 
   // ── Registered Voters (NEC SSoT via Geography Service) ───

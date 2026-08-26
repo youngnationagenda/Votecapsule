@@ -87,10 +87,14 @@ export class AuthService {
           candidateId: null,
         }));
 
+      // custom:roles MUST be stored as a JSON array string so the Lambda
+      // authorizer can parse it correctly: ["PARTY_ADMIN"] not "PARTY_ADMIN"
+      const rolesJson = JSON.stringify(user.roles ?? [primaryRole]);
+
       const attrs = [
         { Name: 'custom:userId',           Value: user.id },
         { Name: 'custom:tenantId',         Value: user.tenantId ?? '' },
-        { Name: 'custom:roles',            Value: primaryRole },
+        { Name: 'custom:roles',            Value: rolesJson },
         { Name: 'custom:wardCode',         Value: extendedClaims.wardCode        ?? user.wardCode        ?? '' },
         { Name: 'custom:constituencyCode', Value: extendedClaims.constituencyCode ?? user.constituencyCode ?? '' },
         { Name: 'custom:candidateId',      Value: extendedClaims.candidateId     ?? user.candidateId      ?? '' },
@@ -281,13 +285,15 @@ export class AuthService {
         throw new UnauthorizedException('Token refresh failed');
       }
 
-      const { AccessToken, RefreshToken, ExpiresIn } = response.AuthenticationResult;
+      const { AccessToken, IdToken, RefreshToken, ExpiresIn } = response.AuthenticationResult;
 
+      // Return IdToken when present — it carries custom:* claims the Lambda
+      // authorizer uses to build x-* headers. AccessToken only has standard scopes.
       return {
-        accessToken: AccessToken ?? '',
-        refreshToken: RefreshToken ?? dto.refreshToken,
-        expiresIn: ExpiresIn ?? 3600,
-        tokenType: 'Bearer',
+        accessToken:  IdToken ?? AccessToken ?? '',
+        refreshToken: RefreshToken ?? dto.refreshToken,  // Cognito may not rotate refresh token
+        expiresIn:    ExpiresIn ?? 3600,
+        tokenType:    'Bearer',
       };
     } catch {
       throw new UnauthorizedException('Invalid refresh token');

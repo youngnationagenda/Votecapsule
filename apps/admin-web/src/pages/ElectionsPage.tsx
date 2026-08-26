@@ -321,7 +321,7 @@ function PartyNominationsOverview({ elections }: { elections: Election[] }) {
   const { data: nominations, isLoading } = useQuery({
     queryKey: ['admin-nominations', selectedElection],
     queryFn: () =>
-      candidateClient.get(`/nominations?parentElectionId=${selectedElection}`)
+      candidateClient.get(`/candidates/nominations?parentElectionId=${selectedElection}`)
         .then(r => r.data?.data ?? r.data ?? []),
     enabled: !!selectedElection,
     staleTime: 60_000,

@@ -297,7 +297,7 @@ function PartyOfficialsPageContent(): React.JSX.Element {
   // Fetch officials
   useEffect(() => {
     if (!tenantId) return;
-    apiClient.get(`/tenant/${tenantId}/officials`)
+    apiClient.get(`/tenant/tenants/${tenantId}/officials`)
       .then(r => {
         const data: Official[] = r.data?.data ?? r.data ?? [];
         // Ensure all 8 standard positions exist
@@ -352,7 +352,7 @@ function PartyOfficialsPageContent(): React.JSX.Element {
       const isCreate = isNewPosition || isPlaceholder;
 
       if (isCreate) {
-        const res = await apiClient.post(`/tenant/${tenantId}/officials`, {
+        const res = await apiClient.post(`/tenant/tenants/${tenantId}/officials`, {
           position: data.position ?? editTarget?.position,
           name: data.name,
           phone: data.phone,
@@ -369,7 +369,7 @@ function PartyOfficialsPageContent(): React.JSX.Element {
           setOfficials(prev => [...prev, { ...created, isStandard: false }]);
         }
       } else if (editTarget) {
-        await apiClient.patch(`/tenant/${tenantId}/officials/${editTarget.id}`, {
+        await apiClient.patch(`/tenant/tenants/${tenantId}/officials/${editTarget.id}`, {
           name: data.name,
           phone: data.phone,
           email: data.email,
@@ -394,7 +394,7 @@ function PartyOfficialsPageContent(): React.JSX.Element {
   const handleToggleAccess = async (official: Official) => {
     const newValue = !official.hasPortalAccess;
     try {
-      await apiClient.patch(`/tenant/${tenantId}/officials/${official.id}`, {
+      await apiClient.patch(`/tenant/tenants/${tenantId}/officials/${official.id}`, {
         hasPortalAccess: newValue,
       });
       setOfficials(prev => prev.map(o =>

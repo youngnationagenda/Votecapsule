@@ -77,10 +77,16 @@ apiClient.interceptors.response.use(
   },
 );
 
-// Service-specific clients (share the same interceptors via prototype chain)
-export const electionClient = apiClient;
+/**
+ * Service aliases — all share the same interceptors (JWT inject + token refresh).
+ * Route calls using the full service-prefixed path, e.g.:
+ *   electionClient.get('/election/elections')
+ *   geographyClient.get('/geography/stats')
+ * The BASE_URL already points to /api/v1 so service name is part of the path.
+ */
+export const electionClient  = apiClient;
 export const geographyClient = apiClient;
-export const evidenceClient = apiClient;
+export const evidenceClient  = apiClient;
 export const candidateClient = apiClient;
 export const reportingClient = apiClient;
-export const identityClient = apiClient;
+export const identityClient  = apiClient;

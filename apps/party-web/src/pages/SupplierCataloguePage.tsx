@@ -59,13 +59,7 @@ interface Category {
   sortOrder: number;
 }
 
-// ── Supplier API extension ───────────────────────────────────
-const supplierApi = {
-  listSuppliers: (params?: any) =>
-    campaignApi.materials.listTypes(params).then((r: any) => r.data?.suppliers ?? []),
-  listProducts: (params?: any) =>
-    campaignApi.materials.listTypes(params).then((r: any) => r.data?.supplierProducts ?? []),
-};
+// supplierApi is replaced by campaignApi.suppliers.listAllProducts()
 
 // ── Price Display Component ──────────────────────────────────
 function PriceTag({ price, currency = 'KES', bulkPrice, bulkMin }: {
@@ -436,38 +430,12 @@ function SupplierCatalogueContent(): React.JSX.Element {
     queryFn: () => campaignApi.materials.listCategories().then((r: any) => r.data?.data ?? r.data ?? []),
   });
 
-  // Fetch supplier products (via material types endpoint with supplier expansion)
+  // Fetch supplier products via suppliers API (correct endpoint)
   const { data: products = [], isLoading } = useQuery<SupplierProduct[]>({
     queryKey: ['supplier-products', selectedCat],
-    queryFn: () => campaignApi.materials.listTypes(
-      selectedCat !== 'all' ? { category: selectedCat, includeSupplier: true } : { includeSupplier: true }
-    ).then((r: any) => {
-      const data = r.data?.supplierProducts ?? r.data?.data ?? r.data ?? [];
-      // Transform material types with supplier data into SupplierProduct format
-      return data.map((item: any) => ({
-        id: item.supplierProductId || item.id,
-        supplierId: item.supplierId || '',
-        materialTypeId: item.id || item.materialTypeId,
-        supplierProductName: item.supplierProductName || item.name,
-        supplierSku: item.supplierSku || item.code,
-        unitPrice: item.unitPrice ?? item.typicalCostMin ?? null,
-        currency: item.currency || 'KES',
-        bulkPrice: item.bulkPrice ?? null,
-        bulkMinQuantity: item.bulkMinQuantity ?? item.minOrderQuantity ?? null,
-        productUrl: item.productUrl || '',
-        imageUrl: item.imageUrl || item.thumbnailUrl || null,
-        thumbnailUrl: item.thumbnailUrl || null,
-        description: item.description || '',
-        specifications: item.specifications || {},
-        isAvailable: item.isAvailable ?? true,
-        leadTimeDays: item.leadTimeDays ?? null,
-        metadata: item.metadata || {},
-        materialTypeName: item.name || item.materialTypeName,
-        materialTypeCode: item.code || item.materialTypeCode,
-        categoryCode: item.categoryCode || '',
-        categoryName: item.categoryName || '',
-      }));
-    }),
+    queryFn: () => campaignApi.suppliers.listAllProducts(
+      selectedCat !== 'all' ? selectedCat : undefined
+    ),
   });
 
   // Filter + sort
