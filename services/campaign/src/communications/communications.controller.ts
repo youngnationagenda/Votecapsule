@@ -20,80 +20,174 @@ export class WebhooksController {
 export class CommunicationsController {
   constructor(private readonly service: CommunicationsService) {}
 
-  // SMS Templates
+  // ── SMS Templates ──────────────────────────────────────────
+
   @Post('sms/templates')
   @HttpCode(HttpStatus.CREATED)
-  createTemplate(@Param('campaignId', ParseUUIDPipe) c: string, @Body() dto: any, @Headers('x-tenant-id') t: string, @Headers('x-user-id') u: string) {
+  createTemplate(
+    @Param('campaignId', ParseUUIDPipe) c: string,
+    @Body() dto: any,
+    @Headers('x-tenant-id') t: string,
+    @Headers('x-user-id') u: string,
+  ) {
     if (!t || !u) throw new BadRequestException('X-Tenant-Id and X-User-Id required');
     return this.service.createTemplate(c, dto, t, u);
   }
 
   @Get('sms/templates')
-  listTemplates(@Param('campaignId', ParseUUIDPipe) c: string, @Headers('x-tenant-id') t: string) {
+  listTemplates(
+    @Param('campaignId', ParseUUIDPipe) c: string,
+    @Headers('x-tenant-id') t: string,
+  ) {
     if (!t) throw new BadRequestException('X-Tenant-Id required');
     return this.service.listTemplates(c, t);
   }
 
   @Patch('sms/templates/:id/approve')
-  approveTemplate(@Param('campaignId', ParseUUIDPipe) c: string, @Param('id', ParseUUIDPipe) id: string, @Headers('x-tenant-id') t: string, @Headers('x-user-id') u: string) {
+  approveTemplate(
+    @Param('campaignId', ParseUUIDPipe) c: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Headers('x-tenant-id') t: string,
+    @Headers('x-user-id') u: string,
+  ) {
     if (!t || !u) throw new BadRequestException('X-Tenant-Id and X-User-Id required');
     return this.service.approveTemplate(id, c, t, u);
   }
 
-  // SMS Sending
+  // ── SMS Sending ────────────────────────────────────────────
+  //
+  // POST /campaigns/:id/sms/send
+  // Body:
+  // {
+  //   templateId?: string          — use an approved template
+  //   messageContent?: string      — or raw message body
+  //   senderId?: string            — override AT sender ID
+  //
+  //   // C3: audience resolution from DB
+  //   audienceFilter?: {
+  //     type: 'all_volunteers' | 'all_team' | 'all' | 'ward' | 'role' | 'custom'
+  //     wardCode?: string
+  //     constituencyCode?: string
+  //     roles?: string[]
+  //     consentRequired?: boolean    // default true
+  //   }
+  //
+  //   // Explicit list (used when type='custom' or audienceFilter omitted)
+  //   recipients?: Array<{ phone: string; name?: string; vars?: Record<string,string> }>
+  // }
+
   @Post('sms/send')
   @HttpCode(HttpStatus.CREATED)
-  sendBatch(@Param('campaignId', ParseUUIDPipe) c: string, @Body() dto: any, @Headers('x-tenant-id') t: string, @Headers('x-user-id') u: string) {
+  sendBatch(
+    @Param('campaignId', ParseUUIDPipe) c: string,
+    @Body() dto: any,
+    @Headers('x-tenant-id') t: string,
+    @Headers('x-user-id') u: string,
+  ) {
     if (!t || !u) throw new BadRequestException('X-Tenant-Id and X-User-Id required');
     return this.service.sendBatch(c, dto, t, u);
   }
 
   @Get('sms/batches')
-  listBatches(@Param('campaignId', ParseUUIDPipe) c: string, @Headers('x-tenant-id') t: string) {
+  listBatches(
+    @Param('campaignId', ParseUUIDPipe) c: string,
+    @Headers('x-tenant-id') t: string,
+  ) {
     if (!t) throw new BadRequestException('X-Tenant-Id required');
     return this.service.listBatches(c, t);
   }
 
   @Get('sms/batches/:batchId')
-  getBatch(@Param('campaignId', ParseUUIDPipe) c: string, @Param('batchId', ParseUUIDPipe) id: string, @Headers('x-tenant-id') t: string) {
+  getBatch(
+    @Param('campaignId', ParseUUIDPipe) c: string,
+    @Param('batchId', ParseUUIDPipe) id: string,
+    @Headers('x-tenant-id') t: string,
+  ) {
     if (!t) throw new BadRequestException('X-Tenant-Id required');
     return this.service.getBatch(id, c, t);
   }
 
   @Get('sms/stats')
-  getSmsStats(@Param('campaignId', ParseUUIDPipe) c: string, @Headers('x-tenant-id') t: string) {
+  getSmsStats(
+    @Param('campaignId', ParseUUIDPipe) c: string,
+    @Headers('x-tenant-id') t: string,
+  ) {
     if (!t) throw new BadRequestException('X-Tenant-Id required');
     return this.service.getSmsStats(c, t);
   }
 
-  // Incidents
+  // ── SMS Opt-out ────────────────────────────────────────────
+
+  @Post('sms/opt-out')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async optOut(
+    @Param('campaignId', ParseUUIDPipe) c: string,
+    @Body('phone') phone: string,
+    @Body('reason') reason: string | undefined,
+    @Headers('x-tenant-id') t: string,
+  ): Promise<void> {
+    if (!t)     throw new BadRequestException('X-Tenant-Id required');
+    if (!phone) throw new BadRequestException('phone is required');
+    await this.service.optOut(c, t, phone, reason);
+  }
+
+  // ── Incidents ──────────────────────────────────────────────
+
   @Post('incidents')
   @HttpCode(HttpStatus.CREATED)
-  createIncident(@Param('campaignId', ParseUUIDPipe) c: string, @Body() dto: any, @Headers('x-tenant-id') t: string, @Headers('x-user-id') u: string) {
+  createIncident(
+    @Param('campaignId', ParseUUIDPipe) c: string,
+    @Body() dto: any,
+    @Headers('x-tenant-id') t: string,
+    @Headers('x-user-id') u: string,
+  ) {
     if (!t || !u) throw new BadRequestException('X-Tenant-Id and X-User-Id required');
     return this.service.createIncident(c, dto, t, u);
   }
 
   @Get('incidents')
-  findIncidents(@Param('campaignId', ParseUUIDPipe) c: string, @Headers('x-tenant-id') t: string, @Query('severity') severity?: string, @Query('status') status?: string, @Query('wardCode') wardCode?: string) {
+  findIncidents(
+    @Param('campaignId', ParseUUIDPipe) c: string,
+    @Headers('x-tenant-id') t: string,
+    @Query('severity') severity?: string,
+    @Query('status') status?: string,
+    @Query('wardCode') wardCode?: string,
+  ) {
     if (!t) throw new BadRequestException('X-Tenant-Id required');
     return this.service.findIncidents(c, t, { severity, status, wardCode });
   }
 
   @Patch('incidents/:id')
-  updateIncident(@Param('campaignId', ParseUUIDPipe) c: string, @Param('id', ParseUUIDPipe) id: string, @Body() dto: any, @Headers('x-tenant-id') t: string) {
+  updateIncident(
+    @Param('campaignId', ParseUUIDPipe) c: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: any,
+    @Headers('x-tenant-id') t: string,
+  ) {
     if (!t) throw new BadRequestException('X-Tenant-Id required');
     return this.service.updateIncident(id, c, dto, t);
   }
 
   @Patch('incidents/:id/escalate')
-  escalateIncident(@Param('campaignId', ParseUUIDPipe) c: string, @Param('id', ParseUUIDPipe) id: string, @Body('escalatedTo') escalatedTo: string, @Body('reason') reason: string, @Headers('x-tenant-id') t: string) {
+  escalateIncident(
+    @Param('campaignId', ParseUUIDPipe) c: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('escalatedTo') escalatedTo: string,
+    @Body('reason') reason: string,
+    @Headers('x-tenant-id') t: string,
+  ) {
     if (!t) throw new BadRequestException('X-Tenant-Id required');
     return this.service.escalateIncident(id, c, t, escalatedTo, reason);
   }
 
   @Patch('incidents/:id/resolve')
-  resolveIncident(@Param('campaignId', ParseUUIDPipe) c: string, @Param('id', ParseUUIDPipe) id: string, @Body('resolution') resolution: string, @Headers('x-tenant-id') t: string, @Headers('x-user-id') u: string) {
+  resolveIncident(
+    @Param('campaignId', ParseUUIDPipe) c: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body('resolution') resolution: string,
+    @Headers('x-tenant-id') t: string,
+    @Headers('x-user-id') u: string,
+  ) {
     if (!t || !u) throw new BadRequestException('X-Tenant-Id and X-User-Id required');
     return this.service.resolveIncident(id, c, t, u, resolution);
   }
