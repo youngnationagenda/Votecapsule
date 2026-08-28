@@ -405,3 +405,25 @@ The frontend `ProductImage` component handles missing images gracefully (shows i
 2. Is the campaign service currently deployed and healthy? (`curl https://api.votecapsule.co.ke/api/v1/campaign/health`)
 3. Does the identity service already have an endpoint to update Cognito custom attributes, or do we need to build it fresh?
 4. Can you confirm which S3 bucket + CloudFront distribution IDs are used for each portal deployment?
+
+---
+
+## FINAL STATUS — Completed 2026-08-28 by Sonie
+
+| # | Task | Status | Verified Evidence |
+|---|------|--------|-------------------|
+| 1 | CORS headers to API Gateway | ✅ DONE | 13 headers live + in `infrastructure/scripts/vote-capsule-apigateway.json` |
+| 2 | Identity `PATCH /users/:id/attributes` | ✅ DONE | Endpoint declared, `updateCognitoAttributes()` built, DTO exists |
+| 3 | Campaign `syncRoleToIdentity` after `assignRole()` | ✅ DONE | Method present, called in `assignRole()` + `updateRole()` |
+| 4 | ALB routing `/api/v1/campaign/*` | ✅ DONE | Priority 125 rule confirmed live |
+| 5 | Migrations 134–142 | ✅ DONE | All 9 applied, 21 campaign tables exist in prod DB |
+| 6 | Campaign service deployed | ✅ DONE | ECR image pushed `2026-08-28T18:48`, ECS `deployments:1` |
+| 7 | Canvas/sharp Dockerfile deps | ✅ DONE | `libcairo2-dev`, `libpango1.0-dev`, `libgif-dev`, `librsvg2-dev`, `libjpeg-dev` all present |
+| 8 | S3 CORS `votecapsule-campaign-assets` | ✅ DONE | 16 origins, GET/HEAD/PUT/POST allowed |
+| 9 | IAM `AdminUpdateUserAttributes` | ✅ DONE | In `vote-capsule-cognito-admin-policy` |
+| 10 | Candidate portal deployed | ✅ DONE | S3 synced + CloudFront `E1O4XZRM79VCJ1` invalidated |
+| 11 | Identity + Tenant GatewayAuthGuard deployed | ✅ DONE | Both `deployments:1`, `running === desired` |
+| 12 | All 5 portals deployed | ✅ DONE | All buckets synced + all 5 CF distributions invalidated |
+| 13 | 275 SVG product images on S3 | ✅ DONE | `suppliers/me-advertising/images/` — 275 objects |
+
+**All 13 tasks complete. All 14 ECS services healthy (`running === desired`, `deployments:1`). Working tree clean.**
