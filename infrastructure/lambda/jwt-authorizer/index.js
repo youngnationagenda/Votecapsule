@@ -103,7 +103,10 @@ function verifyJwt(token, pem, audience, issuer) {
 // guards, so public paths must be whitelisted here too.
 
 const PUBLIC_PATH_PREFIXES = [
+  // Health checks — both old prefixed and new bare path (after main.ts exclude)
+  '/health',
   '/api/v1/campaign/health',
+  // Catalogue — unauthenticated read access
   '/api/v1/campaign/materials/categories',
   '/api/v1/campaign/materials/types',
   '/api/v1/campaign/suppliers',
