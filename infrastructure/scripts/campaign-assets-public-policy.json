@@ -2,7 +2,7 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "PublicReadSupplierImages",
+      "Sid": "PublicReadCampaignAssets",
       "Effect": "Allow",
       "Principal": "*",
       "Action": "s3:GetObject",
@@ -10,7 +10,8 @@
         "arn:aws:s3:::votecapsule-campaign-assets/suppliers/*",
         "arn:aws:s3:::votecapsule-campaign-assets/designs/*",
         "arn:aws:s3:::votecapsule-campaign-assets/thumbnails/*",
-        "arn:aws:s3:::votecapsule-campaign-assets/previews/*"
+        "arn:aws:s3:::votecapsule-campaign-assets/previews/*",
+        "arn:aws:s3:::votecapsule-campaign-assets/catalogue/*"
       ]
     }
   ]

@@ -1,0 +1,143 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "VoteCapsule Campaign Service — ECS Fargate Service, Target Group, ALB Listener Rule",
+  "Parameters": {
+    "VpcId": {
+      "Type": "String",
+      "Default": "vpc-0ae6f8630af9fbfdc"
+    },
+    "ALBListenerArn": {
+      "Type": "String",
+      "Default": "arn:aws:elasticloadbalancing:us-east-1:683541453923:listener/app/vote-capsule-services-alb/aef21c0dc2379121/8cfcb22850289df4"
+    },
+    "ECSCluster": {
+      "Type": "String",
+      "Default": "vote-capsule-cluster"
+    },
+    "SubnetA": {
+      "Type": "String",
+      "Default": "subnet-07e9a47ba60bc2ce3"
+    },
+    "SubnetB": {
+      "Type": "String",
+      "Default": "subnet-0ebe0ed0ceb60bef1"
+    },
+    "ALBSecurityGroupId": {
+      "Type": "String",
+      "Default": "sg-0141328242fe8f272"
+    }
+  },
+  "Resources": {
+    "CampaignSG": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupName": "vc-campaign-sg",
+        "GroupDescription": "VoteCapsule campaign ECS tasks",
+        "VpcId": { "Ref": "VpcId" },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": 3016,
+            "ToPort": 3016,
+            "SourceSecurityGroupId": { "Ref": "ALBSecurityGroupId" },
+            "Description": "From ALB"
+          }
+        ],
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Service", "Value": "campaign" }
+        ]
+      }
+    },
+    "CampaignTG": {
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+      "Properties": {
+        "Name": "vc-campaign-tg",
+        "Port": 3016,
+        "Protocol": "HTTP",
+        "VpcId": { "Ref": "VpcId" },
+        "TargetType": "ip",
+        "HealthCheckEnabled": true,
+        "HealthCheckPath": "/health",
+        "HealthCheckPort": "3016",
+        "HealthCheckProtocol": "HTTP",
+        "HealthCheckIntervalSeconds": 30,
+        "HealthCheckTimeoutSeconds": 5,
+        "HealthyThresholdCount": 2,
+        "UnhealthyThresholdCount": 3,
+        "Matcher": { "HttpCode": "200" },
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Service", "Value": "campaign" }
+        ]
+      }
+    },
+    "CampaignListenerRule": {
+      "Type": "AWS::ElasticLoadBalancingV2::ListenerRule",
+      "Properties": {
+        "ListenerArn": { "Ref": "ALBListenerArn" },
+        "Priority": 14,
+        "Conditions": [
+          {
+            "Field": "path-pattern",
+            "Values": ["/api/v1/campaign/*"]
+          }
+        ],
+        "Actions": [
+          {
+            "Type": "forward",
+            "TargetGroupArn": { "Ref": "CampaignTG" }
+          }
+        ]
+      }
+    },
+    "CampaignService": {
+      "Type": "AWS::ECS::Service",
+      "DependsOn": "CampaignListenerRule",
+      "Properties": {
+        "ServiceName": "vc-campaign",
+        "Cluster": { "Ref": "ECSCluster" },
+        "TaskDefinition": "vc-campaign",
+        "DesiredCount": 1,
+        "LaunchType": "FARGATE",
+        "NetworkConfiguration": {
+          "AwsvpcConfiguration": {
+            "AssignPublicIp": "ENABLED",
+            "Subnets": [
+              { "Ref": "SubnetA" },
+              { "Ref": "SubnetB" }
+            ],
+            "SecurityGroups": [
+              { "Ref": "CampaignSG" }
+            ]
+          }
+        },
+        "LoadBalancers": [
+          {
+            "ContainerName": "vc-campaign",
+            "ContainerPort": 3016,
+            "TargetGroupArn": { "Ref": "CampaignTG" }
+          }
+        ],
+        "DeploymentConfiguration": {
+          "MaximumPercent": 200,
+          "MinimumHealthyPercent": 100
+        },
+        "Tags": [
+          { "Key": "Project", "Value": "VoteCapsule" },
+          { "Key": "Service", "Value": "campaign" }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "CampaignTargetGroupArn": {
+      "Value": { "Ref": "CampaignTG" },
+      "Export": { "Name": "VoteCapsule-CampaignTG-Arn" }
+    },
+    "CampaignServiceName": {
+      "Value": { "Fn::GetAtt": ["CampaignService", "Name"] },
+      "Export": { "Name": "VoteCapsule-CampaignService-Name" }
+    }
+  }
+}
