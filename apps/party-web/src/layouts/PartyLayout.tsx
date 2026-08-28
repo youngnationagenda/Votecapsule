@@ -5,7 +5,7 @@ import {
   TrendingUp, CreditCard, Mail, FileText, Settings, LogOut,
   Bell, ChevronLeft, Menu, Flag, Trophy, Building2, UserCog,
   Globe, UserPlus, Gavel, Megaphone, Calendar, CheckSquare,
-  MessageSquare, DollarSign, UsersRound, Package, Store,
+  MessageSquare, DollarSign, UsersRound, Store,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { toggleSidebar } from '../store/slices/uiSlice';
@@ -24,10 +24,10 @@ interface NavItem {
 // Mirrors campaign-role.guard.ts LIMITED_ROLES mapping
 const FULL_ACCESS_ROLES = ['PARTY_ADMIN', 'TENANT_ADMIN', 'PARTY_CAMPAIGN_DIRECTOR', 'PLATFORM_SUPER_ADMIN'];
 const CAMPAIGN_NAV_BY_ROLE: Record<string, string[]> = {
-  LOGISTICS_OFFICER:      ['/campaign', '/campaign/calendar', '/campaign/tasks', '/campaign/materials', '/campaign/suppliers'],
+  LOGISTICS_OFFICER:      ['/campaign', '/campaign/calendar', '/campaign/tasks', '/campaign/suppliers'],
   FINANCE_OFFICER:        ['/campaign', '/campaign/budget', '/campaign/calendar', '/campaign/tasks'],
   COMMUNICATIONS_OFFICER: ['/campaign', '/campaign/sms', '/campaign/calendar', '/campaign/tasks'],
-  BRAND_MANAGER:          ['/campaign', '/campaign/materials', '/campaign/suppliers', '/campaign/tasks'],
+  BRAND_MANAGER:          ['/campaign', '/campaign/suppliers', '/campaign/tasks'],
   CAMPAIGN_VOLUNTEER:     ['/campaign', '/campaign/calendar', '/campaign/tasks'],
   CAMPAIGN_MANAGER:       [], // full campaign access
   WARD_COORDINATOR:       [], // full campaign access (geo-scoped on backend)
@@ -58,8 +58,7 @@ const campaignNavItems: NavItem[] = [
   { to: '/campaign',          icon: Megaphone,     label: 'Campaign Overview' },
   { to: '/campaign/calendar', icon: Calendar,      label: 'Campaign Calendar' },
   { to: '/campaign/tasks',    icon: CheckSquare,   label: 'Tasks & Actions' },
-  { to: '/campaign/materials', icon: Package,       label: 'Materials Catalogue' },
-  { to: '/campaign/suppliers', icon: Store,        label: 'Suppliers' },
+  { to: '/campaign/suppliers', icon: Store,        label: 'Supplier Catalogue' },
   { to: '/campaign/teams',    icon: UsersRound,    label: 'Teams & Volunteers' },
   { to: '/campaign/sms',      icon: MessageSquare, label: 'SMS Messaging' },
   { to: '/campaign/budget',   icon: DollarSign,    label: 'Campaign Budget' },

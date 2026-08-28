@@ -4,7 +4,7 @@ import {
   LayoutDashboard, MapPin, BarChart3, TrendingUp, Image, Bell,
   Download, Users, CreditCard, LogOut, Menu, ChevronLeft, User,
   Flag, Megaphone, Calendar, CheckSquare, DollarSign,
-  MessageSquare, AlertTriangle, Package, Store, ShoppingCart, Printer,
+  MessageSquare, AlertTriangle, Store, ShoppingCart,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { toggleSidebar } from '../store/slices/uiSlice';
@@ -25,10 +25,8 @@ const campaignNavItems = [
   { to: '/campaign',            icon: Megaphone,      label: 'Campaign Overview' },
   { to: '/campaign/calendar',   icon: Calendar,       label: 'Campaign Calendar' },
   { to: '/campaign/team',       icon: Users,          label: 'My Team & Roles' },
-  { to: '/campaign/materials',  icon: Package,        label: 'Campaign Materials' },
-  { to: '/campaign/printing',   icon: Printer,        label: 'Printing & Design' },
   { to: '/campaign/suppliers',  icon: Store,          label: 'Supplier Catalogue' },
-  { to: '/campaign/needs',     icon: ShoppingCart,   label: 'My Needs List' },
+  { to: '/campaign/needs',      icon: ShoppingCart,   label: 'My Campaign Needs' },
   { to: '/campaign/budget',     icon: DollarSign,     label: 'Campaign Budget' },
   { to: '/campaign/sms',        icon: MessageSquare,  label: 'Campaign SMS' },
   { to: '/campaign/incidents',  icon: AlertTriangle,  label: 'Incidents' },
