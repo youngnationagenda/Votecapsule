@@ -532,18 +532,20 @@ function SupplierCatalogueContent(): React.JSX.Element {
   });
 
   // Material types from catalogue
-  const { data: materialTypes = [] } = useQuery({
+  const { data: materialTypes = [], isPending: typesLoading, isError: typesError } = useQuery({
     queryKey: ['material-types-all'],
     queryFn: () => campaignApi.materials.listTypes().then((r: any) => {
       const d = r.data;
       return Array.isArray(d) ? d : (d?.data ?? []);
     }),
+    retry: 2,
   });
 
   // Supplier products
-  const { data: supplierProducts = [] } = useQuery({
+  const { data: supplierProducts = [], isPending: productsLoading } = useQuery({
     queryKey: ['supplier-products-all'],
     queryFn: () => campaignApi.suppliers.listAllProducts(),
+    retry: 2,
   });
 
   // Merge both sources into unified CatalogueItem[]
@@ -626,7 +628,7 @@ function SupplierCatalogueContent(): React.JSX.Element {
     return items;
   }, [allItems, selectedCat, search, sortBy]);
 
-  const isLoading = allItems.length === 0 && materialTypes.length === 0;
+  const isLoading = typesLoading || productsLoading;
 
   const handleOrder = (item: CatalogueItem) => {
     if (!campaignId) {
@@ -745,12 +747,26 @@ function SupplierCatalogueContent(): React.JSX.Element {
             </div>
           ))}
         </div>
+      ) : typesError ? (
+        <div className="bg-white border border-red-200 rounded-2xl text-center py-16">
+          <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-3" />
+          <p className="text-base font-semibold text-gray-700">Unable to load catalogue</p>
+          <p className="text-sm text-gray-500 mt-1">
+            The Campaign service is not responding. Please try again later or contact support.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
       ) : filtered.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-2xl text-center py-16">
           <Store className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <p className="text-base font-semibold text-gray-700">No products found</p>
           <p className="text-sm text-gray-400 mt-1">
-            {allItems.length === 0 ? 'Catalogue is loading — ensure Campaign service is running.' : 'Try a different search or category.'}
+            {allItems.length === 0 ? 'No catalogue items available yet.' : 'Try a different search or category.'}
           </p>
         </div>
       ) : viewMode === 'grid' ? (

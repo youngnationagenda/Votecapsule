@@ -8,7 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Search, Store, ChevronRight, ExternalLink, ShoppingCart,
   Grid, List, MapPin, Clock, Package,
-  Truck, Eye, X, ImageOff,
+  Truck, Eye, X, ImageOff, AlertTriangle,
 } from 'lucide-react';
 import { campaignApi } from '../api/campaignApi';
 import { CampaignMaterialIcon, CampaignCategoryIcon } from '../components/CampaignMaterialIcon';
@@ -431,18 +431,20 @@ function SupplierCatalogueContent(): React.JSX.Element {
   });
 
   // Fetch supplier products via suppliers API
-  const { data: supplierProducts = [] } = useQuery<any[]>({
+  const { data: supplierProducts = [], isPending: productsLoading } = useQuery<any[]>({
     queryKey: ['supplier-products-all'],
     queryFn: () => campaignApi.suppliers.listAllProducts(),
+    retry: 2,
   });
 
   // Fetch material types as fallback catalogue items
-  const { data: materialTypes = [] } = useQuery<any[]>({
+  const { data: materialTypes = [], isPending: typesLoading, isError: typesError } = useQuery<any[]>({
     queryKey: ['material-types-all'],
     queryFn: () => campaignApi.materials.listTypes().then((r: any) => {
       const d = r.data;
       return Array.isArray(d) ? d : (d?.data ?? []);
     }),
+    retry: 2,
   });
 
   // Merge: supplier products take priority; material types fill the rest
@@ -503,7 +505,7 @@ function SupplierCatalogueContent(): React.JSX.Element {
     return [...supplierItems, ...catalogueItems];
   }, [supplierProducts, materialTypes]);
 
-  const isLoading = products.length === 0 && materialTypes.length === 0 && supplierProducts.length === 0;
+  const isLoading = typesLoading || productsLoading;
 
   // Filter + sort
   const filtered = useMemo(() => {
@@ -685,13 +687,27 @@ function SupplierCatalogueContent(): React.JSX.Element {
             </div>
           ))}
         </div>
+      ) : typesError ? (
+        <div className="vc-card border-red-200 text-center py-16">
+          <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-3" />
+          <p className="text-base font-semibold text-gray-700">Unable to load catalogue</p>
+          <p className="text-sm text-gray-500 mt-1">
+            The Campaign service is not responding. Please try again later or contact support.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
       ) : filtered.length === 0 ? (
         <div className="vc-card text-center py-16">
           <Store className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <p className="text-base font-semibold text-gray-700">No products found</p>
           <p className="text-sm text-gray-400 mt-1">
             {products.length === 0
-              ? 'Contact Me Advertising to enable product listings.'
+              ? 'No catalogue items available yet.'
               : 'Try adjusting your search or filters.'}
           </p>
         </div>
