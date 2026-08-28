@@ -96,9 +96,51 @@ function verifyJwt(token, pem, audience, issuer) {
   });
 }
 
+// ── Public paths — bypass JWT check entirely ─────────────────
+// These paths must be accessible without authentication.
+// They correspond to the BYPASS_PATHS in CampaignRoleGuard.
+// NOTE: The API Gateway Lambda Authorizer fires BEFORE NestJS
+// guards, so public paths must be whitelisted here too.
+
+const PUBLIC_PATH_PREFIXES = [
+  '/api/v1/campaign/health',
+  '/api/v1/campaign/materials/categories',
+  '/api/v1/campaign/materials/types',
+  '/api/v1/campaign/suppliers',
+  '/api/v1/campaign/mockup-templates',
+  '/api/v1/campaign/webhooks/',
+  '/api/v1/notification/demo-request',
+];
+
+function isPublicPath(path) {
+  if (!path) return false;
+  // Strip query string
+  const cleanPath = path.split('?')[0];
+  return PUBLIC_PATH_PREFIXES.some(prefix => cleanPath.startsWith(prefix));
+}
+
 // ── Handler ───────────────────────────────────────────────────
 
 exports.handler = async (event) => {
+  const path = event.rawPath || event.requestContext?.http?.path || '';
+
+  // Allow public catalogue + health paths without a JWT
+  if (isPublicPath(path)) {
+    return {
+      isAuthorized: true,
+      context: {
+        userId: '',
+        tenantId: '',
+        userRole: 'PUBLIC',
+        wardCode: '',
+        constituencyCode: '',
+        candidateId: '',
+        platformAdmin: 'false',
+        sub: '',
+      },
+    };
+  }
+
   // Support both HTTP API (v2) simple response and REST API policy response
   const token = (event.headers?.authorization || event.headers?.Authorization || '')
     .replace(/^Bearer\s+/i, '');

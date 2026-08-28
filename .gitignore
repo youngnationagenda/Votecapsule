@@ -93,3 +93,4 @@ OWNER.md
 dev-portals.bat
 check-imports.js
 check-package-exports.js
+infrastructure/lambda/jwt-authorizer/auth.zip  
