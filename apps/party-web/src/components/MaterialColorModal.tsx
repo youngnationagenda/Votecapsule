@@ -15,17 +15,21 @@ import { CampaignColorPicker, type ColorSelection } from './CampaignColorPicker'
 import { getCampaignIcon } from '../assets/campaignIcons';
 
 interface MaterialType {
-  id:             string;
-  code:           string;
-  name:           string;
-  description?:   string;
-  unit:           string;
+  id:               string;
+  code:             string;
+  name:             string;
+  description?:     string;
+  /** Must match MaterialsCataloguePage.MaterialType — required for callback type compatibility */
+  categoryId:       string;
+  unit:             string;
   minOrderQuantity: number;
-  leadTimeDays:   number;
-  typicalCostMin?: number;
-  typicalCostMax?: number;
-  thumbnailUrl?:  string; // set once Sonie uploads photos to S3
-  categoryName?:  string;
+  leadTimeDays:     number;
+  typicalCostMin?:  number;
+  typicalCostMax?:  number;
+  thumbnailUrl?:    string; // set once Sonie uploads photos to S3
+  /** Must match MaterialsCataloguePage.MaterialType — required for callback type compatibility */
+  isActive:         boolean;
+  categoryName?:    string;
 }
 
 interface Props {

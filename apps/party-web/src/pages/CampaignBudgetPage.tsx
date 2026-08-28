@@ -418,7 +418,7 @@ function CampaignBudgetContent(): React.JSX.Element {
                     <ResponsiveContainer width="100%" height={200}>
                       <PieChart>
                         <Pie data={pieData} cx="50%" cy="50%" innerRadius={45} outerRadius={75} paddingAngle={2} dataKey="value">
-                          {pieData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                          {pieData.map((entry: { name: string; value: number; fill: string }, i: number) => <Cell key={i} fill={entry.fill} />)}
                         </Pie>
                         <Tooltip formatter={(v: any) => fmt(Number(v))} />
                         <Legend wrapperStyle={{ fontSize: '10px' }} />

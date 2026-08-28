@@ -112,11 +112,13 @@ export const campaignApi = {
      */
     listAllProducts: async (categoryFilter?: string): Promise<any[]> => {
       // 1. Get suppliers (global + tenant)
+      // /suppliers returns a raw array (no .data wrapper from NestJS)
       const suppliersResp = await apiClient.get(`${BASE}/suppliers`);
       const suppliers: any[] = suppliersResp.data?.data ?? suppliersResp.data ?? [];
       if (suppliers.length === 0) return [];
 
       // 2. Get material types (with thumbnailUrl + category info) for enrichment
+      // /materials/types also returns a raw array
       const typesParams: any = {};
       if (categoryFilter && categoryFilter !== 'all') typesParams.category = categoryFilter;
       const typesResp = await apiClient.get(`${BASE}/materials/types`, { params: typesParams });
@@ -124,30 +126,50 @@ export const campaignApi = {
       const typeMap = new Map(types.map((t: any) => [t.id, t]));
 
       // 3. Fetch products from all suppliers (parallel)
+      // /suppliers/{id}/products returns { data: [...], total: N }
       const allProducts: any[] = [];
-      await Promise.all(
+      const results = await Promise.allSettled(
         suppliers.map(async (supplier: any) => {
-          try {
-            const resp = await apiClient.get(`${BASE}/suppliers/${supplier.id}/products`, {
-              params: { limit: 300 },
-            });
-            const products: any[] = resp.data?.data ?? resp.data ?? [];
-            products.forEach((p: any) => {
-              const type = typeMap.get(p.materialTypeId);
-              allProducts.push({
-                ...p,
-                supplierName:      supplier.companyName,
-                supplierWebsite:   supplier.website,
-                materialTypeName:  type?.name        ?? p.supplierProductName,
-                materialTypeCode:  type?.code        ?? '',
-                categoryCode:      type?.category?.code ?? '',
-                categoryName:      type?.category?.name ?? '',
-                thumbnailUrl:      p.imageUrl ?? type?.thumbnailUrl ?? null,
-              });
-            });
-          } catch { /* skip failed supplier */ }
+          const resp = await apiClient.get(`${BASE}/suppliers/${supplier.id}/products`, {
+            params: { limit: 300 },
+          });
+          // Backend returns paginated: { data: [...], total: N }
+          const products: any[] = resp.data?.data ?? (Array.isArray(resp.data) ? resp.data : []);
+          return products.map((p: any) => {
+            const type = typeMap.get(p.materialTypeId);
+            return {
+              ...p,
+              supplierName:          supplier.companyName,
+              // CampaignSupplier entity has contactEmail, not website
+              supplierContactEmail:  supplier.contactEmail ?? null,
+              materialTypeName:      type?.name           ?? p.supplierProductName,
+              materialTypeCode:      type?.code           ?? '',
+              categoryCode:          type?.category?.code ?? '',
+              categoryName:          type?.category?.name ?? '',
+              // imageUrl is already the full S3 URL; thumbnailUrl as fallback
+              imageUrl:              p.imageUrl ?? type?.thumbnailUrl ?? null,
+              thumbnailUrl:          p.thumbnailUrl ?? type?.thumbnailUrl ?? null,
+            };
+          });
         })
       );
+
+      // Collect fulfilled results; throw only if ALL suppliers failed
+      let anySucceeded = false;
+      results.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          allProducts.push(...result.value);
+          anySucceeded = true;
+        }
+      });
+
+      // If every supplier request failed, propagate the error so React Query
+      // can show the error state (instead of silently returning [])
+      if (!anySucceeded && results.length > 0) {
+        const firstError = results.find(r => r.status === 'rejected') as PromiseRejectedResult;
+        throw firstError?.reason ?? new Error('Failed to load supplier products');
+      }
+
       return allProducts;
     },
   },

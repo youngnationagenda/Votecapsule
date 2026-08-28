@@ -18,10 +18,20 @@ import type { ColorSelection } from '../components/CampaignColorPicker';
 // ── Types ─────────────────────────────────────────────────────
 interface Category { id: string; code: string; name: string; isActive: boolean; sortOrder: number; }
 interface MaterialType {
-  id: string; code: string; name: string; description?: string;
-  categoryId: string; unit: string; minOrderQuantity: number;
-  leadTimeDays: number; typicalCostMin?: number; typicalCostMax?: number;
-  thumbnailUrl?: string; isActive: boolean;
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  categoryId: string;
+  unit: string;
+  minOrderQuantity: number;
+  leadTimeDays: number;
+  typicalCostMin?: number;
+  typicalCostMax?: number;
+  thumbnailUrl?: string;
+  isActive: boolean;
+  // categoryName is injected by MaterialColorModal (optional here, required there)
+  categoryName?: string;
 }
 
 // ── Utility ───────────────────────────────────────────────────
