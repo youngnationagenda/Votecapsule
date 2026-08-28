@@ -430,20 +430,94 @@ function SupplierCatalogueContent(): React.JSX.Element {
     queryFn: () => campaignApi.materials.listCategories().then((r: any) => r.data?.data ?? r.data ?? []),
   });
 
-  // Fetch supplier products via suppliers API (correct endpoint)
-  const { data: products = [], isLoading } = useQuery<SupplierProduct[]>({
+  // Fetch supplier products via suppliers API
+  const { data: supplierProducts = [] } = useQuery<any[]>({
     queryKey: ['supplier-products', selectedCat],
     queryFn: () => campaignApi.suppliers.listAllProducts(
       selectedCat !== 'all' ? selectedCat : undefined
     ),
   });
 
+  // Fetch material types as fallback catalogue items
+  const { data: materialTypes = [] } = useQuery<any[]>({
+    queryKey: ['material-types-all'],
+    queryFn: () => campaignApi.materials.listTypes().then((r: any) => {
+      const d = r.data;
+      return Array.isArray(d) ? d : (d?.data ?? []);
+    }),
+  });
+
+  // Merge: supplier products take priority; material types fill the rest
+  const products: SupplierProduct[] = useMemo(() => {
+    // Supplier products (real pricing from imported catalogue)
+    const supplierItems: SupplierProduct[] = (supplierProducts as any[]).map((p: any) => ({
+      id: p.id,
+      supplierId: p.supplierId,
+      materialTypeId: p.materialTypeId,
+      supplierProductName: p.supplierProductName || p.materialTypeName || p.name,
+      supplierSku: p.supplierSku || '',
+      unitPrice: p.unitPrice ? Number(p.unitPrice) : null,
+      currency: p.currency || 'KES',
+      bulkPrice: p.bulkPrice ? Number(p.bulkPrice) : null,
+      bulkMinQuantity: p.bulkMinQuantity ? Number(p.bulkMinQuantity) : null,
+      productUrl: p.productUrl || '',
+      imageUrl: p.imageUrl || p.thumbnailUrl || null,
+      thumbnailUrl: p.thumbnailUrl || null,
+      description: p.description || p.metadata?.description || '',
+      specifications: p.specifications || {},
+      isAvailable: p.isAvailable !== false,
+      leadTimeDays: p.leadTimeDays || null,
+      metadata: p.metadata || {},
+      materialTypeName: p.materialTypeName,
+      materialTypeCode: p.materialTypeCode || '',
+      categoryCode: p.categoryCode || '',
+      categoryName: p.categoryName || '',
+    }));
+
+    // Material types that DON'T have a supplier product (fallback catalogue)
+    const supplierTypeIds = new Set(supplierItems.map(s => s.materialTypeId).filter(Boolean));
+    const catalogueItems: SupplierProduct[] = (materialTypes as any[])
+      .filter((t: any) => t.isActive && !supplierTypeIds.has(t.id))
+      .map((t: any) => ({
+        id: t.id,
+        supplierId: '',
+        materialTypeId: t.id,
+        supplierProductName: t.name,
+        supplierSku: '',
+        unitPrice: t.typicalCostMin ? Number(t.typicalCostMin) : null,
+        currency: 'KES',
+        bulkPrice: null,
+        bulkMinQuantity: null,
+        productUrl: '',
+        imageUrl: t.thumbnailUrl || null,
+        thumbnailUrl: t.thumbnailUrl || null,
+        description: t.description || '',
+        specifications: t.specifications || {},
+        isAvailable: true,
+        leadTimeDays: t.leadTimeDays || null,
+        metadata: {},
+        materialTypeName: t.name,
+        materialTypeCode: t.code || '',
+        categoryCode: t.category?.code || '',
+        categoryName: t.category?.name || '',
+      }));
+
+    return [...supplierItems, ...catalogueItems];
+  }, [supplierProducts, materialTypes]);
+
+  const isLoading = products.length === 0 && materialTypes.length === 0 && supplierProducts.length === 0;
+
   // Filter + sort
   const filtered = useMemo(() => {
     let items = [...products];
-    const q = search.toLowerCase();
+
+    // Category filter (client-side since we merged sources)
+    if (selectedCat !== 'all') {
+      items = items.filter(p => p.categoryCode === selectedCat);
+    }
 
     // Search
+    const q = search.toLowerCase();
     if (q) {
       items = items.filter(p =>
         p.supplierProductName.toLowerCase().includes(q) ||
