@@ -7,8 +7,8 @@ import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Search, Store, ChevronRight, ExternalLink, ShoppingCart,
-  Filter, Grid, List, Star, MapPin, Clock, Package,
-  Truck, Eye, Heart, ChevronDown, X, ImageOff,
+  Grid, List, MapPin, Clock, Package,
+  Truck, Eye, X, ImageOff,
 } from 'lucide-react';
 import { campaignApi } from '../api/campaignApi';
 import { CampaignMaterialIcon, CampaignCategoryIcon } from '../components/CampaignMaterialIcon';
@@ -432,10 +432,8 @@ function SupplierCatalogueContent(): React.JSX.Element {
 
   // Fetch supplier products via suppliers API
   const { data: supplierProducts = [] } = useQuery<any[]>({
-    queryKey: ['supplier-products', selectedCat],
-    queryFn: () => campaignApi.suppliers.listAllProducts(
-      selectedCat !== 'all' ? selectedCat : undefined
-    ),
+    queryKey: ['supplier-products-all'],
+    queryFn: () => campaignApi.suppliers.listAllProducts(),
   });
 
   // Fetch material types as fallback catalogue items
