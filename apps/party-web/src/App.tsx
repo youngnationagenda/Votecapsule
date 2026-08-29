@@ -44,6 +44,7 @@ const CampaignSMSPage         = lazy(() => import('./pages/CampaignSMSPage').the
 const CampaignBudgetPage      = lazy(() => import('./pages/CampaignBudgetPage').then(m => ({ default: m.CampaignBudgetPage })));
 const CreateCampaignPage      = lazy(() => import('./pages/CreateCampaignPage').then(m => ({ default: m.CreateCampaignPage })));
 const SupplierCataloguePage   = lazy(() => import('./pages/SupplierCataloguePage').then(m => ({ default: m.SupplierCataloguePage })));
+const AIImageGeneratorPage    = lazy(() => import('./pages/AIImageGeneratorPage').then(m => ({ default: m.AIImageGeneratorPage })));
 
 function PageLoader(): React.JSX.Element {
   return (
@@ -109,6 +110,9 @@ export default function App(): React.JSX.Element {
           <Route path="/campaign/materials" element={<Navigate to="/campaign/suppliers" replace />} />
           <Route path="/campaign/suppliers" element={
             <Suspense fallback={<PageLoader />}><SupplierCataloguePage /></Suspense>
+          } />
+          <Route path="/campaign/ai-images" element={
+            <Suspense fallback={<PageLoader />}><AIImageGeneratorPage /></Suspense>
           } />
           <Route path="/campaign/budget" element={
             <Suspense fallback={<PageLoader />}><CampaignBudgetPage /></Suspense>

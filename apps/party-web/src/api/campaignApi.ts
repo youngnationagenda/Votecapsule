@@ -174,6 +174,52 @@ export const campaignApi = {
     },
   },
 
+  // AI Image Generation (Stability AI via Amazon Bedrock)
+  aiImages: {
+    /**
+     * List all available Stability AI models and their capabilities.
+     * Returns: { data: [{ id, name, capability }] }
+     */
+    listModels: () =>
+      apiClient.get(`${BASE}/ai-images/models`),
+
+    /**
+     * Generate a campaign image from a text prompt.
+     * Returns: { data: { imageUrl, s3Key, model, seed, finishReason } }
+     */
+    generate: (campaignId: string, dto: {
+      prompt:          string;
+      negativePrompt?: string;
+      aspectRatio?:    '1:1' | '16:9' | '9:16' | '4:3' | '3:4' | '21:9' | '2:3' | '3:2';
+      outputFormat?:   'jpeg' | 'png' | 'webp';
+      seed?:           number;
+      stylePreset?:    string;
+      model?:          string;
+    }) => apiClient.post(`${BASE}/campaigns/${campaignId}/ai-images/generate`, dto),
+
+    /**
+     * Remove the background from an image (e.g. candidate photo).
+     * Body: { imageBase64: string, outputFormat?: 'png' | 'webp' }
+     * Returns: { data: { imageUrl, s3Key, ... } }
+     */
+    removeBackground: (campaignId: string, imageBase64: string, outputFormat?: string) =>
+      apiClient.post(`${BASE}/campaigns/${campaignId}/ai-images/remove-background`, {
+        imageBase64,
+        outputFormat,
+      }),
+
+    /**
+     * Upscale an image to higher resolution.
+     * Body: { imageBase64, prompt?, outputFormat?, model?: 'creative'|'conservative'|'fast' }
+     */
+    upscale: (campaignId: string, dto: {
+      imageBase64:  string;
+      prompt?:      string;
+      outputFormat?: string;
+      model?:       'creative' | 'conservative' | 'fast';
+    }) => apiClient.post(`${BASE}/campaigns/${campaignId}/ai-images/upscale`, dto),
+  },
+
   // Incidents
   incidents: {
     create:    (cid: string, data: any)          => apiClient.post(`${BASE}/campaigns/${cid}/incidents`, data),

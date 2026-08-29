@@ -5,11 +5,15 @@ import {
   Controller, Get, Post, Patch, Param, Body, Headers,
   HttpCode, HttpStatus, BadRequestException, ParseUUIDPipe,
 } from '@nestjs/common';
-import { DesignService } from './design.service';
+import { DesignService }        from './design.service';
+import { BedrockImageService }  from './bedrock-image.service';
 
 @Controller()
 export class DesignController {
-  constructor(private readonly service: DesignService) {}
+  constructor(
+    private readonly service:        DesignService,
+    private readonly bedrockImages:  BedrockImageService,
+  ) {}
 
   // ── Mockup templates (global, by material type) ──────────────
 
@@ -84,5 +88,125 @@ export class DesignController {
     if (!t) throw new BadRequestException('X-Tenant-Id required');
     if (!reason) throw new BadRequestException('Rejection reason is required');
     return this.service.reject(did, c, t, reason);
+  }
+
+  // ── Stability AI / Bedrock Image Generation ──────────────────
+
+  /**
+   * GET /campaign/ai-images/models
+   * Returns the full list of Stability AI models available in Bedrock
+   * and their capabilities (text-to-image, inpaint, upscale, etc.)
+   */
+  @Get('ai-images/models')
+  listImageModels() {
+    return { data: this.bedrockImages.getAvailableModels() };
+  }
+
+  /**
+   * POST /campaign/campaigns/:campaignId/ai-images/generate
+   * Generate a campaign image from a text prompt.
+   *
+   * Body: {
+   *   prompt: string            — required, describe the image
+   *   negativePrompt?: string   — what to avoid
+   *   aspectRatio?: string      — '1:1' | '16:9' | '9:16' | '4:3' | etc.
+   *   outputFormat?: string     — 'jpeg' | 'png' | 'webp'
+   *   seed?: number             — for reproducibility
+   *   stylePreset?: string      — 'photographic' | 'digital-art' | 'cinematic' | etc.
+   * }
+   *
+   * Returns: { imageUrl, s3Key, model, seed, finishReason }
+   */
+  @Post('campaigns/:campaignId/ai-images/generate')
+  @HttpCode(HttpStatus.CREATED)
+  async generateImage(
+    @Param('campaignId', ParseUUIDPipe) campaignId: string,
+    @Body() body: any,
+    @Headers('x-tenant-id') tenantId: string,
+    @Headers('x-user-id') userId: string,
+  ) {
+    if (!tenantId) throw new BadRequestException('X-Tenant-Id required');
+    if (!userId)   throw new BadRequestException('X-User-Id required');
+    if (!body?.prompt) throw new BadRequestException('prompt is required');
+
+    const result = await this.bedrockImages.generateFromText(
+      {
+        prompt:         body.prompt,
+        negativePrompt: body.negativePrompt,
+        aspectRatio:    body.aspectRatio,
+        outputFormat:   body.outputFormat,
+        seed:           body.seed,
+        stylePreset:    body.stylePreset,
+        model:          body.model,
+      },
+      tenantId,
+      campaignId,
+    );
+
+    return { data: result };
+  }
+
+  /**
+   * POST /campaign/campaigns/:campaignId/ai-images/remove-background
+   * Remove the background from a campaign image (e.g. candidate photo).
+   *
+   * Body: { imageBase64: string, outputFormat?: 'png' | 'webp' }
+   */
+  @Post('campaigns/:campaignId/ai-images/remove-background')
+  @HttpCode(HttpStatus.CREATED)
+  async removeBackground(
+    @Param('campaignId', ParseUUIDPipe) campaignId: string,
+    @Body() body: any,
+    @Headers('x-tenant-id') tenantId: string,
+    @Headers('x-user-id') userId: string,
+  ) {
+    if (!tenantId)        throw new BadRequestException('X-Tenant-Id required');
+    if (!userId)          throw new BadRequestException('X-User-Id required');
+    if (!body?.imageBase64) throw new BadRequestException('imageBase64 is required');
+
+    const result = await this.bedrockImages.removeBackground(
+      { imageBase64: body.imageBase64, outputFormat: body.outputFormat },
+      tenantId,
+      campaignId,
+    );
+
+    return { data: result };
+  }
+
+  /**
+   * POST /campaign/campaigns/:campaignId/ai-images/upscale
+   * Upscale a campaign material image to high resolution.
+   *
+   * Body: {
+   *   imageBase64: string
+   *   prompt?: string        — optional enhancement guidance
+   *   outputFormat?: string
+   *   model?: 'creative' | 'conservative' | 'fast'
+   * }
+   */
+  @Post('campaigns/:campaignId/ai-images/upscale')
+  @HttpCode(HttpStatus.CREATED)
+  async upscaleImage(
+    @Param('campaignId', ParseUUIDPipe) campaignId: string,
+    @Body() body: any,
+    @Headers('x-tenant-id') tenantId: string,
+    @Headers('x-user-id') userId: string,
+  ) {
+    if (!tenantId)          throw new BadRequestException('X-Tenant-Id required');
+    if (!userId)            throw new BadRequestException('X-User-Id required');
+    if (!body?.imageBase64) throw new BadRequestException('imageBase64 is required');
+
+    const result = await this.bedrockImages.upscaleImage(
+      {
+        imageBase64:  body.imageBase64,
+        prompt:       body.prompt,
+        outputFormat: body.outputFormat,
+        model:        body.model,
+      },
+      tenantId,
+      campaignId,
+    );
+
+    return { data: result };
   }
 }
