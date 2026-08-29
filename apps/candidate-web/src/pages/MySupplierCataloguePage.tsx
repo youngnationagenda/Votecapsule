@@ -525,27 +525,46 @@ function SupplierCatalogueContent(): React.JSX.Element {
   const campaign = campaigns.find((c: any) => c.status === 'active') ?? campaigns[0];
   const campaignId = (campaign as any)?.id || null;
 
-  // Categories
+  // Categories — /materials/categories returns a raw array
   const { data: categories = [] } = useQuery<Category[]>({
     queryKey: ['material-categories'],
-    queryFn: () => campaignApi.materials.listCategories().then((r: any) => r.data?.data ?? r.data ?? []),
+    queryFn: () => campaignApi.materials.listCategories().then((r: any) => {
+      const d = r.data;
+      return Array.isArray(d) ? d : (d?.data ?? []);
+    }),
+    staleTime: 5 * 60 * 1000,
+    retry: 2,
   });
 
-  // Material types from catalogue
-  const { data: materialTypes = [], isPending: typesLoading, isError: typesError } = useQuery({
+  // Material types from catalogue — /materials/types returns raw array
+  const {
+    data: materialTypes = [],
+    isPending: typesLoading,
+    isError: typesError,
+    refetch: refetchTypes,
+  } = useQuery({
     queryKey: ['material-types-all'],
     queryFn: () => campaignApi.materials.listTypes().then((r: any) => {
       const d = r.data;
       return Array.isArray(d) ? d : (d?.data ?? []);
     }),
-    retry: 2,
+    retry: 3,
+    retryDelay: (attempt: number) => Math.min(1000 * 2 ** attempt, 8000),
+    staleTime: 2 * 60 * 1000,
   });
 
   // Supplier products
-  const { data: supplierProducts = [], isPending: productsLoading } = useQuery({
+  const {
+    data: supplierProducts = [],
+    isPending: productsLoading,
+    isError: productsError,
+    refetch: refetchProducts,
+  } = useQuery({
     queryKey: ['supplier-products-all'],
     queryFn: () => campaignApi.suppliers.listAllProducts(),
-    retry: 2,
+    retry: 3,
+    retryDelay: (attempt: number) => Math.min(1000 * 2 ** attempt, 8000),
+    staleTime: 2 * 60 * 1000,
   });
 
   // Merge both sources into unified CatalogueItem[]
@@ -629,6 +648,12 @@ function SupplierCatalogueContent(): React.JSX.Element {
   }, [allItems, selectedCat, search, sortBy]);
 
   const isLoading = typesLoading || productsLoading;
+
+  // Only show total failure when BOTH sources failed AND loading is done
+  const isTotalFailure = !isLoading &&
+    ((typesError && productsError) ||
+     (typesError && supplierProducts.length === 0 && (materialTypes as any[]).length === 0));
+  const hasPartialError = !isLoading && (typesError || productsError) && !isTotalFailure;
 
   const handleOrder = (item: CatalogueItem) => {
     if (!campaignId) {
@@ -737,6 +762,28 @@ function SupplierCatalogueContent(): React.JSX.Element {
         {search && <> matching "<span className="font-medium">{search}</span>"</>}
       </p>
 
+      {/* Partial error banner — one source failed but we still have data */}
+      {hasPartialError && (
+        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-amber-800">
+              Some catalogue data could not be loaded — showing available items
+            </p>
+            <p className="text-xs text-amber-600 mt-0.5">
+              {productsError ? 'Supplier pricing unavailable. ' : ''}
+              {typesError ? 'Material type details unavailable. ' : ''}
+            </p>
+          </div>
+          <button
+            onClick={() => { refetchProducts(); refetchTypes(); }}
+            className="text-xs font-medium text-amber-700 hover:text-amber-900 underline flex-shrink-0"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* Grid / List */}
       {isLoading ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -747,19 +794,27 @@ function SupplierCatalogueContent(): React.JSX.Element {
             </div>
           ))}
         </div>
-      ) : typesError ? (
+      ) : isTotalFailure ? (
         <div className="bg-white border border-red-200 rounded-2xl text-center py-16">
           <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-3" />
           <p className="text-base font-semibold text-gray-700">Unable to load catalogue</p>
           <p className="text-sm text-gray-500 mt-1">
-            The Campaign service is not responding. Please try again later or contact support.
+            The Campaign service is not responding. Please try again or contact support.
           </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition-colors"
-          >
-            Retry
-          </button>
+          <div className="flex items-center justify-center gap-3 mt-4">
+            <button
+              onClick={() => { refetchProducts(); refetchTypes(); }}
+              className="px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition-colors"
+            >
+              Retry
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              Reload Page
+            </button>
+          </div>
         </div>
       ) : filtered.length === 0 ? (
         <div className="bg-white border border-gray-200 rounded-2xl text-center py-16">

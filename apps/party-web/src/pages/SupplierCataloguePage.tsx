@@ -2,6 +2,8 @@
 // VoteCapsule™ — Supplier Catalogue Page (Party Portal)
 // Phase 14B — Browse supplier products with images, prices, details
 // Merchandise portal — services provided by Me Advertising
+// v2: Fixed isTotalFailure guard, allSettled error propagation,
+//     supplierContactEmail, partial-error banner, retry logic
 // ============================================================
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';

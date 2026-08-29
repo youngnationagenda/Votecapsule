@@ -69,6 +69,7 @@ const SERVICES = [
   { name: 'billing',      label: 'BILLING     ', port: 3013, color: C.green,         stagger: 5000 },
   { name: 'reporting',    label: 'REPORTING   ', port: 3010, color: C.white,         stagger: 5500 },
   { name: 'workflow',     label: 'WORKFLOW    ', port: 3007, color: C.brightRed,     stagger: 6000 },
+  { name: 'campaign',     label: 'CAMPAIGN    ', port: 3016, color: C.brightYellow,  stagger: 6500 },
 ];
 
 // ── Filter by CLI args ────────────────────────────────────────────────────────
