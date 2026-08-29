@@ -26,6 +26,7 @@ on:
     paths:
       - 'services/**'
       - 'packages/**'
+      - 'pnpm-lock.yaml'   # dependency updates affect all service builds
 
   workflow_dispatch:
     inputs:
@@ -55,16 +56,16 @@ jobs:
       matrix:
         service:
           - { name: identity,     dir: services/identity,     repo: vote-capsule/identity-service,     port: 3001 }
-          - { name: evidence,     dir: services/evidence,     repo: vote-capsule/evidence-service,     port: 3002 }
+          - { name: tenant,       dir: services/tenant,       repo: vote-capsule/tenant-service,       port: 3002 }
           - { name: trust,        dir: services/trust,        repo: vote-capsule/trust-service,        port: 3003 }
           - { name: geography,    dir: services/geography,    repo: vote-capsule/geography-service,    port: 3004 }
-          - { name: candidate,    dir: services/candidate,    repo: vote-capsule/candidate-service,    port: 3005 }
-          - { name: election,     dir: services/election,     repo: vote-capsule/election-service,     port: 3006 }
-          - { name: notification, dir: services/notification, repo: vote-capsule/notification-service, port: 3007 }
-          - { name: workflow,     dir: services/workflow,     repo: vote-capsule/workflow-service,     port: 3008 }
-          - { name: reporting,    dir: services/reporting,    repo: vote-capsule/reporting-service,    port: 3009 }
-          - { name: ai,           dir: services/ai,           repo: vote-capsule/ai-service,           port: 3010 }
-          - { name: tenant,       dir: services/tenant,       repo: vote-capsule/tenant-service,       port: 3011 }
+          - { name: evidence,     dir: services/evidence,     repo: vote-capsule/evidence-service,     port: 3005 }
+          - { name: ai,           dir: services/ai,           repo: vote-capsule/ai-service,           port: 3006 }
+          - { name: workflow,     dir: services/workflow,     repo: vote-capsule/workflow-service,     port: 3007 }
+          - { name: notification, dir: services/notification, repo: vote-capsule/notification-service, port: 3008 }
+          - { name: candidate,    dir: services/candidate,    repo: vote-capsule/candidate-service,    port: 3009 }
+          - { name: reporting,    dir: services/reporting,    repo: vote-capsule/reporting-service,    port: 3010 }
+          - { name: election,     dir: services/election,     repo: vote-capsule/election-service,     port: 3011 }
           - { name: audit,        dir: services/audit,        repo: vote-capsule/audit-service,        port: 3012 }
           - { name: billing,      dir: services/billing,      repo: vote-capsule/billing-service,      port: 3013 }
           - { name: campaign,     dir: services/campaign,     repo: vote-capsule/campaign-service,     port: 3016 }
