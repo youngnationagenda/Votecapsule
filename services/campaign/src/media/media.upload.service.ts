@@ -33,7 +33,7 @@ export class MediaUploadService {
     this.publicBucket = config.get<string>('PUBLIC_ASSETS_BUCKET',  'votecapsule-public-assets');
     this.publicBaseUrl = config.get<string>(
       'PUBLIC_ASSETS_BASE_URL',
-      'https://assets.votecapsule.co.ke',
+      'https://assets.votecapsule.yna.co.ke',
     );
   }
 
