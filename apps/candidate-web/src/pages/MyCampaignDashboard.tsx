@@ -44,14 +44,21 @@ function CreateCampaignForm(): React.JSX.Element {
   });
 
   // Fallback: list all elections and filter to usable statuses client-side
-  // (Backend listElections doesn't accept a status filter param — it returns all)
+  // Always re-fetch (staleTime: 0) — user may have just created a new election
   const { data: electionsRaw = [] } = useQuery({
     queryKey: ['elections-list'],
+    staleTime: 0,
     queryFn:  () => campaignApi.listElections().then((r) => {
       const all: any[] = r.data?.data ?? r.data ?? [];
       // Show elections that are in a state where campaigns make sense
-      const usable = ['PLANNING', 'NOMINATION', 'CAMPAIGN', 'ACTIVE', 'active', 'nomination', 'campaign', 'planning'];
-      return all.filter((el: any) => usable.includes(el.status) || el.isActive === true || el.is_active === true);
+      // Accept any election that is not permanently closed/archived
+      const closed = ['COMPLETED', 'CANCELLED', 'ARCHIVED', 'CLOSED'];
+      const filtered = all.filter((el: any) => {
+        const s = (el.status ?? el.electionStatus ?? '').toUpperCase();
+        return !closed.includes(s);
+      });
+      // If still empty, return all so the candidate can still select
+      return filtered.length > 0 ? filtered : all;
     }),
     enabled: !activeElection,
   });

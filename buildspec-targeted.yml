@@ -1,16 +1,33 @@
 version: 0.2
+
+# VoteCapsule — Targeted build (identity + campaign only)
+# Uses ECR Pull Through Cache to avoid public.ecr.aws 429 rate limits.
+
+env:
+  variables:
+    AWS_REGION: "us-east-1"
+    ECR_REGISTRY: "683541453923.dkr.ecr.us-east-1.amazonaws.com"
+    NODE_ALPINE: "683541453923.dkr.ecr.us-east-1.amazonaws.com/ecr-public/docker/library/node:22-alpine"
+    NODE_SLIM:   "683541453923.dkr.ecr.us-east-1.amazonaws.com/ecr-public/docker/library/node:22-slim"
+
 phases:
   pre_build:
     commands:
-      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 683541453923.dkr.ecr.us-east-1.amazonaws.com
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
       - export SHORT_SHA=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-8)
       - echo "SHA $SHORT_SHA"
+      - docker pull $NODE_ALPINE || true
+      - docker pull $NODE_SLIM   || true
+
   build:
     commands:
-      - docker build --build-arg SERVICE_PORT=3001 -t 683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/identity-service:$SHORT_SHA -t 683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/identity-service:latest -f services/identity/Dockerfile . && docker push 683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/identity-service:$SHORT_SHA && docker push 683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/identity-service:latest || echo IDENTITY_FAILED
-      - docker build --build-arg SERVICE_PORT=3016 -t 683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/campaign-service:$SHORT_SHA -t 683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/campaign-service:latest -f services/campaign/Dockerfile . && docker push 683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/campaign-service:$SHORT_SHA && docker push 683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/campaign-service:latest || echo CAMPAIGN_FAILED
+      - docker pull $ECR_REGISTRY/vote-capsule/identity-service:latest 2>/dev/null || true
+      - docker build --cache-from $ECR_REGISTRY/vote-capsule/identity-service:latest --build-arg SERVICE_PORT=3001 -t $ECR_REGISTRY/vote-capsule/identity-service:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/identity-service:latest -f services/identity/Dockerfile . && docker push $ECR_REGISTRY/vote-capsule/identity-service:$SHORT_SHA && docker push $ECR_REGISTRY/vote-capsule/identity-service:latest || echo IDENTITY_FAILED
+      - docker pull $ECR_REGISTRY/vote-capsule/campaign-service:latest 2>/dev/null || true
+      - docker build --cache-from $ECR_REGISTRY/vote-capsule/campaign-service:latest --build-arg SERVICE_PORT=3016 -t $ECR_REGISTRY/vote-capsule/campaign-service:$SHORT_SHA -t $ECR_REGISTRY/vote-capsule/campaign-service:latest -f services/campaign/Dockerfile . && docker push $ECR_REGISTRY/vote-capsule/campaign-service:$SHORT_SHA && docker push $ECR_REGISTRY/vote-capsule/campaign-service:latest || echo CAMPAIGN_FAILED
+
   post_build:
     commands:
-      - aws ecs update-service --cluster vote-capsule-services --service vc-identity --force-new-deployment --region us-east-1 --output json --query "service.runningCount" || true
-      - aws ecs update-service --cluster vote-capsule-services --service vc-campaign --force-new-deployment --region us-east-1 --output json --query "service.runningCount" || true
+      - aws ecs update-service --cluster vote-capsule-services --service vc-identity --force-new-deployment --region $AWS_REGION --output json --query "service.runningCount" || true
+      - aws ecs update-service --cluster vote-capsule-services --service vc-campaign --force-new-deployment --region $AWS_REGION --output json --query "service.runningCount" || true
       - echo "Done - both services rolling"

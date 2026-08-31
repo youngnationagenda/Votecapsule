@@ -1,0 +1,165 @@
+{
+  "family": "vc-campaign",
+  "executionRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+  "taskRoleArn": "arn:aws:iam::683541453923:role/vote-capsule-ecs-task-execution-role",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "512",
+  "memory": "1024",
+  "containerDefinitions": [
+    {
+      "name": "vc-campaign",
+      "image": "683541453923.dkr.ecr.us-east-1.amazonaws.com/vote-capsule/campaign-service:latest",
+      "cpu": 0,
+      "portMappings": [
+        {
+          "containerPort": 3016,
+          "hostPort": 3016,
+          "protocol": "tcp"
+        }
+      ],
+      "essential": true,
+      "environment": [
+        {
+          "name": "IDENTITY_SERVICE_URL",
+          "value": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/identity"
+        },
+        {
+          "name": "DB_PORT",
+          "value": "5432"
+        },
+        {
+          "name": "DB_USER",
+          "value": "vcadmin"
+        },
+        {
+          "name": "DB_NAME",
+          "value": "votecapsule"
+        },
+        {
+          "name": "NOTIFICATION_SERVICE_URL",
+          "value": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/notification"
+        },
+        {
+          "name": "CAMPAIGN_MEDIA_BUCKET",
+          "value": "votecapsule-campaign-assets"
+        },
+        {
+          "name": "CAMPAIGN_IEBC_SPEND_LIMIT_ENABLED",
+          "value": "true"
+        },
+        {
+          "name": "ALLOWED_ORIGINS",
+          "value": "https://votecapsule.yna.co.ke,https://admin.votecapsule.yna.co.ke,https://party.votecapsule.yna.co.ke,https://candidate.votecapsule.yna.co.ke,https://observer.votecapsule.yna.co.ke,https://authority.votecapsule.yna.co.ke,https://transparency.votecapsule.yna.co.ke,http://localhost:3000,http://localhost:5173"
+        },
+        {
+          "name": "TENANT_SERVICE_URL",
+          "value": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/tenant"
+        },
+        {
+          "name": "AUDIT_SERVICE_URL",
+          "value": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/audit"
+        },
+        {
+          "name": "AT_WEBHOOK_SECRET",
+          "value": ""
+        },
+        {
+          "name": "S3_CAMPAIGN_BUCKET",
+          "value": "votecapsule-campaign-assets"
+        },
+        {
+          "name": "SERVICE_NAME",
+          "value": "campaign-service"
+        },
+        {
+          "name": "BILLING_SERVICE_URL",
+          "value": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/billing"
+        },
+        {
+          "name": "CANDIDATE_SERVICE_URL",
+          "value": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/candidate"
+        },
+        {
+          "name": "S3_UPLOAD_URL_EXPIRY",
+          "value": "900"
+        },
+        {
+          "name": "AWS_REGION",
+          "value": "us-east-1"
+        },
+        {
+          "name": "PORT",
+          "value": "3016"
+        },
+        {
+          "name": "GEOGRAPHY_SERVICE_URL",
+          "value": "http://vote-capsule-services-alb-181601180.us-east-1.elb.amazonaws.com/api/v1/geography"
+        },
+        {
+          "name": "DB_HOST",
+          "value": "vote-capsule-db.cluster-c43i6c8ow71c.us-east-1.rds.amazonaws.com"
+        },
+        {
+          "name": "DB_SSL",
+          "value": "true"
+        },
+        {
+          "name": "AT_SENDER_ID",
+          "value": "VOTECAP"
+        },
+        {
+          "name": "CAMPAIGN_BUDGET_CURRENCY",
+          "value": "KES"
+        },
+        {
+          "name": "CAMPAIGN_MAX_EVENTS_PER_CAMPAIGN",
+          "value": "500"
+        },
+        {
+          "name": "NODE_ENV",
+          "value": "production"
+        },
+        {
+          "name": "AT_API_KEY",
+          "value": ""
+        },
+        {
+          "name": "AT_USERNAME",
+          "value": "sandbox"
+        },
+        {
+          "name": "DB_PASSWORD",
+          "value": "B,7BZvfuwXOxDoCjN7g8=03JfxKv3zH0"
+        },
+        {
+          "name": "S3_SIGNED_URL_EXPIRY",
+          "value": "3600"
+        }
+      ],
+      "mountPoints": [],
+      "volumesFrom": [],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/vote-capsule/campaign-service",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "vc-campaign"
+        }
+      },
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "node -e \"require('http').get({hostname:'localhost',port:3016,path:'/api/v1/campaign/health'}, r => process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""
+        ],
+        "interval": 30,
+        "timeout": 10,
+        "retries": 5,
+        "startPeriod": 120
+      },
+      "systemControls": []
+    }
+  ]
+}

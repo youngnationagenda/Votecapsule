@@ -1,0 +1,20 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowPullThroughCacheFromCodeBuild",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::683541453923:role/vote-capsule-codebuild-role"
+      },
+      "Action": [
+        "ecr:CreateRepository",
+        "ecr:BatchImportUpstreamImage",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchGetImage"
+      ],
+      "Resource": "arn:aws:ecr:us-east-1:683541453923:repository/ecr-public/*"
+    }
+  ]
+}

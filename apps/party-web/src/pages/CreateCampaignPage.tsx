@@ -67,17 +67,37 @@ function CreateCampaignContent(): React.JSX.Element {
   });
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
-  // Active election — auto-populated for campaign creation
-  const { data: activeElection } = useQuery({
-    queryKey: ['active-election'],
+  // Load ALL elections (nomination, planning, active) — not just "active"
+  // The party may be running nominations which are in NOMINATION status, not ACTIVE
+  const { data: elections = [] } = useQuery({
+    queryKey: ['party-elections-for-campaign'],
     queryFn: async () => {
       try {
-        const r = await campaignApi.activeElection();
-        const el = r.data?.data ?? r.data;
-        return el?.id ? el : null;
-      } catch { return null; }
+        // Try listing all elections for this tenant
+        const r = await campaignApi.listElections();
+        const list: any[] = r.data?.data ?? r.data ?? [];
+        // Accept any election that is usable for campaign creation
+        const usable = list.filter((e: any) =>
+          ['ACTIVE', 'NOMINATION', 'PLANNING', 'PENDING', 'SCHEDULED'].includes(
+            (e.status ?? e.electionStatus ?? '').toUpperCase()
+          )
+        );
+        // If nothing, return all so the party admin can still select
+        return usable.length > 0 ? usable : list;
+      } catch { return []; }
     },
+    staleTime: 0, // Always re-fetch — elections change
   });
+
+  // selectedElectionId — the election the campaign will be linked to
+  const [selectedElectionId, setSelectedElectionId] = useState<string>('');
+  const activeElection = elections.find((e: any) => e.id === selectedElectionId) ?? elections[0] ?? null;
+  // Auto-select first election when list loads
+  React.useEffect(() => {
+    if (elections.length > 0 && !selectedElectionId) {
+      setSelectedElectionId(elections[0].id);
+    }
+  }, [elections]);
 
   // NEC Geography
   const { data: counties = [] } = useQuery<County[]>({
@@ -95,13 +115,12 @@ function CreateCampaignContent(): React.JSX.Element {
 
   const createMutation = useMutation({
     mutationFn: () => {
-      if (!activeElection?.id) throw new Error('No active election found');
+      if (!selectedElectionId) throw new Error('Please select an election');
       return campaignApi.create({
         name:              form.name,
         description:       form.description || undefined,
         tenantId,
-        // electionId is required by CreateCampaignDto
-        electionId:        activeElection.id,
+        electionId:        selectedElectionId,
         // candidateId: use the supplied userId if a candidate is being assigned,
         // otherwise use the current party admin's user ID as placeholder
         candidateId:       form.candidateUserId || user?.id || '',
@@ -126,7 +145,7 @@ function CreateCampaignContent(): React.JSX.Element {
   const set = (field: keyof CampaignForm, value: string) =>
     setForm((f) => ({ ...f, [field]: value }));
 
-  const canGoNext1 = form.name && form.campaignType && form.targetPosition && !!activeElection;
+  const canGoNext1 = form.name && form.campaignType && form.targetPosition && !!selectedElectionId;
   const canGoNext2 = form.countyCode && form.campaignStartDate;
   const canSubmit  = canGoNext1 && canGoNext2 && !createMutation.isPending;
 
@@ -232,16 +251,43 @@ function CreateCampaignContent(): React.JSX.Element {
               </div>
             </div>
 
-            {/* Active election indicator */}
-            {activeElection ? (
+            {/* Election selector — shows ALL elections (nomination, planning, active) */}
+            <div>
+              <label className="vc-label">Election *</label>
+              {elections.length === 0 ? (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                  <div>
+                    <p className="text-sm text-amber-700 font-medium">No elections found.</p>
+                    <p className="text-xs text-amber-600 mt-0.5">Create an election first from the Elections page, or ask your administrator.</p>
+                  </div>
+                </div>
+              ) : (
+                <select
+                  className="vc-input"
+                  value={selectedElectionId}
+                  onChange={(e) => setSelectedElectionId(e.target.value)}
+                >
+                  {elections.map((e: any) => (
+                    <option key={e.id} value={e.id}>
+                      {e.name ?? e.electionName ?? e.id}
+                      {e.status ? ` (${e.status})` : ''}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+            {activeElection && (
               <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-emerald-600 flex-shrink-0" />
                 <div>
-                  <p className="text-xs text-emerald-600 font-medium">Election</p>
-                  <p className="text-sm font-semibold text-emerald-800">{activeElection.name ?? 'Kenya General Election 2027'}</p>
+                  <p className="text-xs text-emerald-600 font-medium">Selected Election</p>
+                  <p className="text-sm font-semibold text-emerald-800">{activeElection.name ?? activeElection.id}</p>
+                  {activeElection.status && <p className="text-xs text-emerald-600">Status: {activeElection.status}</p>}
                 </div>
               </div>
-            ) : (
+            )}
+            {false /* old single-election amber warning kept for reference */ && (
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
                 <p className="text-sm text-amber-700">No active election found. Contact your administrator.</p>

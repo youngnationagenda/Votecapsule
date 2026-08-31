@@ -137,6 +137,9 @@ export const campaignApi = {
           const products: any[] = resp.data?.data ?? (Array.isArray(resp.data) ? resp.data : []);
           return products.map((p: any) => {
             const type = typeMap.get(p.materialTypeId);
+            // CampaignSupplierProduct entity has imageUrl (not thumbnailUrl)
+            // CampaignMaterialType entity has thumbnailUrl
+            const resolvedImageUrl = p.imageUrl ?? type?.thumbnailUrl ?? null;
             return {
               ...p,
               supplierName:          supplier.companyName,
@@ -146,9 +149,8 @@ export const campaignApi = {
               materialTypeCode:      type?.code           ?? '',
               categoryCode:          type?.category?.code ?? '',
               categoryName:          type?.category?.name ?? '',
-              // imageUrl is already the full S3 URL; thumbnailUrl as fallback
-              imageUrl:              p.imageUrl ?? type?.thumbnailUrl ?? null,
-              thumbnailUrl:          p.thumbnailUrl ?? type?.thumbnailUrl ?? null,
+              imageUrl:              resolvedImageUrl,
+              thumbnailUrl:          resolvedImageUrl,
             };
           });
         })
@@ -218,6 +220,15 @@ export const campaignApi = {
       outputFormat?: string;
       model?:       'creative' | 'conservative' | 'fast';
     }) => apiClient.post(`${BASE}/campaigns/${campaignId}/ai-images/upscale`, dto),
+  },
+
+  // ── Campaign Media Library ───────────────────────────────────
+  media: {
+    uploadUrl:   (cid: string, data: any)   => apiClient.post(`${BASE}/campaigns/${cid}/media/upload-url`, data),
+    listMedia:   (cid: string, p?: any)     => apiClient.get(`${BASE}/campaigns/${cid}/media`, { params: p }),
+    getUrl:      (cid: string, mid: string) => apiClient.get(`${BASE}/campaigns/${cid}/media/${mid}/url`),
+    delete:      (cid: string, mid: string) => apiClient.delete(`${BASE}/campaigns/${cid}/media/${mid}`),
+    update:      (cid: string, mid: string, d: any) => apiClient.patch(`${BASE}/campaigns/${cid}/media/${mid}`, d),
   },
 
   // Incidents

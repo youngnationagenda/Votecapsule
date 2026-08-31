@@ -1,7 +1,7 @@
 # Vote Capsule™ — Admin Portal (ECR Public mirror — no Docker Hub rate limits)
 ARG GIT_SHA=local
 
-FROM public.ecr.aws/docker/library/node:22-alpine AS builder
+FROM 683541453923.dkr.ecr.us-east-1.amazonaws.com/ecr-public/docker/library/node:22-alpine AS builder
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@9.14.4 --activate
 
@@ -37,7 +37,7 @@ ENV VITE_APP_VERSION=$GIT_SHA
 RUN pnpm --filter @vote-capsule/admin-web build
 
 # ── Nginx runner ─────────────────────────────────────────────────────────────
-FROM public.ecr.aws/docker/library/nginx:alpine AS runner
+FROM 683541453923.dkr.ecr.us-east-1.amazonaws.com/ecr-public/docker/library/nginx:alpine AS runner
 
 COPY --from=builder /app/apps/admin-web/dist /usr/share/nginx/html
 COPY apps/admin-web/nginx.conf /etc/nginx/conf.d/default.conf

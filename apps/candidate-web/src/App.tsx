@@ -35,6 +35,10 @@ const MyBudgetPage           = lazy(() => import('./pages/MyBudgetPage').then(m 
 const MyCampaignNeedsPage    = lazy(() => import('./pages/MyCampaignNeedsPage').then(m => ({ default: m.MyCampaignNeedsPage })));
 const MySMSPage              = lazy(() => import('./pages/MySMSPage').then(m => ({ default: m.MySMSPage })));
 const MyIncidentsPage        = lazy(() => import('./pages/MyIncidentsPage').then(m => ({ default: m.MyIncidentsPage })));
+const MyMaterialsPage        = lazy(() => import('./pages/MyMaterialsPage').then(m => ({ default: m.MyMaterialsPage })));
+const MyPrintingDesignPage   = lazy(() => import('./pages/MyPrintingDesignPage').then(m => ({ default: m.MyPrintingDesignPage })));
+const MyCampaignMediaPage    = lazy(() => import('./pages/MyCampaignMediaPage').then(m => ({ default: m.MyCampaignMediaPage })));
+const MyAIImageGeneratorPage = lazy(() => import('./pages/MyAIImageGeneratorPage').then(m => ({ default: m.MyAIImageGeneratorPage })));
 
 function PageLoader(): React.JSX.Element {
   return (
@@ -92,9 +96,17 @@ export default function App(): React.JSX.Element {
           <Route path="/campaign/calendar" element={
             <Suspense fallback={<PageLoader />}><MyCampaignCalendarPage /></Suspense>
           } />
-          <Route path="/campaign/materials" element={<Navigate to="/campaign/suppliers" replace />} />
+          {/* Supplier Catalogue — unified page: supplier products + material types */}
           <Route path="/campaign/suppliers" element={
             <Suspense fallback={<PageLoader />}><MySupplierCataloguePage /></Suspense>
+          } />
+          {/* Materials — material types only (colour-select + quick order) */}
+          <Route path="/campaign/materials" element={
+            <Suspense fallback={<PageLoader />}><MyMaterialsPage /></Suspense>
+          } />
+          {/* Printing & Design — design requests + print orders */}
+          <Route path="/campaign/printing" element={
+            <Suspense fallback={<PageLoader />}><MyPrintingDesignPage /></Suspense>
           } />
           <Route path="/campaign/team" element={
             <Suspense fallback={<PageLoader />}><MyCampaignTeamPage /></Suspense>
@@ -108,9 +120,14 @@ export default function App(): React.JSX.Element {
           <Route path="/campaign/sms" element={
             <Suspense fallback={<PageLoader />}><MySMSPage /></Suspense>
           } />
-          <Route path="/campaign/printing" element={<Navigate to="/campaign/needs" replace />} />
           <Route path="/campaign/incidents" element={
             <Suspense fallback={<PageLoader />}><MyIncidentsPage /></Suspense>
+          } />
+          <Route path="/campaign/media" element={
+            <Suspense fallback={<PageLoader />}><MyCampaignMediaPage /></Suspense>
+          } />
+          <Route path="/campaign/ai-images" element={
+            <Suspense fallback={<PageLoader />}><MyAIImageGeneratorPage /></Suspense>
           } />
         </Route>
       </Route>

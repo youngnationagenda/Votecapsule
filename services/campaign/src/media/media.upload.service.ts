@@ -7,6 +7,8 @@ import {
   S3Client,
   PutObjectCommand,
   GetObjectCommand,
+  DeleteObjectCommand,
+  CopyObjectCommand,
 } from '@aws-sdk/client-s3';
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
@@ -18,14 +20,21 @@ const GET_EXPIRY_SECONDS    = 3600;   // 1 hour for download
 @Injectable()
 export class MediaUploadService {
   private readonly logger = new Logger(MediaUploadService.name);
-  private readonly s3:      S3Client;
-  private readonly bucket:  string;
+  private readonly s3:           S3Client;
+  private readonly bucket:       string;
+  private readonly publicBucket: string;
+  private readonly publicBaseUrl: string;
 
   constructor(private readonly config: ConfigService) {
     this.s3 = new S3Client({
       region: config.get<string>('AWS_REGION', 'us-east-1'),
     });
-    this.bucket = config.get<string>('CAMPAIGN_MEDIA_BUCKET', 'votecapsule-campaign-assets');
+    this.bucket       = config.get<string>('CAMPAIGN_MEDIA_BUCKET', 'votecapsule-campaign-assets');
+    this.publicBucket = config.get<string>('PUBLIC_ASSETS_BUCKET',  'votecapsule-public-assets');
+    this.publicBaseUrl = config.get<string>(
+      'PUBLIC_ASSETS_BASE_URL',
+      'https://assets.votecapsule.co.ke',
+    );
   }
 
   /**
@@ -75,5 +84,76 @@ export class MediaUploadService {
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return getSignedUrl(this.s3 as any, cmd as any, { expiresIn });
+  }
+
+  /**
+   * Delete an object from the campaign assets bucket
+   */
+  async deleteObject(key: string): Promise<void> {
+    await this.s3.send(new DeleteObjectCommand({
+      Bucket: this.bucket,
+      Key:    key,
+    }));
+    this.logger.log(`Deleted S3 object: s3://${this.bucket}/${key}`);
+  }
+
+  /**
+   * Copy a media asset to the public bucket and return the public URL.
+   * Used for party_logo, candidate_portrait, candidate_symbol.
+   *
+   * Destination path in public bucket:
+   *   parties/{partyCode}/logo.{ext}        — for party_logo
+   *   candidates/{candidateId}/portrait.{ext} — for candidate_portrait
+   *   candidates/{candidateId}/symbol.{ext}   — for candidate_symbol
+   *   brand/{tenantId}/{mediaId}.{ext}       — for all others
+   */
+  async publishToPublicBucket(
+    sourceKey:   string,
+    tenantId:    string,
+    mediaId:     string,
+    mediaType:   string,
+    mimeType:    string,
+    slugHint?:   string,   // partyCode or candidateId
+  ): Promise<{ publicKey: string; publicUrl: string }> {
+    const ext = this.extFromMime(mimeType);
+
+    let destKey: string;
+    switch (mediaType) {
+      case 'party_logo':
+        destKey = `parties/${slugHint ?? tenantId}/logo.${ext}`;
+        break;
+      case 'candidate_portrait':
+        destKey = `candidates/${slugHint ?? mediaId}/portrait.${ext}`;
+        break;
+      case 'candidate_symbol':
+        destKey = `candidates/${slugHint ?? mediaId}/symbol.${ext}`;
+        break;
+      default:
+        destKey = `brand/${tenantId}/${mediaId}.${ext}`;
+    }
+
+    await this.s3.send(new CopyObjectCommand({
+      CopySource:  `${this.bucket}/${sourceKey}`,
+      Bucket:      this.publicBucket,
+      Key:         destKey,
+      ContentType: mimeType,
+      MetadataDirective: 'COPY',
+    }));
+
+    const publicUrl = `${this.publicBaseUrl}/${destKey}`;
+    this.logger.log(`Published to public bucket: ${publicUrl}`);
+    return { publicKey: destKey, publicUrl };
+  }
+
+  private extFromMime(mimeType: string): string {
+    const map: Record<string, string> = {
+      'image/jpeg':    'jpg',
+      'image/jpg':     'jpg',
+      'image/png':     'png',
+      'image/webp':    'webp',
+      'image/gif':     'gif',
+      'image/svg+xml': 'svg',
+    };
+    return map[mimeType] ?? 'jpg';
   }
 }

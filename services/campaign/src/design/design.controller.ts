@@ -7,12 +7,14 @@ import {
 } from '@nestjs/common';
 import { DesignService }        from './design.service';
 import { BedrockImageService }  from './bedrock-image.service';
+import { MediaService }         from '../media/media.service';
 
 @Controller()
 export class DesignController {
   constructor(
     private readonly service:        DesignService,
     private readonly bedrockImages:  BedrockImageService,
+    private readonly mediaService:   MediaService,
   ) {}
 
   // ── Mockup templates (global, by material type) ──────────────
@@ -103,6 +105,21 @@ export class DesignController {
   }
 
   /**
+   * GET /campaign/campaigns/:campaignId/ai-images
+   * List all AI-generated images for a campaign.
+   * Delegates to MediaService with media_type='ai_generated' filter.
+   */
+  @Get('campaigns/:campaignId/ai-images')
+  async listAiImages(
+    @Param('campaignId', ParseUUIDPipe) campaignId: string,
+    @Headers('x-tenant-id') tenantId: string,
+  ) {
+    if (!tenantId) throw new BadRequestException('X-Tenant-Id required');
+    const items = await this.mediaService.list(campaignId, tenantId, { mediaType: 'ai_generated' });
+    return { data: items };
+  }
+
+  /**
    * POST /campaign/campaigns/:campaignId/ai-images/generate
    * Generate a campaign image from a text prompt.
    *
@@ -129,12 +146,13 @@ export class DesignController {
     if (!userId)   throw new BadRequestException('X-User-Id required');
     if (!body?.prompt) throw new BadRequestException('prompt is required');
 
+    const format = body.outputFormat ?? 'jpeg';
     const result = await this.bedrockImages.generateFromText(
       {
         prompt:         body.prompt,
         negativePrompt: body.negativePrompt,
         aspectRatio:    body.aspectRatio,
-        outputFormat:   body.outputFormat,
+        outputFormat:   format,
         seed:           body.seed,
         stylePreset:    body.stylePreset,
         model:          body.model,
@@ -143,7 +161,29 @@ export class DesignController {
       campaignId,
     );
 
-    return { data: result };
+    // Persist a campaign_media record so GET /ai-images can list them
+    try {
+      const mimeType = format === 'png' ? 'image/png' : format === 'webp' ? 'image/webp' : 'image/jpeg';
+      await this.mediaService.getUploadUrl(campaignId, tenantId, userId, {
+        filename:        `ai-generated-${result.seed || Date.now()}.${format === 'jpeg' ? 'jpg' : format}`,
+        mime_type:       mimeType,
+        media_type:      'ai_generated',
+        file_size_bytes: 0,  // unknown at generation time
+      }).then(async (rec) => {
+        // Update the just-created record with the real S3 key from Bedrock result
+        await this.mediaService.markReady(rec.media_id, result.s3Key);
+      });
+    } catch (_) {
+      // Non-fatal — image was generated successfully, record creation is best-effort
+    }
+
+    return {
+      data: {
+        ...result,
+        prompt:    body.prompt,
+        createdAt: new Date().toISOString(),
+      },
+    };
   }
 
   /**

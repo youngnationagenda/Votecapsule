@@ -408,7 +408,7 @@ The frontend `ProductImage` component handles missing images gracefully (shows i
 
 ---
 
-## FINAL STATUS — Completed 2026-08-28 by Sonie
+## FINAL STATUS — Completed 2026-08-28 by Sonie (Updated 2026-08-31)
 
 | # | Task | Status | Verified Evidence |
 |---|------|--------|-------------------|
@@ -417,13 +417,19 @@ The frontend `ProductImage` component handles missing images gracefully (shows i
 | 3 | Campaign `syncRoleToIdentity` after `assignRole()` | ✅ DONE | Method present, called in `assignRole()` + `updateRole()` |
 | 4 | ALB routing `/api/v1/campaign/*` | ✅ DONE | Priority 125 rule confirmed live |
 | 5 | Migrations 134–142 | ✅ DONE | All 9 applied, 21 campaign tables exist in prod DB |
-| 6 | Campaign service deployed | ✅ DONE | ECR image pushed `2026-08-28T18:48`, ECS `deployments:1` |
+| 6 | Campaign service deployed | ✅ DONE | ECR `72551f99` pushed 2026-08-31T22:53, ECS `vc-campaign:7` COMPLETED |
 | 7 | Canvas/sharp Dockerfile deps | ✅ DONE | `libcairo2-dev`, `libpango1.0-dev`, `libgif-dev`, `librsvg2-dev`, `libjpeg-dev` all present |
 | 8 | S3 CORS `votecapsule-campaign-assets` | ✅ DONE | 16 origins, GET/HEAD/PUT/POST allowed |
 | 9 | IAM `AdminUpdateUserAttributes` | ✅ DONE | In `vote-capsule-cognito-admin-policy` |
-| 10 | Candidate portal deployed | ✅ DONE | S3 synced + CloudFront `E1O4XZRM79VCJ1` invalidated |
-| 11 | Identity + Tenant GatewayAuthGuard deployed | ✅ DONE | Both `deployments:1`, `running === desired` |
+| 10 | Candidate portal deployed | ✅ DONE | S3 synced + CloudFront `E1O4XZRM79VCJ1` invalidated (Completed) |
+| 11 | Identity + Tenant GatewayAuthGuard deployed | ✅ DONE | vc-identity:12, vc-tenant:11, running === desired |
 | 12 | All 5 portals deployed | ✅ DONE | All buckets synced + all 5 CF distributions invalidated |
 | 13 | 275 SVG product images on S3 | ✅ DONE | `suppliers/me-advertising/images/` — 275 objects |
+| 14 | Migration 164 thumbnails | ✅ DONE | 275/275 material types with thumbnails (100% coverage) |
+| 15 | Candidate `/campaign/materials` page | ✅ DONE | `MyMaterialsPage` routed + nav link added (2026-08-31) |
+| 16 | Candidate `/campaign/printing` page | ✅ DONE | `MyPrintingDesignPage` routed + nav link added (2026-08-31) |
+| 17 | Party `/campaign/materials` page | ✅ DONE | `MaterialsCataloguePage` routed + nav link added (2026-08-31) |
+| 18 | Backend `listTypes` query fix | ✅ DONE | Parameterised `WHERE t.is_active = :active` |
+| 19 | All 14 ECS services healthy | ✅ DONE | All COMPLETED, running === desired |
 
-**All 13 tasks complete. All 14 ECS services healthy (`running === desired`, `deployments:1`). Working tree clean.**
+**All 19 tasks complete. All 14 ECS services healthy. All portals deployed. Campaign Manager fully operational.**

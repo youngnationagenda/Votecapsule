@@ -45,7 +45,7 @@ export class MaterialsService {
   async listTypes(categoryCode?: string): Promise<CampaignMaterialType[]> {
     const qb = this.typeRepo.createQueryBuilder('t')
       .leftJoinAndSelect('t.category', 'c')
-      .where('t.is_active = true');
+      .where('t.is_active = :active', { active: true });
 
     if (categoryCode) {
       qb.andWhere('c.code = :code', { code: categoryCode });

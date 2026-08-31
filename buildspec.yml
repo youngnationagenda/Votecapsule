@@ -2,13 +2,27 @@ version: 0.2
 
 # VoteCapsule — AWS CodeBuild Buildspec
 # Builds all 15 Docker images (14 services + admin-web) and pushes to ECR
-# Each build step uses || true so a single failure doesn't abort remaining builds
+#
+# BASE IMAGE STRATEGY (fixes 429 from public.ecr.aws):
+#   All Dockerfiles use our private ECR Pull Through Cache:
+#     683541453923.dkr.ecr.us-east-1.amazonaws.com/ecr-public/docker/library/node:22-alpine
+#   This routes through the pull-through cache rule:
+#     prefix=ecr-public → upstream=public.ecr.aws
+#   First pull fetches from upstream + caches in our ECR.
+#   All subsequent pulls (same build, other services) hit our ECR — no rate limits.
+#
+# LAYER CACHE STRATEGY:
+#   Each service pulls its own :latest image from ECR before building,
+#   so Docker can reuse unchanged layers (pnpm install, tsc, etc.).
 
 env:
   variables:
     AWS_REGION: "us-east-1"
     ECR_REGISTRY: "683541453923.dkr.ecr.us-east-1.amazonaws.com"
     AWS_ACCOUNT_ID: "683541453923"
+    # Pull-through cache base images (pulled once, reused across all service builds)
+    NODE_ALPINE: "683541453923.dkr.ecr.us-east-1.amazonaws.com/ecr-public/docker/library/node:22-alpine"
+    NODE_SLIM:   "683541453923.dkr.ecr.us-east-1.amazonaws.com/ecr-public/docker/library/node:22-slim"
 
 phases:
   install:
@@ -23,10 +37,20 @@ phases:
 
   pre_build:
     commands:
-      - echo "=== Authenticating with ECR ==="
+      - echo "=== Authenticating with ECR (private + pull-through cache) ==="
       - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
       - export SHORT_SHA=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-8)
       - echo "Short SHA = $SHORT_SHA"
+
+      # ── Pre-warm the pull-through cache base images ────────────────────────
+      # This single pull fetches node:22-alpine from public.ecr.aws → stores
+      # it in our private ECR pull-through cache. Every subsequent docker build
+      # in this job (and future builds) hits our ECR instead of public.ecr.aws.
+      # Prevents the 429 "Data limit exceeded" error on public.ecr.aws.
+      - echo "=== Pre-warming ECR pull-through cache base images ==="
+      - docker pull $NODE_ALPINE || echo "WARN node:22-alpine pull failed - will retry in build"
+      - docker pull $NODE_SLIM   || echo "WARN node:22-slim pull failed - will retry in build"
+      - echo "=== Base images cached in Docker layer store ==="
 
   build:
     commands:
@@ -34,7 +58,12 @@ phases:
         build_service() {
           local NAME=$1 PORT=$2 DOCKERFILE=$3
           echo "--- Building $NAME (port $PORT) ---"
-          if docker build --no-cache --build-arg SERVICE_PORT=$PORT --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION \
+          # Pull previous :latest for layer cache reuse (|| true = ok if first build)
+          docker pull $ECR_REGISTRY/vote-capsule/$NAME:latest 2>/dev/null || true
+          if docker build \
+            --cache-from $ECR_REGISTRY/vote-capsule/$NAME:latest \
+            --build-arg SERVICE_PORT=$PORT \
+            --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION \
             -t $ECR_REGISTRY/vote-capsule/$NAME:$SHORT_SHA \
             -t $ECR_REGISTRY/vote-capsule/$NAME:latest \
             -f $DOCKERFILE . ; then
@@ -62,7 +91,10 @@ phases:
         build_service campaign-service     3016 services/campaign/Dockerfile
 
         echo "--- Building admin-web ---"
-        if docker build --no-cache --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION \
+        docker pull $ECR_REGISTRY/vote-capsule/admin-web:latest 2>/dev/null || true
+        if docker build \
+          --cache-from $ECR_REGISTRY/vote-capsule/admin-web:latest \
+          --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION \
           -t $ECR_REGISTRY/vote-capsule/admin-web:$SHORT_SHA \
           -t $ECR_REGISTRY/vote-capsule/admin-web:latest \
           -f apps/admin-web/Dockerfile . ; then

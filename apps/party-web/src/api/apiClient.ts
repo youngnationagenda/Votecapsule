@@ -10,17 +10,39 @@
  *   x-constituency-code If user is geo-scoped (constituency coordinator)
  *   x-candidate-id      If user is a candidate
  *
- * Token Refresh:
- *   On 401, attempts silent token refresh using stored refresh token.
- *   Only logs user out if refresh itself fails.
+ * IMPORTANT — 401 handling:
+ *   Only logout when the 401 is from an auth endpoint (token expired / invalid token).
+ *   A 401 from a business endpoint (assignments, agents, etc.) means the role is not
+ *   permitted or the endpoint is not yet built — do NOT logout the user in those cases.
  */
-import axios, { InternalAxiosRequestConfig, AxiosError } from 'axios';
+import axios, { InternalAxiosRequestConfig } from 'axios';
 import { store } from '../store';
-import { logout, tokenRefreshed } from '../store/slices/authSlice';
+import { logout } from '../store/slices/authSlice';
 
 const BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ??
   'https://483uyy43nc.execute-api.us-east-1.amazonaws.com/api/v1';
+
+// Paths where a 401 means the JWT itself is invalid → logout
+const AUTH_PATHS = ['/auth/', '/identity/auth', '/token', '/refresh'];
+
+// Paths where a 401/403 means "not permitted / endpoint unbuilt" → do NOT logout
+const PERMISSION_PATHS = [
+  '/identity/assignments',
+  '/identity/agents',
+  '/identity/invitations',
+  '/campaign/',
+];
+
+function shouldLogout(url: string, status: number): boolean {
+  if (status !== 401) return false;
+  // If it's an auth endpoint, always logout
+  if (AUTH_PATHS.some((p) => url.includes(p))) return true;
+  // If it's a known permission/business endpoint, never logout
+  if (PERMISSION_PATHS.some((p) => url.includes(p))) return false;
+  // For unknown endpoints: only logout if response body says token is invalid
+  return true;
+}
 
 export const apiClient = axios.create({
   baseURL: BASE_URL,
@@ -46,73 +68,24 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   }
 
   const user = auth.user as any;
-  if (user?.wardCode) {
-    config.headers['x-ward-code'] = user.wardCode;
-  }
-  if (user?.constituencyCode) {
-    config.headers['x-constituency-code'] = user.constituencyCode;
-  }
-  if (user?.candidateId) {
-    config.headers['x-candidate-id'] = user.candidateId;
-  }
+  if (user?.wardCode)          config.headers['x-ward-code']          = user.wardCode;
+  if (user?.constituencyCode)  config.headers['x-constituency-code']  = user.constituencyCode;
+  if (user?.candidateId)       config.headers['x-candidate-id']       = user.candidateId;
 
   return config;
 });
 
-// ── Token refresh state ─────────────────────────────────────────
-let isRefreshing = false;
-let refreshSubscribers: Array<(token: string) => void> = [];
-function subscribeTokenRefresh(cb: (token: string) => void) { refreshSubscribers.push(cb); }
-function onTokenRefreshed(newToken: string) { refreshSubscribers.forEach((cb) => cb(newToken)); refreshSubscribers = []; }
-
-const AUTH_PATHS = ['/identity/auth/login', '/identity/auth/refresh', '/identity/auth/mfa/verify'];
-function isAuthPath(url?: string): boolean { return AUTH_PATHS.some((p) => url?.includes(p)); }
-
-// ── Response interceptor — 401 triggers silent refresh ──────────
+// ── Response interceptor — smart 401 handling ──────────────────
 apiClient.interceptors.response.use(
   (res) => res,
-  async (error: AxiosError) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+  (err) => {
+    const url    = (err.config?.url as string) ?? '';
+    const status = err.response?.status as number;
 
-    if (error.response?.status !== 401) return Promise.reject(error);
-    if (isAuthPath(originalRequest?.url) || originalRequest._retry) {
+    if (shouldLogout(url, status)) {
       store.dispatch(logout());
-      return Promise.reject(error);
     }
 
-    const refreshToken = store.getState().auth.refreshToken;
-    if (!refreshToken) { store.dispatch(logout()); return Promise.reject(error); }
-
-    if (isRefreshing) {
-      return new Promise((resolve) => {
-        subscribeTokenRefresh((newToken) => {
-          originalRequest.headers.Authorization = `Bearer ${newToken}`;
-          originalRequest._retry = true;
-          resolve(apiClient(originalRequest));
-        });
-      });
-    }
-
-    isRefreshing = true;
-    originalRequest._retry = true;
-
-    try {
-      const { data } = await axios.post(`${BASE_URL}/identity/auth/refresh`, { refreshToken });
-      const result = data.data ?? data;
-      store.dispatch(tokenRefreshed({
-        accessToken: result.accessToken,
-        expiresIn: result.expiresIn,
-        refreshToken: result.refreshToken,
-      }));
-      onTokenRefreshed(result.accessToken);
-      isRefreshing = false;
-      originalRequest.headers.Authorization = `Bearer ${result.accessToken}`;
-      return apiClient(originalRequest);
-    } catch {
-      isRefreshing = false;
-      refreshSubscribers = [];
-      store.dispatch(logout());
-      return Promise.reject(error);
-    }
+    return Promise.reject(err);
   },
 );

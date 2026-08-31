@@ -44,6 +44,8 @@ const CampaignSMSPage         = lazy(() => import('./pages/CampaignSMSPage').the
 const CampaignBudgetPage      = lazy(() => import('./pages/CampaignBudgetPage').then(m => ({ default: m.CampaignBudgetPage })));
 const CreateCampaignPage      = lazy(() => import('./pages/CreateCampaignPage').then(m => ({ default: m.CreateCampaignPage })));
 const SupplierCataloguePage   = lazy(() => import('./pages/SupplierCataloguePage').then(m => ({ default: m.SupplierCataloguePage })));
+const MaterialsCataloguePage    = lazy(() => import('./pages/MaterialsCataloguePage').then(m => ({ default: m.MaterialsCataloguePage })));
+const CampaignMediaLibraryPage  = lazy(() => import('./pages/CampaignMediaLibraryPage').then(m => ({ default: m.CampaignMediaLibraryPage })));
 const AIImageGeneratorPage    = lazy(() => import('./pages/AIImageGeneratorPage').then(m => ({ default: m.AIImageGeneratorPage })));
 
 function PageLoader(): React.JSX.Element {
@@ -107,12 +109,19 @@ export default function App(): React.JSX.Element {
           <Route path="/campaign/sms" element={
             <Suspense fallback={<PageLoader />}><CampaignSMSPage /></Suspense>
           } />
-          <Route path="/campaign/materials" element={<Navigate to="/campaign/suppliers" replace />} />
+          {/* Supplier Catalogue — supplier products with real pricing */}
           <Route path="/campaign/suppliers" element={
             <Suspense fallback={<PageLoader />}><SupplierCataloguePage /></Suspense>
           } />
+          {/* Materials Catalogue — material types colour-select + quick order */}
+          <Route path="/campaign/materials" element={
+            <Suspense fallback={<PageLoader />}><MaterialsCataloguePage /></Suspense>
+          } />
           <Route path="/campaign/ai-images" element={
             <Suspense fallback={<PageLoader />}><AIImageGeneratorPage /></Suspense>
+          } />
+          <Route path="/campaign/media" element={
+            <Suspense fallback={<PageLoader />}><CampaignMediaLibraryPage /></Suspense>
           } />
           <Route path="/campaign/budget" element={
             <Suspense fallback={<PageLoader />}><CampaignBudgetPage /></Suspense>

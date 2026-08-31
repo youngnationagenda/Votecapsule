@@ -5,7 +5,7 @@ ARG SERVICE_PORT=3016
 ARG GIT_SHA=local
 
 # ── Stage 1: builder ─────────────────────────────────────────────────────────
-FROM public.ecr.aws/docker/library/node:22-slim AS builder
+FROM 683541453923.dkr.ecr.us-east-1.amazonaws.com/ecr-public/docker/library/node:22-slim AS builder
 WORKDIR /app
 
 # Install build tools needed for native modules (canvas, sharp)
@@ -44,7 +44,7 @@ RUN cd /app/services/campaign && npx tsc --project tsconfig.json --noEmitOnError
 RUN pnpm --filter @vote-capsule/campaign-service deploy --prod /tmp/campaign-deploy
 
 # ── Stage 2: runner ──────────────────────────────────────────────────────────
-FROM public.ecr.aws/docker/library/node:22-slim AS runner
+FROM 683541453923.dkr.ecr.us-east-1.amazonaws.com/ecr-public/docker/library/node:22-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ARG SERVICE_PORT

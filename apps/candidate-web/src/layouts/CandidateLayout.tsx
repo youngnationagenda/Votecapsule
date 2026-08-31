@@ -4,7 +4,8 @@ import {
   LayoutDashboard, MapPin, BarChart3, TrendingUp, Image, Bell,
   Download, Users, CreditCard, LogOut, Menu, ChevronLeft, User,
   Flag, Megaphone, Calendar, CheckSquare, DollarSign,
-  MessageSquare, AlertTriangle, Store, ShoppingCart,
+  MessageSquare, AlertTriangle, Store, ShoppingCart, Package, Printer,
+  Sparkles,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { toggleSidebar } from '../store/slices/uiSlice';
@@ -26,10 +27,14 @@ const campaignNavItems = [
   { to: '/campaign/calendar',   icon: Calendar,       label: 'Campaign Calendar' },
   { to: '/campaign/team',       icon: Users,          label: 'My Team & Roles' },
   { to: '/campaign/suppliers',  icon: Store,          label: 'Supplier Catalogue' },
+  { to: '/campaign/materials',  icon: Package,        label: 'Campaign Materials' },
+  { to: '/campaign/printing',   icon: Printer,        label: 'Printing & Design' },
   { to: '/campaign/needs',      icon: ShoppingCart,   label: 'My Campaign Needs' },
   { to: '/campaign/budget',     icon: DollarSign,     label: 'Campaign Budget' },
   { to: '/campaign/sms',        icon: MessageSquare,  label: 'Campaign SMS' },
   { to: '/campaign/incidents',  icon: AlertTriangle,  label: 'Incidents' },
+  { to: '/campaign/media',      icon: Image,          label: 'Media Library' },
+  { to: '/campaign/ai-images',  icon: Sparkles,       label: 'AI Image Generator', badge: 'AI' },
 ];
 
 const systemNavItems = [
