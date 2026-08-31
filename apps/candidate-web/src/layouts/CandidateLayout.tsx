@@ -1,11 +1,10 @@
 import React from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, MapPin, BarChart3, TrendingUp, Image, Bell,
+  LayoutDashboard, MapPin, BarChart3, TrendingUp, Bell,
   Download, Users, CreditCard, LogOut, Menu, ChevronLeft, User,
-  Flag, Megaphone, Calendar, CheckSquare, DollarSign,
-  MessageSquare, AlertTriangle, Store, ShoppingCart, Package, Printer,
-  Sparkles,
+  Flag, Megaphone, Calendar, DollarSign, Package, Printer,
+  MessageSquare, AlertTriangle, Store, ShoppingCart, Image, Sparkles,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { toggleSidebar } from '../store/slices/uiSlice';
@@ -22,6 +21,9 @@ const electionNavItems = [
   { to: '/analytics',   icon: TrendingUp,      label: 'Analytics' },
 ];
 
+// Campaign Manager nav — full 12-item list
+// Supplier Catalogue (unified: materials + suppliers merged)
+// My Campaign Needs (unified: needs + printing/design merged)
 const campaignNavItems = [
   { to: '/campaign',            icon: Megaphone,      label: 'Campaign Overview' },
   { to: '/campaign/calendar',   icon: Calendar,       label: 'Campaign Calendar' },

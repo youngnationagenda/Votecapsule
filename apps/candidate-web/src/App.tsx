@@ -101,12 +101,13 @@ export default function App(): React.JSX.Element {
             <Suspense fallback={<PageLoader />}><MySupplierCataloguePage /></Suspense>
           } />
           {/* Materials — material types only (colour-select + quick order) */}
+          {/* Campaign Materials — merged into Supplier Catalogue (MySupplierCataloguePage) */}
           <Route path="/campaign/materials" element={
-            <Suspense fallback={<PageLoader />}><MyMaterialsPage /></Suspense>
+            <Suspense fallback={<PageLoader />}><MySupplierCataloguePage /></Suspense>
           } />
-          {/* Printing & Design — design requests + print orders */}
+          {/* Printing & Design — merged into My Campaign Needs (MyCampaignNeedsPage) */}
           <Route path="/campaign/printing" element={
-            <Suspense fallback={<PageLoader />}><MyPrintingDesignPage /></Suspense>
+            <Suspense fallback={<PageLoader />}><MyCampaignNeedsPage /></Suspense>
           } />
           <Route path="/campaign/team" element={
             <Suspense fallback={<PageLoader />}><MyCampaignTeamPage /></Suspense>
