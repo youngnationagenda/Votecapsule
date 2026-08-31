@@ -1,0 +1,4 @@
+{
+  "label": "165_campaign_media_enhancements",
+  "sql": "BEGIN; ALTER TABLE campaign_media ADD COLUMN IF NOT EXISTS media_type VARCHAR(30); CREATE INDEX IF NOT EXISTS idx_cm_media_type ON campaign_media(media_type); ALTER TABLE campaign_media ADD COLUMN IF NOT EXISTS scan_status VARCHAR(20) NOT NULL DEFAULT 'pending'; ALTER TABLE campaign_media ADD COLUMN IF NOT EXISTS exif_data JSONB; ALTER TABLE campaign_media ADD COLUMN IF NOT EXISTS preview_key VARCHAR(500); ALTER TABLE campaign_media ADD COLUMN IF NOT EXISTS public_key VARCHAR(500); INSERT INTO schema_migrations (filename, executed_at) VALUES ('165_campaign_media_enhancements.sql', NOW()) ON CONFLICT DO NOTHING; COMMIT;"
+}

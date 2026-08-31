@@ -81,10 +81,9 @@ export class MediaService {
 
   async getPreviewUrl(id: string, campaignId: string, tenantId: string): Promise<string> {
     const m = await this.findOne(id, campaignId, tenantId);
-    const previewKey = m.thumbnailKey
-      ? this.uploadService.buildPreviewKey(m.storageKey)
-      : m.storageKey;
-    return this.uploadService.getSignedGetUrl(previewKey);
+    // Use the persisted previewKey (set by Lambda), fallback to storageKey
+    const key = m.previewKey ?? m.thumbnailKey ?? m.storageKey;
+    return this.uploadService.getSignedGetUrl(key);
   }
 
   // ── List ─────────────────────────────────────────────────────
@@ -172,25 +171,36 @@ export class MediaService {
     );
 
     // Persist the public key on the record so we can look it up later
-    await this.repo.update(id, { approvalStatus: 'published' });
+    await this.repo.update(id, {
+      approvalStatus: 'published',
+      publicKey:      result.publicKey,
+    });
     this.logger.log(`Media ${id} published: ${result.publicUrl}`);
 
     return result;
   }
 
   // ── Internal: mark record ready after S3 Lambda processing ────
+  // Called by Lambda (via internal API) or by generate endpoint after
+  // Bedrock saves the image. Also carries EXIF data and scan result.
 
   async markReady(
     id: string,
     thumbnailKey: string,
-    widthPx?: number,
-    heightPx?: number,
+    widthPx?:     number,
+    heightPx?:    number,
+    previewKey?:  string,
+    scanStatus?:  string,
+    exifData?:    Record<string, any>,
   ): Promise<void> {
     await this.repo.update(id, {
       processingStatus: 'ready',
       thumbnailKey,
-      widthPx:  widthPx  ?? undefined,
-      heightPx: heightPx ?? undefined,
+      widthPx:    widthPx    ?? undefined,
+      heightPx:   heightPx   ?? undefined,
+      previewKey: previewKey ?? undefined,
+      scanStatus: scanStatus ?? 'clean',
+      exifData:   exifData   ?? undefined,
     });
   }
 }
