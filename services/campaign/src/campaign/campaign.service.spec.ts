@@ -7,6 +7,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { CampaignService } from './campaign.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { DataSource } from 'typeorm';
 
 // ── Mock campaign ────────────────────────────────────────────
 
@@ -40,12 +41,18 @@ function makeMockRepo(data: any = mockCampaign) {
   };
 }
 
+// DataSource mock — getDashboard() uses dataSource.query() for real COUNT queries
+const mockDataSource = {
+  query: vi.fn().mockResolvedValue([{ count: 0 }]),
+};
+
 let service: CampaignService;
 let mockRepo: ReturnType<typeof makeMockRepo>;
 
 beforeEach(() => {
   mockRepo = makeMockRepo();
-  service = new CampaignService(mockRepo as any);
+  mockDataSource.query.mockResolvedValue([{ count: 0 }]);
+  service = new CampaignService(mockRepo as any, mockDataSource as unknown as DataSource);
 });
 
 // ─────────────────────────────────────────────────────────────

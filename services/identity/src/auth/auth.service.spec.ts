@@ -101,13 +101,20 @@ describe('AuthService', () => {
 
       const result = await service.login(loginDto, ipAddress, userAgent);
 
-      // accessToken is now the platform HS256 JWT (from jwtService.sign mock → 'signed-token')
-      // refreshToken is the Cognito refresh token (used for token refresh calls)
+      // accessToken is now the Cognito IdToken returned directly (no platform re-signing).
+      // The Lambda authorizer at API Gateway validates this RS256 token against Cognito JWKS.
+      // refreshToken is the Cognito refresh token (used for token refresh calls).
       expect(result).toEqual({
-        accessToken: 'signed-token',   // platform JWT signed with JWT_SECRET
+        accessToken:  'cognito-id-token',   // IdToken from Cognito AuthenticationResult
         refreshToken: 'cognito-refresh-token',
         expiresIn: 3600,
         tokenType: 'Bearer',
+        user: {
+          id:       'user-uuid-123',
+          email:    'agent@votecapsule.co.ke',
+          roles:    ['PLATFORM_SUPER_ADMIN'],
+          tenantId: 'tenant-uuid-456',
+        },
       });
       expect(usersService.updateLastLogin).toHaveBeenCalledWith(loginDto.email);
       expect(usersService.logAuthEvent).toHaveBeenCalledWith(
@@ -117,17 +124,6 @@ describe('AuthService', () => {
           ipAddress,
           userAgent,
           success: true,
-        }),
-      );
-      // Verify JWT was signed with correct payload
-      expect(mockJwtService.sign).toHaveBeenCalledWith(
-        expect.objectContaining({
-          email: loginDto.email,
-          roles: ['PLATFORM_SUPER_ADMIN'],
-        }),
-        expect.objectContaining({
-          issuer: 'vote-capsule-identity',
-          audience: 'vote-capsule-platform',
         }),
       );
     });
@@ -293,12 +289,19 @@ describe('AuthService', () => {
 
       const result = await service.verifyMfa(mfaDto, ipAddress, userAgent);
 
-      // accessToken is the platform HS256 JWT; refreshToken is Cognito refresh token
+      // accessToken is now the Cognito IdToken returned directly (no platform re-signing).
+      // The mock only sets AccessToken (no IdToken), so IdToken ?? AccessToken → 'mfa-access-token'.
       expect(result).toEqual({
-        accessToken: 'signed-token',  // platform JWT from jwtService.sign mock
+        accessToken:  'mfa-access-token',  // IdToken ?? AccessToken from Cognito mock
         refreshToken: 'mfa-refresh-token',
         expiresIn: 3600,
         tokenType: 'Bearer',
+        user: {
+          id:       'user-uuid-123',
+          email:    'agent@votecapsule.co.ke',
+          roles:    ['PLATFORM_SUPER_ADMIN'],
+          tenantId: 'tenant-uuid-456',
+        },
       });
       expect(usersService.logAuthEvent).toHaveBeenCalledWith(
         expect.objectContaining({
