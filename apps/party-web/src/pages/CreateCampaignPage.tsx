@@ -116,14 +116,14 @@ function CreateCampaignContent(): React.JSX.Element {
   const createMutation = useMutation({
     mutationFn: () => {
       if (!selectedElectionId) throw new Error('Please select an election');
+      if (!form.name.trim())   throw new Error('Campaign name is required');
       return campaignApi.create({
-        name:              form.name,
+        name:              form.name.trim(),
         description:       form.description || undefined,
         tenantId,
         electionId:        selectedElectionId,
-        // candidateId: use the supplied userId if a candidate is being assigned,
-        // otherwise use the current party admin's user ID as placeholder
-        candidateId:       form.candidateUserId || user?.id || '',
+        // candidateId only if explicitly entered — party admin may not know UUID yet
+        ...(form.candidateUserId ? { candidateId: form.candidateUserId } : {}),
         countyCode:        form.countyCode        || undefined,
         constituencyCode:  form.constituencyCode  || undefined,
         campaignStartDate: form.campaignStartDate || undefined,
@@ -131,10 +131,10 @@ function CreateCampaignContent(): React.JSX.Element {
         headquarters:      form.headquartersAddress || undefined,
         targetWards:       [],
         goals: {
-          targetPosition:  form.targetPosition,
-          campaignType:    form.campaignType,
-          candidateName:   form.candidateName,
-          totalBudget:     form.totalBudget ? parseFloat(form.totalBudget) : null,
+          targetPosition:   form.targetPosition,
+          campaignType:     form.campaignType,
+          candidateName:    form.candidateName,
+          totalBudget:      form.totalBudget      ? parseFloat(form.totalBudget)      : null,
           iebcSpendingLimit: form.iebcSpendingLimit ? parseFloat(form.iebcSpendingLimit) : null,
         },
       });

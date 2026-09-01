@@ -83,7 +83,8 @@ function CreateCampaignForm(): React.JSX.Element {
     if (!name.trim()) { setError('Campaign name is required'); return; }
     if (!electionId) { setError('Please select an election'); return; }
     createMutation.mutate({
-      candidateId: user?.id ?? '',
+      // candidateId injected from x-candidate-id or x-user-id header by backend
+      // when user role is CANDIDATE — no need to send it explicitly
       electionId,
       name: name.trim(),
       description: description.trim() || undefined,

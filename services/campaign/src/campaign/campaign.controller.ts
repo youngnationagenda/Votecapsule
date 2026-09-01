@@ -24,16 +24,34 @@ export class CampaignController {
     @Body() dto: CreateCampaignDto,
     @Headers('x-tenant-id')      tenantId: string,
     @Headers('x-user-id')        userId: string,
+    @Headers('x-user-role')      userRole: string,
+    @Headers('x-candidate-id')   headerCandidateId: string,
     @Headers('x-platform-admin') platformAdmin: string,
   ) {
-    // Platform admin can create on behalf of any tenant (tenantId in body)
     if (!userId) throw new BadRequestException('X-User-Id required');
     if (platformAdmin !== 'true' && !tenantId) {
       throw new BadRequestException('X-Tenant-Id required');
     }
     const effectiveTenantId = tenantId || dto.tenantId;
     if (!effectiveTenantId) throw new BadRequestException('tenantId required in body for platform admin');
-    return this.service.create({ ...dto, tenantId: effectiveTenantId }, userId);
+
+    // Resolve candidateId:
+    //   1. Explicitly supplied in body (party admin entering a UUID)
+    //   2. x-candidate-id header (candidate user portal)
+    //   3. userId itself when role is a candidate role
+    //   4. null — party/admin creating a campaign not yet tied to a candidate
+    const CANDIDATE_ROLES = ['CANDIDATE', 'CANDIDATE_CAMPAIGN_PRINCIPAL', 'CAMPAIGN_MANAGER'];
+    const effectiveCandidateId =
+      dto.candidateId ||
+      headerCandidateId ||
+      (CANDIDATE_ROLES.includes((userRole || '').toUpperCase()) ? userId : null) ||
+      null;
+
+    return this.service.create({
+      ...dto,
+      tenantId:    effectiveTenantId,
+      candidateId: effectiveCandidateId ?? undefined,
+    }, userId);
   }
 
   // ── List All ──────────────────────────────────────────────────

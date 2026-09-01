@@ -696,7 +696,13 @@ function MyBudgetContent(): React.JSX.Element {
   const campaign = useMyCampaign();
   const [showExpense, setExpense] = useState(false);
   const [showUpload, setUpload] = useState(false);
-  const [tab, setTab] = useState<'summary' | 'detailed' | 'planner' | 'insights'>('summary');
+  const [tab, setTab] = useState<'summary' | 'ledger' | 'detailed' | 'planner' | 'insights'>('summary');
+  const [showContrib, setContrib] = useState(false);
+  const [contribForm, setContribForm] = useState({
+    contributorName: '', contributorType: 'individual', amount: '',
+    contributionDate: new Date().toISOString().split('T')[0],
+    contributionType: 'mpesa', reference: '', notes: '',
+  });
 
   const { data: budget } = useQuery({
     queryKey: ['my-budget', campaign?.id],
@@ -718,11 +724,44 @@ function MyBudgetContent(): React.JSX.Element {
 
   const { data: expenses = [] } = useQuery({
     queryKey: ['my-expenses', campaign?.id],
-    queryFn:  () => campaign ? campaignApi.budget.listExpenses(campaign.id, { limit: 100 }).then((r) => r.data?.data ?? r.data ?? []) : [],
+    queryFn:  () => campaign ? campaignApi.budget.listExpenses(campaign.id, { limit: 200 }).then((r) => r.data?.data ?? r.data ?? []) : [],
     enabled:  !!campaign?.id,
   });
 
+  const { data: contributions = [] } = useQuery({
+    queryKey: ['my-contributions', campaign?.id],
+    queryFn:  () => campaign ? campaignApi.budget.listContribs(campaign.id).then((r) => r.data?.data ?? r.data ?? []) : [],
+    enabled:  !!campaign?.id,
+  });
+
+  // IEBC gazette limit lookup from new DB tables
+  const { data: iebcGazette } = useQuery({
+    queryKey: ['iebc-gazette-limit', campaign?.constituencyCode, campaign?.countyCode, (campaign as any)?.goals?.targetPosition],
+    queryFn: async () => {
+      if (!campaign) return null;
+      const position = (campaign as any)?.goals?.targetPosition ?? (campaign as any)?.targetPosition;
+      const countyCode = campaign.countyCode ?? campaign.county_code;
+      if (!position || !countyCode) return null;
+      try {
+        const r = await campaignApi.budget.getIEBCGazetteLimit(position, countyCode, campaign.constituencyCode);
+        return r.data?.data ?? r.data;
+      } catch { return null; }
+    },
+    enabled: !!campaign,
+    staleTime: 24 * 60 * 60 * 1000, // gazette data doesn't change daily
+  });
+
+  // Ledger computations
+  const totalMoneyIn  = contributions.reduce((s: number, c: any) => s + Number(c.amount ?? 0), 0);
+  const totalMoneyOut = expenses.filter((e: any) => e.status !== 'rejected').reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
+  const netBalance    = totalMoneyIn - totalMoneyOut;
+
   const iebcPct = Math.round(iebc?.limitPercentageUsed ?? iebc?.percentageUsed ?? 0);
+  // Use gazette limit if available, fall back to API-stored limit
+  const iebcLimitAmount = iebcGazette?.spending_limit_kes ?? iebc?.limitAmount ?? iebc?.iebcSpendingLimit ?? 0;
+  const iebcPopulation  = iebcGazette?.population;
+  const iebcAreaSqKm    = iebcGazette?.area_sq_km;
+  const iebcSchedule    = iebcGazette?.schedule;
   const chartData = categories.slice(0, 10).map((cat: any) => ({
     name:  (cat.categoryName ?? cat.categoryCode ?? cat.code ?? '').replace(/_/g,' '),
     spent: Number(cat.spent ?? 0),
@@ -785,10 +824,11 @@ function MyBudgetContent(): React.JSX.Element {
       {/* Tab navigation */}
       <div className="flex border-b border-gray-200 overflow-x-auto">
         {([
-          { key: 'summary', label: 'Summary', icon: PieIcon },
-          { key: 'detailed', label: 'Full Budget', icon: ClipboardList },
-          { key: 'planner', label: 'Smart Planner', icon: Brain },
-          { key: 'insights', label: 'Insights', icon: Lightbulb },
+          { key: 'summary',  label: 'Summary',         icon: PieIcon },
+          { key: 'ledger',   label: 'Ledger',           icon: ArrowUpRight },
+          { key: 'detailed', label: 'Full Budget',      icon: ClipboardList },
+          { key: 'planner',  label: 'Smart Planner',    icon: Brain },
+          { key: 'insights', label: 'Insights',         icon: Lightbulb },
         ] as const).map(({ key, label, icon: Icon }) => (
           <button
             key={key}
@@ -966,6 +1006,340 @@ function MyBudgetContent(): React.JSX.Element {
                   </tr>
                 </tbody>
               </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ═══════ LEDGER TAB — Debit / Credit / Running Balance ═══════ */}
+      {tab === 'ledger' && (
+        <div className="space-y-5">
+
+          {/* Money In / Money Out / Balance summary */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="vc-card border-l-4 border-emerald-500">
+              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Money In (Credits)</p>
+              <p className="text-2xl font-bold text-emerald-700 mt-1">{fmt(totalMoneyIn)}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{contributions.length} contribution{contributions.length !== 1 ? 's' : ''}</p>
+            </div>
+            <div className="vc-card border-l-4 border-red-500">
+              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Money Out (Debits)</p>
+              <p className="text-2xl font-bold text-red-700 mt-1">{fmt(totalMoneyOut)}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{expenses.length} expense{expenses.length !== 1 ? 's' : ''}</p>
+            </div>
+            <div className={`vc-card border-l-4 ${netBalance >= 0 ? 'border-blue-500' : 'border-amber-500'}`}>
+              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Net Balance</p>
+              <p className={`text-2xl font-bold mt-1 ${netBalance >= 0 ? 'text-blue-700' : 'text-amber-700'}`}>{fmt(Math.abs(netBalance))}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{netBalance >= 0 ? 'Surplus' : 'Deficit'}</p>
+            </div>
+          </div>
+
+          {/* IEBC Gazette Compliance Block */}
+          {iebcLimitAmount > 0 && (
+            <div className={`vc-card border-l-4 ${iebcPct >= 95 ? 'border-red-500' : iebcPct >= 80 ? 'border-amber-500' : 'border-emerald-500'}`}>
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div>
+                  <p className="text-sm font-bold text-gray-900">IEBC Legal Spending Limit</p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {iebcSchedule ?? 'Gazette Notice GN 12251 · 7 August 2026 · Kenya 2027 General Election'}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className={`text-2xl font-bold ${iebcPct >= 95 ? 'text-red-700' : iebcPct >= 80 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                    {iebcPct}% used
+                  </p>
+                  <p className="text-xs text-gray-500">of KES {iebcLimitAmount.toLocaleString()}</p>
+                </div>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-3 mt-3">
+                <div className={`h-3 rounded-full transition-all ${iebcPct >= 95 ? 'bg-red-500' : iebcPct >= 80 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                  style={{ width: `${Math.min(iebcPct, 100)}%` }} />
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 text-xs">
+                <div className="bg-gray-50 rounded-lg p-2 text-center">
+                  <p className="text-gray-400">Limit</p>
+                  <p className="font-bold text-gray-900">{fmt(iebcLimitAmount)}</p>
+                </div>
+                <div className="bg-red-50 rounded-lg p-2 text-center">
+                  <p className="text-gray-400">Spent</p>
+                  <p className="font-bold text-red-700">{fmt(totalMoneyOut)}</p>
+                </div>
+                <div className="bg-emerald-50 rounded-lg p-2 text-center">
+                  <p className="text-gray-400">Remaining</p>
+                  <p className="font-bold text-emerald-700">{fmt(Math.max(iebcLimitAmount - totalMoneyOut, 0))}</p>
+                </div>
+                {(iebcPopulation || iebcAreaSqKm) && (
+                  <div className="bg-blue-50 rounded-lg p-2 text-center">
+                    <p className="text-gray-400">Constituency</p>
+                    <p className="font-bold text-blue-700 text-[10px] leading-tight">
+                      {iebcPopulation ? `${Number(iebcPopulation).toLocaleString()} people` : ''}
+                      {iebcAreaSqKm ? ` · ${Number(iebcAreaSqKm).toLocaleString()} km²` : ''}
+                    </p>
+                  </div>
+                )}
+              </div>
+              {iebcPct >= 80 && (
+                <div className={`mt-3 flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg ${iebcPct >= 95 ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
+                  <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+                  {iebcPct >= 95
+                    ? 'CRITICAL: You are very close to the legal IEBC spending limit. Any further expenditure risks a compliance offence under Section 18(7) of the Election Campaign Financing Act, 2013.'
+                    : 'WARNING: Expenditure approaching IEBC limit (80% threshold). A single-source contribution may not exceed 20% of total contributions.'}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* IEBC 11 Authorized Spending Categories reference */}
+          <div className="vc-card p-0 overflow-hidden">
+            <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-900">IEBC Authorized Spending Categories</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Section (a)–(f) Election Campaign Financing Act, 2013 · Fifth Schedule</p>
+            </div>
+            <div className="divide-y divide-gray-50">
+              {[
+                { code: 'venues',          name: 'Venues',                      share: '1.5%' },
+                { code: 'publicity',       name: 'Publicity Materials',          share: '4.4%' },
+                { code: 'advertising',     name: 'Advertising & Media',          share: '10.3%' },
+                { code: 'personnel',       name: 'Campaign Personnel',           share: '1.4%' },
+                { code: 'agents',          name: 'Election Agents',              share: '8.5%' },
+                { code: 'transport',       name: 'Transportation',               share: '66.0%' },
+                { code: 'communication',   name: 'Communication',                share: '0.5%' },
+                { code: 'nomination_fees', name: 'Nomination Fees & Charges',    share: '0.9%' },
+                { code: 'security',        name: 'Security',                     share: '1.2%' },
+                { code: 'accommodation',   name: 'Accommodation',                share: '0.1%' },
+                { code: 'administrative',  name: 'Administrative Cost',          share: '5.3%' },
+              ].map((cat, i) => {
+                const catExpenses = expenses.filter((e: any) =>
+                  (e.categoryCode ?? e.iebcCategory ?? '').toLowerCase().includes(cat.code)
+                );
+                const catTotal = catExpenses.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
+                const catLimit = iebcLimitAmount > 0 ? iebcLimitAmount * (parseFloat(cat.share) / 100) : 0;
+                const catPct   = catLimit > 0 ? Math.min(Math.round((catTotal / catLimit) * 100), 100) : 0;
+                return (
+                  <div key={cat.code} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50">
+                    <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[9px] font-bold text-gray-500">{i + 1}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-gray-900">{cat.name}</p>
+                        <div className="flex items-center gap-3 flex-shrink-0">
+                          <span className="text-xs text-gray-400">{cat.share} of limit</span>
+                          {catTotal > 0 && <span className="text-xs font-semibold text-red-600">{fmt(catTotal)} spent</span>}
+                          {catLimit > 0 && <span className="text-xs text-gray-400">max {fmt(catLimit)}</span>}
+                        </div>
+                      </div>
+                      {catLimit > 0 && (
+                        <div className="w-full bg-gray-100 rounded-full h-1 mt-1">
+                          <div className={`h-1 rounded-full ${catPct >= 90 ? 'bg-red-500' : catPct >= 70 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+                            style={{ width: `${catPct}%` }} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Full Ledger Table — debit + credit chronological */}
+          <div className="vc-card p-0 overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-b border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-900">Campaign Ledger</h3>
+              <button
+                onClick={() => setContrib(true)}
+                className="vc-btn-primary text-xs flex items-center gap-1.5 py-1.5 px-3"
+              >
+                <ArrowUpRight className="w-3.5 h-3.5" /> Record Money In
+              </button>
+            </div>
+            <div className="overflow-x-auto max-h-[60vh] overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-white border-b z-10">
+                  <tr className="text-left text-xs font-semibold text-gray-500 uppercase">
+                    <th className="px-3 py-2">Date</th>
+                    <th className="px-3 py-2">Description</th>
+                    <th className="px-3 py-2">Category / Source</th>
+                    <th className="px-3 py-2 text-right text-emerald-700">Credit (In)</th>
+                    <th className="px-3 py-2 text-right text-red-700">Debit (Out)</th>
+                    <th className="px-3 py-2 text-right">Balance</th>
+                    <th className="px-3 py-2">Ref / Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {(() => {
+                    // Merge contributions (credits) and expenses (debits), sort by date
+                    const rows = [
+                      ...contributions.map((c: any) => ({
+                        date:     c.contributionDate ?? c.createdAt,
+                        desc:     c.contributorName ?? 'Contribution',
+                        category: c.contributorType ?? 'contribution',
+                        credit:   Number(c.amount ?? 0),
+                        debit:    0,
+                        ref:      c.receiptNumber ?? '—',
+                        status:   c.declarationStatus ?? 'pending',
+                        type:     'credit',
+                      })),
+                      ...expenses.map((e: any) => ({
+                        date:     e.expenseDate ?? e.createdAt,
+                        desc:     e.description ?? '—',
+                        category: (e.categoryCode ?? '').replace(/_/g, ' '),
+                        credit:   0,
+                        debit:    Number(e.amount ?? 0),
+                        ref:      e.paymentReference ?? e.paymentMethod ?? '—',
+                        status:   e.status ?? 'pending',
+                        type:     'debit',
+                      })),
+                    ].sort((a, b) => new Date(a.date ?? 0).getTime() - new Date(b.date ?? 0).getTime());
+
+                    let running = 0;
+                    return rows.length === 0 ? (
+                      <tr><td colSpan={7} className="px-4 py-12 text-center text-gray-400">
+                        No transactions yet. Record contributions (money in) and expenses (money out).
+                      </td></tr>
+                    ) : rows.map((row, i) => {
+                      running += row.credit - row.debit;
+                      return (
+                        <tr key={i} className={`hover:bg-gray-50 ${row.type === 'credit' ? 'bg-emerald-50/20' : ''}`}>
+                          <td className="px-3 py-2 text-xs text-gray-500 whitespace-nowrap">
+                            {row.date ? new Date(row.date).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: '2-digit' }) : '—'}
+                          </td>
+                          <td className="px-3 py-2 text-gray-900 max-w-[180px] truncate">{row.desc}</td>
+                          <td className="px-3 py-2">
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium capitalize ${
+                              row.type === 'credit' ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'
+                            }`}>{row.category}</span>
+                          </td>
+                          <td className="px-3 py-2 text-right font-semibold text-emerald-700">
+                            {row.credit > 0 ? `KES ${row.credit.toLocaleString()}` : '—'}
+                          </td>
+                          <td className="px-3 py-2 text-right font-semibold text-red-700">
+                            {row.debit > 0 ? `KES ${row.debit.toLocaleString()}` : '—'}
+                          </td>
+                          <td className={`px-3 py-2 text-right font-bold ${running >= 0 ? 'text-gray-900' : 'text-red-600'}`}>
+                            KES {Math.abs(running).toLocaleString()}
+                            {running < 0 && <span className="text-[9px] text-red-500 ml-0.5">DR</span>}
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="text-[10px] text-gray-400 truncate">{row.ref}</div>
+                            <span className={`text-[9px] px-1.5 py-0.5 rounded font-medium ${
+                              row.status === 'approved' || row.status === 'verified' ? 'bg-emerald-100 text-emerald-700' :
+                              row.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                            }`}>{row.status}</span>
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
+                {(contributions.length > 0 || expenses.length > 0) && (
+                  <tfoot className="bg-gray-50 border-t-2 border-gray-200 font-bold">
+                    <tr>
+                      <td colSpan={3} className="px-3 py-2 text-sm text-gray-900">TOTALS</td>
+                      <td className="px-3 py-2 text-right text-emerald-700">KES {totalMoneyIn.toLocaleString()}</td>
+                      <td className="px-3 py-2 text-right text-red-700">KES {totalMoneyOut.toLocaleString()}</td>
+                      <td className={`px-3 py-2 text-right ${netBalance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                        KES {Math.abs(netBalance).toLocaleString()} {netBalance >= 0 ? 'CR' : 'DR'}
+                      </td>
+                      <td />
+                    </tr>
+                  </tfoot>
+                )}
+              </table>
+            </div>
+          </div>
+
+          {/* Record Contribution Modal */}
+          {showContrib && campaign && (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between p-5 border-b">
+                  <h3 className="text-base font-bold text-gray-900">Record Contribution (Money In)</h3>
+                  <button onClick={() => setContrib(false)}><X className="w-5 h-5 text-gray-400" /></button>
+                </div>
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  try {
+                    await campaignApi.budget.recordContrib(campaign.id, {
+                      ...contribForm,
+                      amount: parseFloat(contribForm.amount),
+                    });
+                    qc.invalidateQueries({ queryKey: ['my-contributions'] });
+                    setContrib(false);
+                    setContribForm({ contributorName: '', contributorType: 'individual', amount: '',
+                      contributionDate: new Date().toISOString().split('T')[0], contributionType: 'mpesa', reference: '', notes: '' });
+                  } catch {}
+                }} className="p-5 space-y-4">
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
+                    <strong>IEBC Rule:</strong> A single contributor may not exceed 20% of total contributions (Section 12(2), Election Campaign Financing Act, 2013).
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Contributor Name *</label>
+                    <input className="vc-input" required value={contribForm.contributorName}
+                      onChange={(e) => setContribForm({ ...contribForm, contributorName: e.target.value })}
+                      placeholder="Full name or organisation" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Contributor Type</label>
+                      <select className="vc-input" value={contribForm.contributorType}
+                        onChange={(e) => setContribForm({ ...contribForm, contributorType: e.target.value })}>
+                        {['individual','corporate','party_allocation','self_funding'].map((t) =>
+                          <option key={t} value={t}>{t.replace(/_/g,' ')}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Payment Type</label>
+                      <select className="vc-input" value={contribForm.contributionType}
+                        onChange={(e) => setContribForm({ ...contribForm, contributionType: e.target.value })}>
+                        {['mpesa','bank_transfer','cash','cheque','in_kind'].map((t) =>
+                          <option key={t} value={t}>{t.replace(/_/g,' ')}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Amount (KES) *</label>
+                      <input type="number" min="0" step="0.01" className="vc-input" required
+                        value={contribForm.amount}
+                        onChange={(e) => setContribForm({ ...contribForm, amount: e.target.value })}
+                        placeholder="0.00" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                      <input type="date" className="vc-input" required value={contribForm.contributionDate}
+                        onChange={(e) => setContribForm({ ...contribForm, contributionDate: e.target.value })} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Reference (M-Pesa / Receipt No.)</label>
+                    <input className="vc-input" value={contribForm.reference}
+                      onChange={(e) => setContribForm({ ...contribForm, reference: e.target.value })}
+                      placeholder="Transaction reference" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                    <textarea className="vc-input" rows={2} value={contribForm.notes}
+                      onChange={(e) => setContribForm({ ...contribForm, notes: e.target.value })}
+                      placeholder="Any additional details..." />
+                  </div>
+                  {/* 20% single-source cap warning */}
+                  {contribForm.amount && totalMoneyIn > 0 && (
+                    (() => {
+                      const pct = (parseFloat(contribForm.amount) / (totalMoneyIn + parseFloat(contribForm.amount || '0'))) * 100;
+                      return pct > 20 ? (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-700">
+                          ⚠ This contribution ({pct.toFixed(1)}% of total) exceeds the 20% single-source cap. IEBC compliance issue.
+                        </div>
+                      ) : null;
+                    })()
+                  )}
+                  <div className="flex gap-3 pt-1">
+                    <button type="button" onClick={() => setContrib(false)} className="flex-1 vc-btn-secondary">Cancel</button>
+                    <button type="submit" className="flex-1 vc-btn-primary">Record Contribution</button>
+                  </div>
+                </form>
+              </div>
             </div>
           )}
         </div>

@@ -206,9 +206,15 @@ function CampaignCalendarContent(): React.JSX.Element {
               <button key={v} onClick={() => setView(v)} className={`px-3 py-1.5 text-sm font-medium transition-colors capitalize ${view === v ? 'bg-violet-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>{v}</button>
             ))}
           </div>
-          <button onClick={() => setCreate(true)} className="vc-btn-primary inline-flex items-center gap-2 text-sm">
-            <Plus className="w-4 h-4" /> Add Event
-          </button>
+          {campaign ? (
+            <button onClick={() => setCreate(true)} className="vc-btn-primary inline-flex items-center gap-2 text-sm">
+              <Plus className="w-4 h-4" /> Add Event
+            </button>
+          ) : (
+            <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg">
+              Create a campaign first to add events
+            </span>
+          )}
         </div>
       </div>
 

@@ -24,7 +24,7 @@ export enum CampaignStatus {
 export class Campaign {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Column({ type: 'uuid', name: 'tenant_id' }) tenantId: string;
-  @Column({ type: 'uuid', name: 'candidate_id' }) candidateId: string;
+  @Column({ type: 'uuid', name: 'candidate_id', nullable: true }) candidateId: string | null;
   @Column({ type: 'uuid', name: 'election_id' }) electionId: string;
   @Column({ type: 'uuid', name: 'party_id', nullable: true }) partyId: string | null;
   @Column({ type: 'varchar', length: 300 }) name: string;

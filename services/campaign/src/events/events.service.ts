@@ -1,7 +1,7 @@
 // ============================================================
 // VoteCapsule™ — Campaign Events Service
 // ============================================================
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between, FindOptionsWhere } from 'typeorm';
 import { CampaignEvent, EventStatus } from './entities/campaign-event.entity';
@@ -34,6 +34,16 @@ export class EventsService {
   ) {}
 
   async create(campaignId: string, dto: CreateEventDto, tenantId: string, userId: string): Promise<CampaignEvent> {
+    // Validate that the campaign exists before attempting insert —
+    // prevents FK violation 500 error when campaignId is invalid
+    const exists = await this.eventRepo.manager.findOne(
+      require('../campaign/entities/campaign.entity').Campaign,
+      { where: { id: campaignId, tenantId } },
+    ).catch(() => null);
+    if (!exists) {
+      throw new NotFoundException(`Campaign ${campaignId} not found — cannot create event`);
+    }
+
     const entity = this.eventRepo.create({
       ...dto,
       campaignId,

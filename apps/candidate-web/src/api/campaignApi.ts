@@ -10,7 +10,7 @@ export const campaignApi = {
   // ── Campaigns ────────────────────────────────────────────
   list:      (params?: any)               => apiClient.get(`${BASE}/campaigns`, { params }),
   get:       (id: string)                 => apiClient.get(`${BASE}/campaigns/${id}`),
-  create:    (data: { candidateId: string; electionId: string; name: string; description?: string; countyCode?: string; constituencyCode?: string; wardCode?: string }) =>
+  create:    (data: { candidateId?: string; electionId: string; name: string; description?: string; countyCode?: string; constituencyCode?: string; wardCode?: string }) =>
     apiClient.post(`${BASE}/campaigns`, data),
   dashboard: (id: string)                 => apiClient.get(`${BASE}/campaigns/${id}/dashboard`),
 
@@ -74,6 +74,11 @@ export const campaignApi = {
     importFile:    (cid: string, fd: FormData) => apiClient.post(`${BASE}/campaigns/${cid}/budget/import`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }),
     allocate:      (cid: string, data: any)  => apiClient.post(`${BASE}/campaigns/${cid}/budget/allocate`, data),
     geography:     (cid: string)             => apiClient.get(`${BASE}/campaigns/${cid}/geography`),
+    listContribs:  (cid: string)             => apiClient.get(`${BASE}/campaigns/${cid}/contributions`),
+    recordContrib: (cid: string, data: any)  => apiClient.post(`${BASE}/campaigns/${cid}/contributions`, data),
+    // IEBC gazette limit from migration 164 — auto-populated by position + county
+    getIEBCGazetteLimit: (position: string, countyCode: string, constituencyCode?: string) =>
+      apiClient.get('/election/iebc-limits', { params: { position, countyCode, constituencyCode } }),
   },
 
   // ── SMS ──────────────────────────────────────────────────
