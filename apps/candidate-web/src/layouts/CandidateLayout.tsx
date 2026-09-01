@@ -41,11 +41,12 @@ const systemNavItems = [
   { to: '/billing',       icon: CreditCard,  label: 'Billing' },
 ];
 
-interface NavSectionProps { items: { to: string; icon: React.ElementType; label: string }[]; collapsed: boolean; }
+interface NavItem { to: string; icon: React.ElementType; label: string; badge?: string; }
+interface NavSectionProps { items: NavItem[]; collapsed: boolean; }
 function NavSection({ items, collapsed }: NavSectionProps) {
   return (
     <>
-      {items.map(({ to, icon: Icon, label }) => (
+      {items.map(({ to, icon: Icon, label, badge }) => (
         <NavLink
           key={to}
           to={to}
@@ -55,6 +56,9 @@ function NavSection({ items, collapsed }: NavSectionProps) {
         >
           <Icon className="w-4 h-4 flex-shrink-0" />
           {!collapsed && <span className="truncate">{label}</span>}
+          {!collapsed && badge && (
+            <span className="ml-auto text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-semibold">{badge}</span>
+          )}
         </NavLink>
       ))}
     </>

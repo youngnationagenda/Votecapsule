@@ -69,10 +69,91 @@ const POSITIONS: Record<string, { label: string; level: string }> = {
   MCA:       { label: 'MCA',                   level: 'WARD' },
 };
 
-// ── B1+B2+B3 FIX: CreateCandidateModal ───────────────────
-// B1: Uses positionId UUID (resolved from election positions) NOT positionCode string
-// B2: Loads candidate_political_parties to get correct partyId UUID
+// ── SearchableSelect ─────────────────────────────────────
+// Lightweight searchable dropdown — filters by label + search terms (abbreviations, codes, etc.)
+
+function SearchableSelect({
+  options, value, onChange, placeholder, disabled,
+}: {
+  options: { value: string; label: string; search?: string }[];
+  value: string;
+  onChange: (val: string) => void;
+  placeholder?: string;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  const filtered = query
+    ? options.filter(o => {
+        const q = query.toLowerCase();
+        return o.label.toLowerCase().includes(q) || (o.search ?? '').toLowerCase().includes(q);
+      })
+    : options;
+
+  const selected = options.find(o => o.value === value);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => { if (!disabled) { setOpen(!open); setQuery(''); } }}
+        className={`vc-input w-full text-left flex items-center justify-between ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+      >
+        <span className={selected ? 'text-gray-900 truncate' : 'text-gray-400 truncate'}>
+          {selected ? selected.label : (placeholder ?? 'Select…')}
+        </span>
+        <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+      </button>
+      {open && (
+        <div className="absolute z-50 mt-1 w-full bg-white rounded-lg border border-gray-200 shadow-lg max-h-64 flex flex-col">
+          <div className="p-2 border-b border-gray-100">
+            <input
+              type="text"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Type to search…"
+              className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-violet-500"
+              autoFocus
+            />
+          </div>
+          <div className="overflow-y-auto flex-1">
+            {filtered.length === 0 ? (
+              <p className="text-xs text-gray-400 text-center py-3">No matches</p>
+            ) : (
+              filtered.map(o => (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => { onChange(o.value); setOpen(false); setQuery(''); }}
+                  className={`w-full text-left px-3 py-2 text-sm hover:bg-violet-50 transition-colors ${
+                    o.value === value ? 'bg-violet-50 text-violet-700 font-medium' : 'text-gray-700'
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── CreateCandidateModal (B1+B2+B3 FIX + party auto-fill + youth/PLWD) ──
+// B1: positionId UUID resolved from election positions (not positionCode string)
+// B2: partyId auto-resolved from logged-in tenant (no dropdown)
 // B3: DTO only sends fields RegisterCandidateDto accepts
+// NEW: Youth + PLWD demographic fields, searchable dropdowns
 
 function CreateCandidateModal({
   tenantId, userId, onClose,
@@ -84,11 +165,13 @@ function CreateCandidateModal({
     fullName: '', shortName: '', nationalId: '',
     positionCode: '', countyCode: '', constituencyCode: '', wardCode: '',
     gender: '', dateOfBirth: '', runningMateName: '', runningMateNationalId: '',
-    electionId: '', partyId: '',
+    electionId: '',
+    isYouth: '',  // YES | NO — for demographic reporting
+    isPLWD: '',   // YES | NO — Person Living With Disability
   });
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Load elections (general elections only)
+  // Load elections
   const { data: elections = [] } = useQuery({
     queryKey: ['general-elections'],
     queryFn: () => apiClient.get('/election/elections')
@@ -96,13 +179,35 @@ function CreateCandidateModal({
     staleTime: 5 * 60_000,
   });
 
-  // B2 FIX: Load from candidate_political_parties (not tenants table)
+  // Load political parties (for auto-matching to tenant)
   const { data: politicalParties = [] } = useQuery<PoliticalParty[]>({
     queryKey: ['political-parties'],
     queryFn: () => apiClient.get('/candidate/candidates/parties')
       .then(r => { const d = r.data?.data ?? r.data ?? []; return Array.isArray(d) ? d : []; }),
     staleTime: 10 * 60_000,
   });
+
+  // Auto-resolve party from logged-in tenant — candidate belongs to THIS party only
+  const { data: tenantDetails } = useQuery<Record<string, any>>({
+    queryKey: ['tenant-details', tenantId],
+    queryFn: () => apiClient.get(`/tenant/tenants/${tenantId}`).then(r => r.data?.data ?? r.data),
+    enabled: !!tenantId,
+    staleTime: 10 * 60_000,
+  });
+
+  const autoParty = useMemo(() => {
+    if (!tenantDetails || !politicalParties.length) return null;
+    const tName = (tenantDetails.orgName || tenantDetails.name || '').toLowerCase().trim();
+    const tCode = (tenantDetails.partyCode || tenantDetails.code || '').toLowerCase().trim();
+    // Match by code, name, or abbreviation
+    return politicalParties.find(p => {
+      const pName = p.name.toLowerCase().trim();
+      const pCode = p.partyCode.toLowerCase().trim();
+      const pAbbr = (p.abbreviation || '').toLowerCase().trim();
+      return pCode === tCode || pName === tName || pAbbr === tCode
+        || (tName && pName.includes(tName)) || (tName && tName.includes(pName));
+    }) ?? null;
+  }, [tenantDetails, politicalParties]);
 
   // NEC geography cascade
   const { data: counties = [] } = useQuery({
@@ -127,7 +232,7 @@ function CreateCandidateModal({
     staleTime: 10 * 60_000,
   });
 
-  // B1 FIX: Resolve positionId UUID from election positions by cascading geo selection
+  // Resolve positionId UUID from election positions by cascading geo selection
   const geoReady = form.positionCode === 'PRESIDENT'
     ? true
     : needsWard
@@ -157,20 +262,27 @@ function CreateCandidateModal({
     staleTime: 10 * 60_000,
   });
 
+  // Human-readable labels for position resolution message
+  const selectedCounty = counties.find((c: any) => c.iebcCode === form.countyCode);
+  const posLabel = POSITIONS[form.positionCode]?.label ?? form.positionCode;
+  const geoName = selectedCounty?.name ?? form.countyCode;
+  const selectedElection = elections.find((e: any) => e.id === form.electionId);
+  const electionLabel = selectedElection?.name ?? selectedElection?.electionType ?? '';
+
   const needsRunningMate = form.positionCode === 'GOVERNOR';
   const canSubmit = !!(
     form.fullName && form.nationalId && form.positionCode && form.gender &&
-    form.electionId && form.partyId && resolvedPositionId && !resolvingPosition
+    form.electionId && autoParty?.id && resolvedPositionId && !resolvingPosition
   );
 
-  // B3 FIX: Only send fields that RegisterCandidateDto accepts
   const mutation = useMutation({
     mutationFn: () => {
       if (!resolvedPositionId) throw new Error('Position not resolved — check geography selection');
+      if (!autoParty?.id) throw new Error('Party not resolved — contact admin');
       return apiClient.post('/candidate/candidates/register', {
         electionId:            form.electionId,
-        positionId:            resolvedPositionId,  // B1 FIX: UUID not positionCode string
-        partyId:               form.partyId,        // B2 FIX: political party UUID
+        positionId:            resolvedPositionId,
+        partyId:               autoParty.id,        // auto-resolved from tenant
         fullName:              form.fullName,
         shortName:             form.shortName || form.fullName.split(' ')[0],
         nationalId:            form.nationalId,
@@ -182,7 +294,9 @@ function CreateCandidateModal({
         runningMateName:       form.runningMateName || undefined,
         runningMateNationalId: form.runningMateNationalId || undefined,
         isIndependent:         false,
-        // Note: sponsorshipType is set by the service based on context, not a DTO field
+        // Youth + PLWD — sent when backend migration adds columns (see Sonie tasks)
+        ...(form.isYouth ? { isYouth: form.isYouth === 'YES' } : {}),
+        ...(form.isPLWD  ? { isPLWD:  form.isPLWD  === 'YES' } : {}),
       }, {
         headers: { 'x-tenant-id': tenantId, 'x-user-id': userId },
       });
@@ -192,6 +306,16 @@ function CreateCandidateModal({
   });
 
   const set = (k: string, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  // Searchable options
+  const electionOptions = elections.map((el: any) => ({
+    value: el.id,
+    label: `${el.name ?? el.electionType} (${el.electionYear})`,
+    search: `${el.name ?? ''} ${el.electionType ?? ''} ${el.electionYear ?? ''}`,
+  }));
+  const countyOptions = counties.map((c: any) => ({
+    value: c.iebcCode, label: c.name, search: c.iebcCode,
+  }));
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
@@ -212,23 +336,33 @@ function CreateCandidateModal({
             <strong>Note:</strong> Registers as PARTY_SPONSORED. Candidate still requires IEBC clearance before ballot.
           </div>
 
-          {/* Election */}
+          {/* Election — searchable by name, type, year */}
           <div>
             <label className="vc-label">General Election <span className="text-red-500">*</span></label>
-            <select className="vc-input" value={form.electionId} onChange={e => set('electionId', e.target.value)}>
-              <option value="">Select election…</option>
-              {elections.map((el: any) => <option key={el.id} value={el.id}>{el.name ?? el.electionType} ({el.electionYear})</option>)}
-            </select>
+            <SearchableSelect
+              options={electionOptions}
+              value={form.electionId}
+              onChange={v => set('electionId', v)}
+              placeholder="Search elections…"
+            />
           </div>
 
-          {/* B2 FIX: Political Party selector from candidate_political_parties */}
+          {/* Political Party — auto-filled from logged-in tenant, read-only */}
           <div>
-            <label className="vc-label">Political Party <span className="text-red-500">*</span></label>
-            <select className="vc-input" value={form.partyId} onChange={e => set('partyId', e.target.value)}>
-              <option value="">Select party…</option>
-              {politicalParties.map(p => <option key={p.id} value={p.id}>{p.name} ({p.partyCode})</option>)}
-            </select>
-            <p className="text-xs text-gray-400 mt-0.5">Select from registered ORPP parties</p>
+            <label className="vc-label">Political Party</label>
+            {autoParty ? (
+              <div className="vc-input bg-gray-50 flex items-center gap-2 cursor-default">
+                <span className="text-gray-900 font-medium truncate">{autoParty.name}</span>
+                <span className="text-xs bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded font-semibold flex-shrink-0">
+                  {autoParty.abbreviation || autoParty.partyCode}
+                </span>
+              </div>
+            ) : (
+              <div className="vc-input bg-gray-50 text-gray-400 text-sm">
+                {tenantDetails ? 'Party not matched — contact admin' : 'Loading party…'}
+              </div>
+            )}
+            <p className="text-xs text-gray-400 mt-0.5">Auto-filled from your party account</p>
           </div>
 
           {/* Position */}
@@ -243,7 +377,7 @@ function CreateCandidateModal({
             </select>
           </div>
 
-          {/* B1 FIX: Cascading geography to resolve positionId */}
+          {/* Cascading geography — searchable county, constituency, ward */}
           {form.positionCode && needsCounty && (
             <div className="space-y-3 p-3 bg-gray-50 rounded-lg">
               <p className="text-xs font-medium text-gray-600 flex items-center gap-1">
@@ -251,33 +385,38 @@ function CreateCandidateModal({
               </p>
               <div>
                 <label className="vc-label">County <span className="text-red-500">*</span></label>
-                <select className="vc-input" value={form.countyCode}
-                  onChange={e => { set('countyCode', e.target.value); set('constituencyCode', ''); set('wardCode', ''); }}>
-                  <option value="">Select county…</option>
-                  {counties.map((c: any) => <option key={c.iebcCode} value={c.iebcCode}>{c.name}</option>)}
-                </select>
+                <SearchableSelect
+                  options={countyOptions}
+                  value={form.countyCode}
+                  onChange={v => { set('countyCode', v); set('constituencyCode', ''); set('wardCode', ''); }}
+                  placeholder="Search county…"
+                />
               </div>
               {needsConstituency && (
                 <div>
                   <label className="vc-label">Constituency <span className="text-red-500">*</span></label>
-                  <select className="vc-input" value={form.constituencyCode} disabled={!form.countyCode}
-                    onChange={e => { set('constituencyCode', e.target.value); set('wardCode', ''); }}>
-                    <option value="">{form.countyCode ? 'Select constituency…' : 'Select county first'}</option>
-                    {constituencies.map((c: any) => <option key={c.iebcCode} value={c.iebcCode}>{c.name}</option>)}
-                  </select>
+                  <SearchableSelect
+                    options={constituencies.map((c: any) => ({ value: c.iebcCode, label: c.name, search: c.iebcCode }))}
+                    value={form.constituencyCode}
+                    onChange={v => { set('constituencyCode', v); set('wardCode', ''); }}
+                    placeholder={form.countyCode ? 'Search constituency…' : 'Select county first'}
+                    disabled={!form.countyCode}
+                  />
                 </div>
               )}
               {needsWard && (
                 <div>
                   <label className="vc-label">Ward <span className="text-red-500">*</span></label>
-                  <select className="vc-input" value={form.wardCode} disabled={!form.constituencyCode}
-                    onChange={e => set('wardCode', e.target.value)}>
-                    <option value="">{form.constituencyCode ? 'Select ward…' : 'Select constituency first'}</option>
-                    {wards.map((w: any) => <option key={w.iebcCode} value={w.iebcCode}>{w.name}</option>)}
-                  </select>
+                  <SearchableSelect
+                    options={wards.map((w: any) => ({ value: w.iebcCode, label: w.name, search: w.iebcCode }))}
+                    value={form.wardCode}
+                    onChange={v => set('wardCode', v)}
+                    placeholder={form.constituencyCode ? 'Search ward…' : 'Select constituency first'}
+                    disabled={!form.constituencyCode}
+                  />
                 </div>
               )}
-              {/* Position ID resolution status */}
+              {/* Position resolution — human-readable message */}
               {geoReady && (
                 <div className={`text-xs p-2 rounded flex items-center gap-1.5 ${
                   resolvingPosition ? 'bg-gray-100 text-gray-500' :
@@ -285,8 +424,9 @@ function CreateCandidateModal({
                   'bg-red-50 text-red-600'
                 }`}>
                   {resolvingPosition ? 'Resolving position…' :
-                    resolvedPositionId ? `Position found: ${resolvedPositionId.substring(0, 8)}…` :
-                    'No election position found for this geography. Check election setup.'}
+                    resolvedPositionId
+                      ? <><CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" /> {posLabel} position found for {geoName}</>
+                      : <><XCircle className="w-3.5 h-3.5 flex-shrink-0" /> No {posLabel} position found for {geoName} in "{electionLabel}". Check election setup.</>}
                 </div>
               )}
             </div>
@@ -310,6 +450,22 @@ function CreateCandidateModal({
                 <option value="">Select…</option>
                 <option value="MALE">Male</option>
                 <option value="FEMALE">Female</option>
+              </select>
+            </div>
+            <div>
+              <label className="vc-label">Youth</label>
+              <select className="vc-input" value={form.isYouth} onChange={e => set('isYouth', e.target.value)}>
+                <option value="">Select…</option>
+                <option value="YES">Yes</option>
+                <option value="NO">No</option>
+              </select>
+            </div>
+            <div>
+              <label className="vc-label">PLWD</label>
+              <select className="vc-input" value={form.isPLWD} onChange={e => set('isPLWD', e.target.value)}>
+                <option value="">Select…</option>
+                <option value="YES">Yes</option>
+                <option value="NO">No</option>
               </select>
             </div>
             <div>

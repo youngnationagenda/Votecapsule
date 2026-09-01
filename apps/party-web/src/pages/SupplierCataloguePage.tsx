@@ -251,9 +251,12 @@ function ProductDetailModal({ product, onClose }: {
   const allImages = product.metadata?.allImages || [];
   const [selectedImage, setSelectedImage] = useState(0);
 
+  const CDN = 'https://d1campaign.votecapsule.yna.co.ke';
   const displayImages = [
     product.imageUrl,
-    ...allImages.map(img => img.startsWith('http') ? img : `https://votecapsule-campaign-assets.s3.amazonaws.com/suppliers/me-advertising/images/${img}`),
+    ...allImages.map(img =>
+      img.startsWith('http') ? img : `${CDN}/suppliers/me-advertising/images/${img}`
+    ),
   ].filter(Boolean) as string[];
 
   return (

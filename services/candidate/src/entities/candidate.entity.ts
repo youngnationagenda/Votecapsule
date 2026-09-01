@@ -152,6 +152,15 @@ export class Candidate {
   @Column({ type: 'varchar', length: 300, name: 'gazette_reference', nullable: true })
   gazetteReference: string | null;
 
+  // ── Demographics (IEBC compliance reporting) ──────────────
+  /** Youth: age ≤35 at time of nomination — used for IEBC youth compliance reports */
+  @Column({ type: 'boolean', name: 'is_youth', default: false })
+  isYouth: boolean;
+
+  /** Person Living With Disability — IEBC PLWD compliance reporting */
+  @Column({ type: 'boolean', name: 'is_plwd', default: false })
+  isPLWD: boolean;
+
   // ── Audit ─────────────────────────────────────────────────
   @Column({ type: 'uuid', name: 'created_by', nullable: true })
   createdBy: string | null;

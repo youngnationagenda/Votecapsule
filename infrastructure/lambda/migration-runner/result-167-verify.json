@@ -1,0 +1,1 @@
+{"statusCode":200,"body":"Migration 'verify_167' completed successfully","rows":[{"column_name":"is_plwd","data_type":"boolean","column_default":"false"},{"column_name":"is_youth","data_type":"boolean","column_default":"false"}]}

@@ -54,6 +54,17 @@ export class RegisterCandidateDto {
   @IsOptional()
   isIndependent?: boolean;
 
+  // ── Demographics (IEBC compliance) ────────────────────────
+  /** Youth classification: age ≤35 — for IEBC youth-quota reporting */
+  @IsBoolean()
+  @IsOptional()
+  isYouth?: boolean;
+
+  /** Person Living With Disability — IEBC PLWD compliance reporting */
+  @IsBoolean()
+  @IsOptional()
+  isPLWD?: boolean;
+
   // ── Running mate ──────────────────────────────────────────
   @IsString()
   @IsOptional()

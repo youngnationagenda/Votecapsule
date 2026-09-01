@@ -1,0 +1,30 @@
+-- ============================================================
+-- VoteCapsule™ — Migration 167: Add is_youth + is_plwd to candidates
+-- 
+-- Requested by: CTO (2026-09-01)
+-- Reason: Party portal "Register Party-Sponsored Candidate" form
+--         now sends isYouth (bool) and isPLWD (bool) demographic fields
+--         for IEBC gender, youth, and PLWD compliance reporting.
+-- ============================================================
+
+BEGIN;
+
+ALTER TABLE candidate_candidates
+  ADD COLUMN IF NOT EXISTS is_youth BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS is_plwd  BOOLEAN NOT NULL DEFAULT FALSE;
+
+COMMENT ON COLUMN candidate_candidates.is_youth
+  IS 'Whether candidate qualifies as youth (age ≤35) — for IEBC demographic reporting';
+
+COMMENT ON COLUMN candidate_candidates.is_plwd
+  IS 'Person Living With Disability — for IEBC PLWD compliance reporting';
+
+-- Index for reporting queries
+CREATE INDEX IF NOT EXISTS idx_cc_youth ON candidate_candidates(is_youth) WHERE is_youth = TRUE;
+CREATE INDEX IF NOT EXISTS idx_cc_plwd  ON candidate_candidates(is_plwd)  WHERE is_plwd  = TRUE;
+
+INSERT INTO schema_migrations (filename, executed_at)
+VALUES ('167_candidates_youth_plwd.sql', NOW())
+ON CONFLICT DO NOTHING;
+
+COMMIT;
