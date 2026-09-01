@@ -239,4 +239,20 @@ export const campaignApi = {
     escalate:  (cid: string, id: string, d: any)  => apiClient.patch(`${BASE}/campaigns/${cid}/incidents/${id}/escalate`, d),
     resolve:   (cid: string, id: string, d: any)  => apiClient.patch(`${BASE}/campaigns/${cid}/incidents/${id}/resolve`, d),
   },
+
+  // IEBC Compliance (Election Campaign Financing Act)
+  compliance: {
+    getStatus:              (cid: string) => apiClient.get(`${BASE}/campaigns/${cid}/compliance`),
+    getAuthorizedPersons:   (cid: string) => apiClient.get(`${BASE}/campaigns/${cid}/compliance/authorized-persons`),
+    registerPerson:         (cid: string, data: any) => apiClient.post(`${BASE}/campaigns/${cid}/compliance/authorized-persons`, data),
+    removePerson:           (cid: string, personId: string) => apiClient.delete(`${BASE}/campaigns/${cid}/compliance/authorized-persons/${personId}`),
+    getSupportingOrgs:      (cid: string) => apiClient.get(`${BASE}/campaigns/${cid}/compliance/supporting-orgs`),
+    registerSupportingOrg:  (cid: string, data: any) => apiClient.post(`${BASE}/campaigns/${cid}/compliance/supporting-orgs`, data),
+    getBankAccount:         (cid: string) => apiClient.get(`${BASE}/campaigns/${cid}/compliance/bank-account`),
+    registerBank:           (cid: string, data: any) => apiClient.post(`${BASE}/campaigns/${cid}/compliance/bank-account`, data),
+    getReports:             (cid: string) => apiClient.get(`${BASE}/campaigns/${cid}/compliance/reports`),
+    submitReport:           (cid: string, data: any) => apiClient.post(`${BASE}/campaigns/${cid}/compliance/reports`, data),
+    getCandidateCompliance: (cid: string) => apiClient.get(`${BASE}/campaigns/${cid}/compliance/candidates`),
+    getCertificate:         (cid: string) => apiClient.get(`${BASE}/campaigns/${cid}/compliance/certificate`),
+  },
 };

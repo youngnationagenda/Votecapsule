@@ -38,6 +38,7 @@ const MyIncidentsPage        = lazy(() => import('./pages/MyIncidentsPage').then
 // MyMaterialsPage + MyPrintingDesignPage removed — merged into Supplier Catalogue + My Campaign Needs
 const MyCampaignMediaPage    = lazy(() => import('./pages/MyCampaignMediaPage').then(m => ({ default: m.MyCampaignMediaPage })));
 const MyAIImageGeneratorPage = lazy(() => import('./pages/MyAIImageGeneratorPage').then(m => ({ default: m.MyAIImageGeneratorPage })));
+const MyCampaignCompliancePage = lazy(() => import('./pages/MyCampaignCompliancePage').then(m => ({ default: m.MyCampaignCompliancePage })));
 
 function PageLoader(): React.JSX.Element {
   return (
@@ -107,6 +108,9 @@ export default function App(): React.JSX.Element {
           } />
           <Route path="/campaign/budget" element={
             <Suspense fallback={<PageLoader />}><MyBudgetPage /></Suspense>
+          } />
+          <Route path="/campaign/compliance" element={
+            <Suspense fallback={<PageLoader />}><MyCampaignCompliancePage /></Suspense>
           } />
           <Route path="/campaign/needs" element={
             <Suspense fallback={<PageLoader />}><MyCampaignNeedsPage /></Suspense>

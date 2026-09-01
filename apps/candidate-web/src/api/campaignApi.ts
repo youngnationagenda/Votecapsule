@@ -213,4 +213,17 @@ export const campaignApi = {
     delete:      (cid: string, mid: string) => apiClient.delete(`${BASE}/campaigns/${cid}/media/${mid}`),
     update:      (cid: string, mid: string, d: any) => apiClient.patch(`${BASE}/campaigns/${cid}/media/${mid}`, d),
   },
+
+  // ── IEBC Compliance (Election Campaign Financing Act, 2013) ──
+  compliance: {
+    getStatus:             (cid: string)                       => apiClient.get(`${BASE}/campaigns/${cid}/compliance`),
+    getAuthorizedPersons:  (cid: string)                       => apiClient.get(`${BASE}/campaigns/${cid}/compliance/authorized-persons`),
+    registerPerson:        (cid: string, data: any)            => apiClient.post(`${BASE}/campaigns/${cid}/compliance/authorized-persons`, data),
+    removePerson:          (cid: string, personId: string)     => apiClient.delete(`${BASE}/campaigns/${cid}/compliance/authorized-persons/${personId}`),
+    getBankAccount:        (cid: string)                       => apiClient.get(`${BASE}/campaigns/${cid}/compliance/bank-account`),
+    registerBank:          (cid: string, data: any)            => apiClient.post(`${BASE}/campaigns/${cid}/compliance/bank-account`, data),
+    getReports:            (cid: string)                       => apiClient.get(`${BASE}/campaigns/${cid}/compliance/reports`),
+    submitReport:          (cid: string, data: any)            => apiClient.post(`${BASE}/campaigns/${cid}/compliance/reports`, data),
+    getCertificate:        (cid: string)                       => apiClient.get(`${BASE}/campaigns/${cid}/compliance/certificate`),
+  },
 };

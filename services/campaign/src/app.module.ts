@@ -26,6 +26,7 @@ import { OutdoorModule }         from './outdoor/outdoor.module';
 import { MediaModule }           from './media/media.module';
 import { DesignModule }          from './design/design.module';
 import { LogisticsModule }       from './logistics/logistics.module';
+import { ComplianceModule }      from './compliance/compliance.module';
 
 // ── Entities: existing ───────────────────────────────────────
 import { Campaign }                from './campaign/entities/campaign.entity';
@@ -61,6 +62,11 @@ import { CampaignVehicle }              from './logistics/entities/campaign-vehi
 import { CampaignVehicleTrip }          from './logistics/entities/campaign-vehicle-trip.entity';
 import { CampaignEquipment }            from './logistics/entities/campaign-equipment.entity';
 import { CampaignEquipmentLog }         from './logistics/entities/campaign-equipment-log.entity';
+import { CampaignAuthorizedPerson }     from './compliance/entities/campaign-authorized-person.entity';
+import { CampaignBankAccount }          from './compliance/entities/campaign-bank-account.entity';
+import { CampaignSupportingOrg }        from './compliance/entities/campaign-supporting-org.entity';
+import { CampaignComplianceReport }     from './compliance/entities/campaign-compliance-report.entity';
+import { CampaignComplianceCertificate } from './compliance/entities/campaign-compliance-certificate.entity';
 
 @Module({
   controllers: [HealthController],
@@ -98,6 +104,10 @@ import { CampaignEquipmentLog }         from './logistics/entities/campaign-equi
           CampaignMockupTemplate, CampaignDesignRequest,
           CampaignVehicle, CampaignVehicleTrip,
           CampaignEquipment, CampaignEquipmentLog,
+          // Compliance module entities
+          CampaignAuthorizedPerson, CampaignBankAccount,
+          CampaignSupportingOrg, CampaignComplianceReport,
+          CampaignComplianceCertificate,
         ],
         synchronize: false,
         logging:     config.get('DB_LOGGING', 'false') === 'true',
@@ -118,6 +128,8 @@ import { CampaignEquipmentLog }         from './logistics/entities/campaign-equi
     MediaModule,
     DesignModule,
     LogisticsModule,
+    // Phase 14D — IEBC Compliance
+    ComplianceModule,
   ],
   providers: [
     // Audit every request

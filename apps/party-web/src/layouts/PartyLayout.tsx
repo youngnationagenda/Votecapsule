@@ -6,6 +6,7 @@ import {
   Bell, ChevronLeft, Menu, Flag, Trophy, Building2, UserCog,
   Globe, UserPlus, Gavel, Megaphone, Calendar, CheckSquare,
   MessageSquare, DollarSign, UsersRound, Store, Sparkles,
+  Shield,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { toggleSidebar } from '../store/slices/uiSlice';
@@ -25,7 +26,7 @@ interface NavItem {
 const FULL_ACCESS_ROLES = ['PARTY_ADMIN', 'TENANT_ADMIN', 'PARTY_CAMPAIGN_DIRECTOR', 'PLATFORM_SUPER_ADMIN'];
 const CAMPAIGN_NAV_BY_ROLE: Record<string, string[]> = {
   LOGISTICS_OFFICER:        ['/campaign', '/campaign/calendar', '/campaign/tasks', '/campaign/suppliers'],
-  FINANCE_OFFICER:          ['/campaign', '/campaign/budget', '/campaign/calendar', '/campaign/tasks'],
+  FINANCE_OFFICER:          ['/campaign', '/campaign/budget', '/campaign/compliance', '/campaign/calendar', '/campaign/tasks'],
   COMMUNICATIONS_OFFICER:   ['/campaign', '/campaign/sms', '/campaign/calendar', '/campaign/tasks'],
   BRAND_MANAGER:            ['/campaign', '/campaign/suppliers', '/campaign/ai-images', '/campaign/tasks'],
   CAMPAIGN_VOLUNTEER:       ['/campaign', '/campaign/calendar', '/campaign/tasks'],
@@ -63,7 +64,8 @@ const campaignNavItems: NavItem[] = [
   { to: '/campaign/ai-images', icon: Sparkles,      label: 'AI Image Generator', badge: 'AI' },
   { to: '/campaign/teams',     icon: UsersRound,    label: 'Teams & Volunteers' },
   { to: '/campaign/sms',       icon: MessageSquare, label: 'SMS Messaging' },
-  { to: '/campaign/budget',    icon: DollarSign,    label: 'Campaign Budget' },
+  { to: '/campaign/budget',     icon: DollarSign,    label: 'Campaign Budget' },
+  { to: '/campaign/compliance', icon: Shield,        label: 'IEBC Compliance' },
   // Materials, Media Library, incidents etc. are accessible from within pages
   // but not shown in the sidebar per approved design
 ];

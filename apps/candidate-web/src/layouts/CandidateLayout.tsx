@@ -5,6 +5,7 @@ import {
   Download, Users, CreditCard, LogOut, Menu, ChevronLeft, User,
   Flag, Megaphone, Calendar, DollarSign,
   MessageSquare, AlertTriangle, Store, ShoppingCart, Image, Sparkles,
+  Shield,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { toggleSidebar } from '../store/slices/uiSlice';
@@ -30,9 +31,10 @@ const campaignNavItems = [
   { to: '/campaign/needs',      icon: ShoppingCart,   label: 'My Campaign Needs' },
   { to: '/campaign/media',      icon: Image,          label: 'Media Library' },
   { to: '/campaign/ai-images',  icon: Sparkles,       label: 'AI Image Generator', badge: 'AI' },
-  { to: '/campaign/budget',     icon: DollarSign,     label: 'Campaign Budget' },
-  { to: '/campaign/sms',        icon: MessageSquare,  label: 'Campaign SMS' },
-  { to: '/campaign/incidents',  icon: AlertTriangle,  label: 'Incidents' },
+  { to: '/campaign/budget',      icon: DollarSign,     label: 'Campaign Budget' },
+  { to: '/campaign/compliance',  icon: Shield,         label: 'IEBC Compliance' },
+  { to: '/campaign/sms',         icon: MessageSquare,  label: 'Campaign SMS' },
+  { to: '/campaign/incidents',   icon: AlertTriangle,  label: 'Incidents' },
 ];
 
 const systemNavItems = [

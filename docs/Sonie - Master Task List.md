@@ -300,3 +300,144 @@ Distribution: **Deployed**
 - [x] d1campaign CloudFront CORS fixed
 - [x] assets.votecapsule.yna.co.ke CloudFront created + DNS live
 - [x] vc-campaign:9 with correct env vars
+
+---
+
+## 🟡 PRIORITY 10 — IEBC Compliance Module (Backend)
+
+**Source:** Election Campaign Financing Act, 2013 + Regulations, 2026 + IEBC Gazette Notice GN 12251 (7 Aug 2026)  
+**Frontend:** DONE — `MyCampaignCompliancePage.tsx` (candidate) + `CampaignCompliancePage.tsx` (party)
+
+### Overview
+Both portals now have a full IEBC Compliance page with 6–7 tabs (candidate has 6, party has 7). The frontend calls the following endpoints — all under `/api/v1/campaign/campaigns/:id/compliance/*`. Sonie must build the NestJS compliance module in the campaign service (:3016).
+
+### Database: Migration 165 — `campaign_compliance`
+
+Create these tables:
+
+```sql
+-- Authorized persons (Form ECF 1)
+CREATE TABLE campaign_authorized_persons (
+    id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    campaign_id     UUID NOT NULL REFERENCES campaigns(id),
+    tenant_id       UUID NOT NULL,
+    full_name       VARCHAR(200) NOT NULL,
+    id_number       VARCHAR(50) NOT NULL,
+    pin_number      VARCHAR(20),
+    email           VARCHAR(200),
+    phone           VARCHAR(20),
+    gender          VARCHAR(10),
+    postal_address  TEXT,
+    role            VARCHAR(30) NOT NULL, -- 'candidate', 'agent', 'committee_member'
+    committee_position VARCHAR(20),       -- 'chair', 'treasurer', 'member' (party only)
+    date_appointed  TIMESTAMP DEFAULT NOW(),
+    status          VARCHAR(20) DEFAULT 'active',  -- 'active', 'revoked'
+    ecf_form_ref    VARCHAR(50) DEFAULT 'ECF 1',
+    created_at      TIMESTAMP DEFAULT NOW(),
+    updated_at      TIMESTAMP DEFAULT NOW()
+);
+
+-- Campaign financing bank account (Reg. 11)
+CREATE TABLE campaign_bank_accounts (
+    id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    campaign_id     UUID NOT NULL UNIQUE REFERENCES campaigns(id),
+    tenant_id       UUID NOT NULL,
+    bank_name       VARCHAR(200) NOT NULL,
+    branch_name     VARCHAR(200),
+    account_number  VARCHAR(50) NOT NULL,
+    currency        VARCHAR(5) DEFAULT 'KES',
+    signatories     JSONB DEFAULT '[]',
+    registered      BOOLEAN DEFAULT FALSE,
+    registered_date TIMESTAMP,
+    iebc_notified   BOOLEAN DEFAULT FALSE,
+    created_at      TIMESTAMP DEFAULT NOW(),
+    updated_at      TIMESTAMP DEFAULT NOW()
+);
+
+-- Supporting organizations (Form ECF 3 — party only)
+CREATE TABLE campaign_supporting_orgs (
+    id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    campaign_id     UUID NOT NULL REFERENCES campaigns(id),
+    tenant_id       UUID NOT NULL,
+    org_name        VARCHAR(300) NOT NULL,
+    contact_person  VARCHAR(200),
+    email           VARCHAR(200),
+    phone           VARCHAR(20),
+    postal_address  TEXT,
+    consent_status  VARCHAR(20) DEFAULT 'pending', -- 'granted', 'pending', 'revoked'
+    consent_date    TIMESTAMP,
+    iebc_notified   BOOLEAN DEFAULT FALSE,
+    ecf_form_ref    VARCHAR(50) DEFAULT 'ECF 3',
+    created_at      TIMESTAMP DEFAULT NOW(),
+    updated_at      TIMESTAMP DEFAULT NOW()
+);
+
+-- Compliance reports (Form ECF 6, 7, 8)
+CREATE TABLE campaign_compliance_reports (
+    id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    campaign_id     UUID NOT NULL REFERENCES campaigns(id),
+    tenant_id       UUID NOT NULL,
+    report_type     VARCHAR(30) NOT NULL,  -- 'preliminary', 'final', 'surplus', 'auditor'
+    form_number     VARCHAR(20),           -- 'ECF 6', 'ECF 7', 'ECF 8'
+    status          VARCHAR(20) DEFAULT 'draft',  -- 'draft', 'submitted', 'under_review', 'compliant'
+    due_date        DATE,
+    submitted_date  TIMESTAMP,
+    file_url        TEXT,                  -- S3 URL of uploaded report
+    notes           TEXT,
+    created_at      TIMESTAMP DEFAULT NOW(),
+    updated_at      TIMESTAMP DEFAULT NOW()
+);
+
+-- Compliance certificate (Form ECF 8)
+CREATE TABLE campaign_compliance_certificates (
+    id              UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    campaign_id     UUID NOT NULL UNIQUE REFERENCES campaigns(id),
+    tenant_id       UUID NOT NULL,
+    status          VARCHAR(20) DEFAULT 'pending', -- 'pending', 'issued', 'revoked'
+    issued_date     TIMESTAMP,
+    certificate_ref VARCHAR(100),
+    notes           TEXT,
+    created_at      TIMESTAMP DEFAULT NOW()
+);
+```
+
+### API Endpoints Required
+
+All under `CampaignComplianceController` (`/campaigns/:campaignId/compliance`):
+
+```
+GET    /                         → getComplianceStatus()   — returns { score, checklist[] }
+GET    /authorized-persons       → listAuthorizedPersons()
+POST   /authorized-persons       → registerAuthorizedPerson(dto)
+DELETE /authorized-persons/:id   → removeAuthorizedPerson()
+GET    /bank-account             → getBankAccount()
+POST   /bank-account             → registerBankAccount(dto)
+GET    /reports                  → listReports()
+POST   /reports                  → submitReport(dto)
+GET    /certificate              → getCertificate()
+GET    /supporting-orgs          → listSupportingOrgs()        (party only)
+POST   /supporting-orgs          → registerSupportingOrg(dto)  (party only)
+GET    /candidates               → getCandidateCompliance()    (party only — cross-candidate overview)
+```
+
+### Compliance Score Calculation
+
+`GET /compliance` should compute score dynamically:
+1. Check if ≥1 authorized person exists → +15 pts
+2. Check if bank account registered → +15 pts
+3. Check if contributions logged (any records in contributions table) → +15 pts
+4. Check total expenses ≤ IEBC gazette limit for the campaign's position+geography → +20 pts
+5. Check no single contributor > 20% of total contributions → +15 pts
+6. Check preliminary report submitted (if after nomination date) → +10 pts
+7. Check final report submitted (if after election date) → +10 pts
+
+Return: `{ score: 0-100, checklist: [{ key, label, status: 'complete'|'pending'|'overdue' }] }`
+
+### Key Business Rules
+- **Expenditure period:** 10 Feb 2027 → 24 Aug 2027
+- **20% single-source cap:** Section 12(2) of the Act
+- **Receipts required:** For contributions > KES 20,000 (Reg. 16)
+- **Anonymous contributions:** Must be submitted to IEBC/Consolidated Fund within 14 days (Reg. 17)
+- **Audit required:** If expenses > KES 1,000,000 (Reg. 26)
+- **Account closure:** Within 3 months after election results declaration
+- **Penalties:** KES 2M fine / 5 years imprisonment (Sections 23 & 24)

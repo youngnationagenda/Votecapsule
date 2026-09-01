@@ -343,6 +343,36 @@ export class ElectionController {
     return this.service.cancelElection(id, reason);
   }
 
+  // ── IEBC Spending Limits (Campaign Financing Act, 2013) ──────
+
+  /**
+   * GET /iebc-limits
+   * Return IEBC gazette spending limit for a given position + geography.
+   * Query: position (GOVERNOR|SENATOR|WOMEN_REP|MP|MCA|PRESIDENT)
+   *        countyCode (3-digit NEC code, e.g. 047)
+   *        constituencyCode (3-digit NEC code, optional — required for MP/MCA)
+   *
+   * Source: IEBC Gazette Notice No. 12251, 7th August 2026
+   */
+  @Get('iebc-limits')
+  getIEBCLimit(
+    @Query('position')          position:          string,
+    @Query('countyCode')        countyCode:         string,
+    @Query('constituencyCode')  constituencyCode?:  string,
+  ) {
+    return this.service.getIEBCLimit(position, countyCode, constituencyCode);
+  }
+
+  /**
+   * GET /iebc-categories
+   * Return all 11 IEBC authorized spending categories with party-level limits.
+   * Used by budget planner to suggest category allocations.
+   */
+  @Get('iebc-categories')
+  getIEBCCategories() {
+    return this.service.getIEBCCategories();
+  }
+
   // ── Geography (NEC SSoT pass-through) ───────────────────
 
   /**

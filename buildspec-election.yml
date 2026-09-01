@@ -1,0 +1,44 @@
+version: 0.2
+
+# VoteCapsule — Election Service Rebuild
+# Triggered when election service changes (e.g. iebc-limits endpoint added)
+
+env:
+  variables:
+    AWS_REGION: "us-east-1"
+    ECR_REGISTRY: "683541453923.dkr.ecr.us-east-1.amazonaws.com"
+    NODE_SLIM: "683541453923.dkr.ecr.us-east-1.amazonaws.com/ecr-public/docker/library/node:22-slim"
+
+phases:
+  install:
+    commands:
+      - echo "Election service rebuild"
+      - docker --version
+
+  pre_build:
+    commands:
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+      - export SHORT_SHA=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-8)
+      - echo "SHA = $SHORT_SHA"
+      - docker pull $NODE_SLIM || echo "WARN node:22-slim pull failed"
+
+  build:
+    commands:
+      - echo "--- Building election-service ---"
+      - docker pull $ECR_REGISTRY/vote-capsule/election-service:latest 2>/dev/null || true
+      - docker build
+          --cache-from $ECR_REGISTRY/vote-capsule/election-service:latest
+          --build-arg SERVICE_PORT=3011
+          --build-arg GIT_SHA=$CODEBUILD_RESOLVED_SOURCE_VERSION
+          -t $ECR_REGISTRY/vote-capsule/election-service:$SHORT_SHA
+          -t $ECR_REGISTRY/vote-capsule/election-service:latest
+          -f services/election/Dockerfile .
+      - docker push $ECR_REGISTRY/vote-capsule/election-service:$SHORT_SHA
+      - docker push $ECR_REGISTRY/vote-capsule/election-service:latest
+      - echo "DONE election-service"
+
+  post_build:
+    commands:
+      - echo "=== Rolling vc-election ==="
+      - aws ecs update-service --cluster vote-capsule-services --service vc-election --force-new-deployment --region $AWS_REGION || true
+      - echo "=== Done ==="
