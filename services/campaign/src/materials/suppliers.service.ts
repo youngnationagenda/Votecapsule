@@ -7,6 +7,29 @@ import { Repository } from 'typeorm';
 import { CampaignSupplier }        from './entities/campaign-supplier.entity';
 import { CampaignSupplierProduct } from './entities/campaign-supplier-product.entity';
 
+// ── URL normaliser ────────────────────────────────────────────
+// Rewrites any old S3 direct URLs to the CloudFront CDN so images
+// always load with CORS headers regardless of how they were stored.
+const CF_CDN = 'https://d1campaign.votecapsule.yna.co.ke';
+const S3_OLD_PATTERNS = [
+  'https://s3.amazonaws.com/votecapsule-campaign-assets/',
+  'https://votecapsule-campaign-assets.s3.amazonaws.com/',
+  'https://votecapsule-campaign-assets.s3.us-east-1.amazonaws.com/',
+];
+function normaliseCdnUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  for (const pattern of S3_OLD_PATTERNS) {
+    if (url.startsWith(pattern)) {
+      return CF_CDN + '/' + url.slice(pattern.length);
+    }
+  }
+  return url;
+}
+function normaliseProduct(p: CampaignSupplierProduct): CampaignSupplierProduct {
+  (p as any).imageUrl = normaliseCdnUrl(p.imageUrl);
+  return p;
+}
+
 @Injectable()
 export class SuppliersService {
   private readonly logger = new Logger(SuppliersService.name);
@@ -73,13 +96,13 @@ export class SuppliersService {
       skip:   (page - 1) * limit,
       take:   limit,
     });
-    return { data, total };
+    return { data: data.map(normaliseProduct), total };
   }
 
   async getProduct(id: string, supplierId: string): Promise<CampaignSupplierProduct> {
     const p = await this.productRepo.findOne({ where: { id, supplierId } });
     if (!p) throw new NotFoundException(`Product ${id} not found`);
-    return p;
+    return normaliseProduct(p);
   }
 
   async searchProducts(
@@ -97,17 +120,18 @@ export class SuppliersService {
       .skip((page - 1) * limit)
       .take(limit);
     const [data, total] = await qb.getManyAndCount();
-    return { data, total };
+    return { data: data.map(normaliseProduct), total };
   }
 
   async compareByMaterialType(
     materialTypeId: string,
   ): Promise<CampaignSupplierProduct[]> {
-    return this.productRepo.find({
+    const products = await this.productRepo.find({
       where:    { materialTypeId, isAvailable: true },
       relations: ['supplier'],
       order:    { unitPrice: 'ASC' },
     });
+    return products.map(normaliseProduct);
   }
 
   // ── Admin: list all products across all suppliers ─────────────
@@ -122,7 +146,7 @@ export class SuppliersService {
       skip:      (page - 1) * limit,
       take:      limit,
     });
-    return { data, total };
+    return { data: data.map(normaliseProduct), total };
   }
 
   async createProduct(dto: any): Promise<CampaignSupplierProduct> {

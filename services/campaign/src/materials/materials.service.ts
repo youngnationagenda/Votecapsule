@@ -5,6 +5,21 @@
 import {
   Injectable, NotFoundException, BadRequestException, Logger,
 } from '@nestjs/common';
+
+// ── URL normaliser (same as SuppliersService) ─────────────────
+const CF_CDN_BASE = 'https://d1campaign.votecapsule.yna.co.ke';
+const S3_PREFIXES = [
+  'https://s3.amazonaws.com/votecapsule-campaign-assets/',
+  'https://votecapsule-campaign-assets.s3.amazonaws.com/',
+  'https://votecapsule-campaign-assets.s3.us-east-1.amazonaws.com/',
+];
+function toCdn(url: string | null | undefined): string | null {
+  if (!url) return null;
+  for (const p of S3_PREFIXES) {
+    if (url.startsWith(p)) return CF_CDN_BASE + '/' + url.slice(p.length);
+  }
+  return url;
+}
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource, FindOptionsWhere } from 'typeorm';
 import { CampaignMaterialCategory }    from './entities/campaign-material-category.entity';
@@ -50,7 +65,9 @@ export class MaterialsService {
     if (categoryCode) {
       qb.andWhere('c.code = :code', { code: categoryCode });
     }
-    return qb.orderBy('t.name', 'ASC').getMany();
+    const types = await qb.orderBy('t.name', 'ASC').getMany();
+    // Normalise thumbnailUrl to CloudFront CDN
+    return types.map(t => { (t as any).thumbnailUrl = toCdn(t.thumbnailUrl); return t; });
   }
 
   async getType(id: string): Promise<CampaignMaterialType> {

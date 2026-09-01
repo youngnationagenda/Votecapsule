@@ -35,8 +35,7 @@ const MyBudgetPage           = lazy(() => import('./pages/MyBudgetPage').then(m 
 const MyCampaignNeedsPage    = lazy(() => import('./pages/MyCampaignNeedsPage').then(m => ({ default: m.MyCampaignNeedsPage })));
 const MySMSPage              = lazy(() => import('./pages/MySMSPage').then(m => ({ default: m.MySMSPage })));
 const MyIncidentsPage        = lazy(() => import('./pages/MyIncidentsPage').then(m => ({ default: m.MyIncidentsPage })));
-const MyMaterialsPage        = lazy(() => import('./pages/MyMaterialsPage').then(m => ({ default: m.MyMaterialsPage })));
-const MyPrintingDesignPage   = lazy(() => import('./pages/MyPrintingDesignPage').then(m => ({ default: m.MyPrintingDesignPage })));
+// MyMaterialsPage + MyPrintingDesignPage removed — merged into Supplier Catalogue + My Campaign Needs
 const MyCampaignMediaPage    = lazy(() => import('./pages/MyCampaignMediaPage').then(m => ({ default: m.MyCampaignMediaPage })));
 const MyAIImageGeneratorPage = lazy(() => import('./pages/MyAIImageGeneratorPage').then(m => ({ default: m.MyAIImageGeneratorPage })));
 
@@ -100,15 +99,9 @@ export default function App(): React.JSX.Element {
           <Route path="/campaign/suppliers" element={
             <Suspense fallback={<PageLoader />}><MySupplierCataloguePage /></Suspense>
           } />
-          {/* Materials — material types only (colour-select + quick order) */}
-          {/* Campaign Materials — merged into Supplier Catalogue (MySupplierCataloguePage) */}
-          <Route path="/campaign/materials" element={
-            <Suspense fallback={<PageLoader />}><MySupplierCataloguePage /></Suspense>
-          } />
-          {/* Printing & Design — merged into My Campaign Needs (MyCampaignNeedsPage) */}
-          <Route path="/campaign/printing" element={
-            <Suspense fallback={<PageLoader />}><MyCampaignNeedsPage /></Suspense>
-          } />
+          {/* Legacy redirects — materials & printing merged into suppliers & needs */}
+          <Route path="/campaign/materials" element={<Navigate to="/campaign/suppliers" replace />} />
+          <Route path="/campaign/printing" element={<Navigate to="/campaign/needs" replace />} />
           <Route path="/campaign/team" element={
             <Suspense fallback={<PageLoader />}><MyCampaignTeamPage /></Suspense>
           } />

@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, MapPin, BarChart3, TrendingUp, Bell,
   Download, Users, CreditCard, LogOut, Menu, ChevronLeft, User,
-  Flag, Megaphone, Calendar, DollarSign, Package, Printer,
+  Flag, Megaphone, Calendar, DollarSign,
   MessageSquare, AlertTriangle, Store, ShoppingCart, Image, Sparkles,
 } from 'lucide-react';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
@@ -21,22 +21,18 @@ const electionNavItems = [
   { to: '/analytics',   icon: TrendingUp,      label: 'Analytics' },
 ];
 
-// Campaign Manager nav — full 12-item list
-// Supplier Catalogue (unified: materials + suppliers merged)
-// My Campaign Needs (unified: needs + printing/design merged)
+// Campaign Manager nav — 10 items (merged: Materials→Supplier Catalogue, Printing→My Campaign Needs)
 const campaignNavItems = [
   { to: '/campaign',            icon: Megaphone,      label: 'Campaign Overview' },
   { to: '/campaign/calendar',   icon: Calendar,       label: 'Campaign Calendar' },
   { to: '/campaign/team',       icon: Users,          label: 'My Team & Roles' },
   { to: '/campaign/suppliers',  icon: Store,          label: 'Supplier Catalogue' },
-  { to: '/campaign/materials',  icon: Package,        label: 'Campaign Materials' },
-  { to: '/campaign/printing',   icon: Printer,        label: 'Printing & Design' },
   { to: '/campaign/needs',      icon: ShoppingCart,   label: 'My Campaign Needs' },
+  { to: '/campaign/media',      icon: Image,          label: 'Media Library' },
+  { to: '/campaign/ai-images',  icon: Sparkles,       label: 'AI Image Generator', badge: 'AI' },
   { to: '/campaign/budget',     icon: DollarSign,     label: 'Campaign Budget' },
   { to: '/campaign/sms',        icon: MessageSquare,  label: 'Campaign SMS' },
   { to: '/campaign/incidents',  icon: AlertTriangle,  label: 'Incidents' },
-  { to: '/campaign/media',      icon: Image,          label: 'Media Library' },
-  { to: '/campaign/ai-images',  icon: Sparkles,       label: 'AI Image Generator', badge: 'AI' },
 ];
 
 const systemNavItems = [

@@ -44,7 +44,7 @@ const CampaignSMSPage         = lazy(() => import('./pages/CampaignSMSPage').the
 const CampaignBudgetPage      = lazy(() => import('./pages/CampaignBudgetPage').then(m => ({ default: m.CampaignBudgetPage })));
 const CreateCampaignPage      = lazy(() => import('./pages/CreateCampaignPage').then(m => ({ default: m.CreateCampaignPage })));
 const SupplierCataloguePage   = lazy(() => import('./pages/SupplierCataloguePage').then(m => ({ default: m.SupplierCataloguePage })));
-const MaterialsCataloguePage    = lazy(() => import('./pages/MaterialsCataloguePage').then(m => ({ default: m.MaterialsCataloguePage })));
+// MaterialsCataloguePage removed — merged into SupplierCataloguePage
 const CampaignMediaLibraryPage  = lazy(() => import('./pages/CampaignMediaLibraryPage').then(m => ({ default: m.CampaignMediaLibraryPage })));
 const AIImageGeneratorPage    = lazy(() => import('./pages/AIImageGeneratorPage').then(m => ({ default: m.AIImageGeneratorPage })));
 
@@ -113,10 +113,8 @@ export default function App(): React.JSX.Element {
           <Route path="/campaign/suppliers" element={
             <Suspense fallback={<PageLoader />}><SupplierCataloguePage /></Suspense>
           } />
-          {/* Materials Catalogue — material types colour-select + quick order */}
-          <Route path="/campaign/materials" element={
-            <Suspense fallback={<PageLoader />}><MaterialsCataloguePage /></Suspense>
-          } />
+          {/* Legacy redirect — materials merged into Supplier Catalogue */}
+          <Route path="/campaign/materials" element={<Navigate to="/campaign/suppliers" replace />} />
           <Route path="/campaign/ai-images" element={
             <Suspense fallback={<PageLoader />}><AIImageGeneratorPage /></Suspense>
           } />
