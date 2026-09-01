@@ -1,38 +1,27 @@
 // ============================================================
 // VoteCapsule™ — Product Image with Smart Fallback
-// Handles S3 images, loading states, broken links gracefully.
-// Falls back to CampaignMaterialIcon when image is unavailable.
+// Handles S3/CloudFront images, loading states, broken links.
+//
+// FIX (2026-09-01): Added crossOrigin="anonymous" to both the
+// preload Image() object and the rendered <img> tag.
+// Without this, the browser pre-fetches the image without an
+// Origin header, poisoning the CloudFront cache with a non-CORS
+// response. Subsequent browser requests (which DO have Origin)
+// then get served the cached CORS-free response → images blocked.
 // ============================================================
 import React, { useState, useEffect } from 'react';
 import { ImageOff } from 'lucide-react';
 import { CampaignMaterialIcon } from './CampaignMaterialIcon';
 
 interface ProductImageProps {
-  /** Image source URL (S3 or external) */
   src: string | null | undefined;
-  /** Alt text */
   alt: string;
-  /** Material type code for icon fallback */
   code?: string;
-  /** Tailwind classes for the container */
   className?: string;
-  /** Size for the fallback icon */
   iconSize?: number;
-  /** Show a shimmer loading state before image loads */
   showLoading?: boolean;
 }
 
-/**
- * Renders a product image with intelligent fallback:
- * 1. Attempts to load the src URL
- * 2. If src is null/undefined → shows CampaignMaterialIcon (if code provided) or generic placeholder
- * 3. If image fails to load (404, CORS, etc) → same fallback as above
- * 4. Shows a shimmer/loading state while image is loading (if showLoading=true)
- *
- * S3 image paths like:
- *   https://s3.amazonaws.com/votecapsule-campaign-assets/suppliers/me-advertising/images/BASEBALL_CAP.svg
- * will 404 until Sonie uploads them. This component handles that gracefully.
- */
 export function ProductImage({
   src,
   alt,
@@ -46,24 +35,19 @@ export function ProductImage({
   );
 
   useEffect(() => {
-    if (!src) {
-      setStatus('error');
-      return;
-    }
+    if (!src) { setStatus('error'); return; }
     setStatus('loading');
-    // Pre-check if image is accessible
     const img = new Image();
-    img.onload = () => setStatus('loaded');
+    // ── CRITICAL: crossOrigin="anonymous" ensures the preload request
+    //    includes the Origin header so CloudFront returns CORS headers.
+    //    Without this, the cache is poisoned with CORS-free responses.
+    img.crossOrigin = 'anonymous';
+    img.onload  = () => setStatus('loaded');
     img.onerror = () => setStatus('error');
     img.src = src;
-
-    return () => {
-      img.onload = null;
-      img.onerror = null;
-    };
+    return () => { img.onload = null; img.onerror = null; };
   }, [src]);
 
-  // Loading shimmer
   if (status === 'loading' && showLoading) {
     return (
       <div className={`flex items-center justify-center bg-gray-50 animate-pulse ${className}`}>
@@ -72,7 +56,6 @@ export function ProductImage({
     );
   }
 
-  // Error / no src — fallback
   if (status === 'error' || !src) {
     return (
       <div className={`flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 ${className}`}>
@@ -85,40 +68,30 @@ export function ProductImage({
     );
   }
 
-  // Loaded successfully
   return (
     <img
       src={src}
       alt={alt}
       className={`object-cover ${className}`}
       loading="lazy"
+      crossOrigin="anonymous"
       onError={() => setStatus('error')}
     />
   );
 }
 
-/**
- * Utility: Check if an image URL is accessible without rendering it.
- * Useful for pre-validating S3 paths in batch.
- */
 export function checkImageAccessible(url: string): Promise<boolean> {
   return new Promise((resolve) => {
     if (!url) { resolve(false); return; }
     const img = new Image();
-    img.onload = () => resolve(true);
+    img.crossOrigin = 'anonymous';
+    img.onload  = () => resolve(true);
     img.onerror = () => resolve(false);
     img.src = url;
-    // Timeout after 5s
     setTimeout(() => resolve(false), 5000);
   });
 }
 
-/**
- * Generate the expected S3 image path for a material code.
- * Used by frontend to construct predictable S3 URLs.
- */
 export function getS3ImageUrl(code: string, format: 'svg' | 'jpg' | 'png' = 'svg'): string {
-  const bucket = 'votecapsule-campaign-assets';
-  const prefix = 'suppliers/me-advertising/images';
-  return `https://s3.amazonaws.com/${bucket}/${prefix}/${code.toUpperCase()}.${format}`;
+  return `https://d1campaign.votecapsule.yna.co.ke/suppliers/me-advertising/images/${code.toLowerCase()}.${format}`;
 }

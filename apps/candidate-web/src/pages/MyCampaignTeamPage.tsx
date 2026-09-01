@@ -334,30 +334,28 @@ function MyCampaignTeamContent(): React.JSX.Element {
     );
   });
 
-  if (!campaign) return (
-    <div className="vc-card text-center py-16">
-      <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-      <p className="text-gray-500">No active campaign found.</p>
-      <a href="/campaign" className="inline-block mt-3 text-sm text-amber-600 hover:underline font-medium">Create your campaign →</a>
-    </div>
-  );
-
   return (
     <div className="space-y-5">
+      {!campaign && (
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <Users className="w-5 h-5 text-amber-500 flex-shrink-0" />
+          <p className="text-sm text-amber-700">Create a campaign to manage your team. <a href="/campaign" className="font-semibold underline hover:text-amber-900">Get started →</a></p>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-900">My Campaign Team</h2>
-          <p className="text-sm text-gray-500 mt-1">{campaign.name}</p>
+          <p className="text-sm text-gray-500 mt-1">{campaign?.name ?? ''}</p>
         </div>
         <div className="flex gap-2">
           {tab === 'roles' && (
-            <button onClick={() => { setEditRole(null); setRoleModal(true); }} className="vc-btn-primary inline-flex items-center gap-2 text-sm">
+            <button onClick={() => { setEditRole(null); setRoleModal(true); }} disabled={!campaign} className={`vc-btn-primary inline-flex items-center gap-2 text-sm ${!campaign ? 'opacity-50 cursor-not-allowed' : ''}`}>
               <Shield className="w-4 h-4" /> Assign Role
             </button>
           )}
           {tab === 'volunteers' && (
-            <button onClick={() => setVolModal(true)} className="vc-btn-primary inline-flex items-center gap-2 text-sm">
+            <button onClick={() => setVolModal(true)} disabled={!campaign} className={`vc-btn-primary inline-flex items-center gap-2 text-sm ${!campaign ? 'opacity-50 cursor-not-allowed' : ''}`}>
               <UserPlus className="w-4 h-4" /> Add Volunteer
             </button>
           )}
@@ -592,8 +590,8 @@ function MyCampaignTeamContent(): React.JSX.Element {
       )}
 
       {/* Modals */}
-      {showVolModal && <AddVolunteerModal campaignId={campaign.id} onClose={() => setVolModal(false)} />}
-      {showRoleModal && (
+      {showVolModal && campaign && <AddVolunteerModal campaignId={campaign.id} onClose={() => setVolModal(false)} />}
+      {showRoleModal && campaign && (
         <AssignRoleModal
           campaignId={campaign.id}
           existingRole={editRole}

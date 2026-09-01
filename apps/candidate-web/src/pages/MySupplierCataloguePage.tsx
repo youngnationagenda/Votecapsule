@@ -64,7 +64,7 @@ function ProductImage({ src, alt, code, className = '' }: {
       </div>
     );
   }
-  return <img src={src} alt={alt} className={`object-cover ${className}`} onError={() => setError(true)} loading="lazy" />;
+  return <img src={src} alt={alt} className={`object-cover ${className}`} onError={() => setError(true)} loading="lazy" crossOrigin="anonymous" />;
 }
 
 // ── Order Modal — candidate selects qty + colours ────────────

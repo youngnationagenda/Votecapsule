@@ -4,7 +4,7 @@
 // ============================================================
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { MessageSquare, Send, Plus, CheckCircle, Clock, X, BarChart3, Users, FileText } from 'lucide-react';
+import { MessageSquare, Send, Plus, CheckCircle, Clock, X, BarChart3, Users, FileText, AlertTriangle } from 'lucide-react';
 import { campaignApi } from '../api/campaignApi';
 import { PageErrorBoundary } from '../components/PageErrorBoundary';
 
@@ -37,17 +37,17 @@ function CampaignSMSContent(): React.JSX.Element {
   });
 
   const createTplMut = useMutation({
-    mutationFn: () => campaignApi.sms.createTemplate(campaign.id, templateForm),
+    mutationFn: () => campaign ? campaignApi.sms.createTemplate(campaign.id, templateForm) : Promise.reject(new Error('no-campaign')),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sms-templates'] }); setTmpl(false); },
   });
 
   const approveTplMut = useMutation({
-    mutationFn: (id: string) => campaignApi.sms.approveTemplate(campaign.id, id),
+    mutationFn: (id: string) => campaign ? campaignApi.sms.approveTemplate(campaign.id, id) : Promise.reject(new Error('no-campaign')),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['sms-templates'] }),
   });
 
   const sendMut = useMutation({
-    mutationFn: () => campaignApi.sms.sendBatch(campaign.id, composeForm),
+    mutationFn: () => campaign ? campaignApi.sms.sendBatch(campaign.id, composeForm) : Promise.reject(new Error('no-campaign')),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['sms-batches'] }); setCompose({ messageContent: '', batchName: '', audienceFilter: '{}' }); },
   });
 
@@ -56,13 +56,19 @@ function CampaignSMSContent(): React.JSX.Element {
 
   return (
     <div className="space-y-6">
+      {!campaign && (
+        <div className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-xl px-4 py-3">
+          <AlertTriangle className="w-5 h-5 text-violet-500 flex-shrink-0" />
+          <p className="text-sm text-violet-700">Create a campaign to start sending SMS messages. <a href="/campaign/create" className="font-semibold underline hover:text-violet-900">Get started →</a></p>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Campaign SMS</h2>
           <p className="text-sm text-gray-500 mt-1">Send targeted SMS to your campaign supporters</p>
         </div>
         {tab === 'templates' && (
-          <button onClick={() => setTmpl(true)} className="vc-btn-primary inline-flex items-center gap-2 text-sm">
+          <button onClick={() => setTmpl(true)} disabled={!campaign} className={`vc-btn-primary inline-flex items-center gap-2 text-sm ${!campaign ? 'opacity-50 cursor-not-allowed' : ''}`}>
             <Plus className="w-4 h-4" /> New Template
           </button>
         )}
@@ -124,8 +130,8 @@ function CampaignSMSContent(): React.JSX.Element {
             </div>
             <button
               onClick={() => sendMut.mutate()}
-              disabled={sendMut.isPending || !composeForm.messageContent.trim()}
-              className="vc-btn-primary w-full inline-flex items-center justify-center gap-2"
+              disabled={sendMut.isPending || !composeForm.messageContent.trim() || !campaign}
+              className={`vc-btn-primary w-full inline-flex items-center justify-center gap-2 ${!campaign ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <Send className="w-4 h-4" />
               {sendMut.isPending ? 'Queuing...' : 'Send Batch'}

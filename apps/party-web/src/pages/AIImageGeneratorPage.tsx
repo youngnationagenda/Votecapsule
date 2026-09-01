@@ -207,7 +207,7 @@ function AIImageGeneratorContent(): React.JSX.Element {
   // Generate mutation
   const generateMut = useMutation({
     mutationFn: () => {
-      if (!campaign?.id) throw new Error('No active campaign found');
+      if (!campaign?.id) return Promise.reject(new Error('no-campaign'));
       return campaignApi.aiImages.generate(campaign.id, {
         prompt,
         negativePrompt:  negativePrompt || undefined,
@@ -228,6 +228,7 @@ function AIImageGeneratorContent(): React.JSX.Element {
     },
     onError: (err: any) => {
       const msg = err?.response?.data?.message ?? err?.message ?? '';
+      if (msg === 'no-campaign') return; // silently ignore — banner already shown
       if (msg.includes('payment') || msg.includes('INVALID_PAYMENT') || msg.includes('ServiceUnavailable')) {
         setPaymentError(true);
       }
@@ -269,11 +270,11 @@ function AIImageGeneratorContent(): React.JSX.Element {
       {/* Payment error banner */}
       {paymentError && <PaymentRequiredBanner />}
 
-      {/* No campaign warning */}
+      {/* No campaign banner */}
       {!campaign && (
-        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-          <p className="text-sm text-amber-800">No active campaign found. Create a campaign first to generate and save images.</p>
+        <div className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-xl px-4 py-3">
+          <AlertTriangle className="w-5 h-5 text-violet-500 flex-shrink-0" />
+          <p className="text-sm text-violet-700">Create a campaign to save generated images to your media library. <a href="/campaign/create" className="font-semibold underline hover:text-violet-900">Get started →</a></p>
         </div>
       )}
 

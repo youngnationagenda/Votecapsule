@@ -23,7 +23,33 @@ export interface CountySummary {
   iebcCode: string;
   name: string;
   registeredVoters: number;
-  constituencyCount?: number;
+  constituencyCount: number;
+  wardCount: number;
+  pollingStationCount: number;
+}
+
+export interface ConstituencySummary {
+  id: number;
+  iebcCode: string;
+  name: string;
+  countyCode: string;
+  countyName: string;
+  registeredVoters: number;
+  wardCount: number;
+  pollingStationCount: number;
+}
+
+export interface WardSummary {
+  id: number;
+  iebcCode: string;
+  name: string;
+  constituencyCode: string;
+  constituencyName: string;
+  countyCode: string;
+  countyName: string;
+  registeredVoters: number;
+  pollingStationCount: number;
+  registrationCentreCount: number;
 }
 
 export interface PollingStationDetail {
@@ -108,10 +134,71 @@ export class GeographyService {
       order: { iebcCode: 'ASC' },
     });
     return counties.map((c) => ({
-      id: c.id,
-      iebcCode: c.iebcCode,
-      name: c.name,
-      registeredVoters: c.registeredVoters,
+      id:                 c.id,
+      iebcCode:           c.iebcCode,
+      name:               c.name,
+      registeredVoters:   c.registeredVoters,
+      constituencyCount:  c.constituencyCount ?? 0,
+      wardCount:          c.wardCount         ?? 0,
+      pollingStationCount: c.pollingStationCount ?? 0,
+    }));
+  }
+
+  // ── Constituency Summary (with counts) ────────────────────────────────────
+
+  async getConstituencySummaries(countyCode?: string): Promise<ConstituencySummary[]> {
+    const qb = this.constRepo
+      .createQueryBuilder('c')
+      .leftJoinAndSelect('c.county', 'co')
+      .where('c.is_special = FALSE')
+      .andWhere('c.active = TRUE')
+      .orderBy('c.iebc_code', 'ASC');
+
+    if (countyCode) {
+      qb.andWhere('co.iebc_code = :cc', { cc: countyCode });
+    }
+    const items = await qb.getMany();
+    return items.map((c) => ({
+      id:                  c.id,
+      iebcCode:            c.iebcCode,
+      name:                c.name,
+      countyCode:          (c as any).county?.iebcCode ?? '',
+      countyName:          (c as any).county?.name     ?? '',
+      registeredVoters:    c.registeredVoters,
+      wardCount:           (c as any).wardCount          ?? 0,
+      pollingStationCount: (c as any).pollingStationCount ?? 0,
+    }));
+  }
+
+  // ── Ward Summary (with counts) ────────────────────────────────────────────
+
+  async getWardSummaries(constituencyCode?: string, countyCode?: string): Promise<WardSummary[]> {
+    const qb = this.wardRepo
+      .createQueryBuilder('w')
+      .leftJoinAndSelect('w.constituency', 'c')
+      .leftJoinAndSelect('c.county', 'co')
+      .where('w.is_special = FALSE')
+      .andWhere('w.active = TRUE')
+      .orderBy('w.iebc_code', 'ASC');
+
+    if (constituencyCode) {
+      qb.andWhere('c.iebc_code = :cc', { cc: constituencyCode });
+    }
+    if (countyCode) {
+      qb.andWhere('co.iebc_code = :co', { co: countyCode });
+    }
+    const items = await qb.getMany();
+    return items.map((w) => ({
+      id:                      w.id,
+      iebcCode:                w.iebcCode,
+      name:                    w.name,
+      constituencyCode:        (w as any).constituency?.iebcCode ?? '',
+      constituencyName:        (w as any).constituency?.name     ?? '',
+      countyCode:              (w as any).constituency?.county?.iebcCode ?? '',
+      countyName:              (w as any).constituency?.county?.name     ?? '',
+      registeredVoters:        w.registeredVoters,
+      pollingStationCount:     (w as any).pollingStationCount     ?? 0,
+      registrationCentreCount: (w as any).registrationCentreCount ?? 0,
     }));
   }
 

@@ -10,7 +10,7 @@ export const campaignApi = {
   // ── Campaigns ────────────────────────────────────────────
   list:      (params?: any)               => apiClient.get(`${BASE}/campaigns`, { params }),
   get:       (id: string)                 => apiClient.get(`${BASE}/campaigns/${id}`),
-  create:    (data: { candidateId?: string; electionId: string; name: string; description?: string; countyCode?: string; constituencyCode?: string; wardCode?: string }) =>
+  create:    (data: { candidateId?: string; electionId: string; name: string; description?: string; countyCode?: string; constituencyCode?: string; wardCode?: string; goals?: Record<string, unknown>; targetWards?: string[]; headquarters?: string; campaignStartDate?: string; campaignEndDate?: string; tenantId?: string }) =>
     apiClient.post(`${BASE}/campaigns`, data),
   dashboard: (id: string)                 => apiClient.get(`${BASE}/campaigns/${id}/dashboard`),
 
@@ -79,6 +79,13 @@ export const campaignApi = {
     // IEBC gazette limit from migration 164 — auto-populated by position + county
     getIEBCGazetteLimit: (position: string, countyCode: string, constituencyCode?: string) =>
       apiClient.get('/election/iebc-limits', { params: { position, countyCode, constituencyCode } }),
+    // IEBC category breakdown (D1 — Priority 11)
+    getIebcBreakdown: (cid: string) => apiClient.get(`${BASE}/campaigns/${cid}/budget/iebc-breakdown`),
+    // Auto-turbulate: recompute IEBC limit + seed categories from position+geography
+    turbulate: (cid: string) => apiClient.post(`${BASE}/campaigns/${cid}/budget/turbulate`, {}),
+    // Preview IEBC limit for a position+geography (no DB write)
+    previewIebcLimit: (cid: string, params: { position?: string; countyCode?: string; constituencyCode?: string; wardCode?: string; isParty?: boolean }) =>
+      apiClient.get(`${BASE}/campaigns/${cid}/budget/iebc-preview`, { params }),
   },
 
   // ── SMS ──────────────────────────────────────────────────
@@ -225,5 +232,12 @@ export const campaignApi = {
     getReports:            (cid: string)                       => apiClient.get(`${BASE}/campaigns/${cid}/compliance/reports`),
     submitReport:          (cid: string, data: any)            => apiClient.post(`${BASE}/campaigns/${cid}/compliance/reports`, data),
     getCertificate:        (cid: string)                       => apiClient.get(`${BASE}/campaigns/${cid}/compliance/certificate`),
+    // ── Compliance Documents (Priority 11) ──────────────────
+    getDocuments:          (cid: string)                       => apiClient.get(`${BASE}/campaigns/${cid}/compliance/documents`),
+    uploadDocument:        (cid: string, fd: FormData)         => apiClient.post(`${BASE}/campaigns/${cid}/compliance/documents`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    getDocumentUrl:        (cid: string, docCode: string)      => apiClient.get(`${BASE}/campaigns/${cid}/compliance/documents/${docCode}/url`),
+    deleteDocument:        (cid: string, docCode: string)      => apiClient.delete(`${BASE}/campaigns/${cid}/compliance/documents/${docCode}`),
+    reviewDocument:        (cid: string, docCode: string, data: { status: string; notes?: string }) => apiClient.patch(`${BASE}/campaigns/${cid}/compliance/documents/${docCode}/review`, data),
+    listPendingDocuments:  (cid: string, params?: { status?: string; page?: number; limit?: number }) => apiClient.get(`${BASE}/campaigns/${cid}/compliance/documents/pending`, { params }),
   },
 };

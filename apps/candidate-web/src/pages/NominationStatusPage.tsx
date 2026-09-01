@@ -178,7 +178,7 @@ function NominationStatusPageContent(): React.JSX.Element {
           {/* Photo */}
           <div className="w-16 h-16 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
             {profile.photographUrl ? (
-              <img src={profile.photographUrl} alt="" className="w-16 h-16 rounded-xl object-cover" />
+              <img src={profile.photographUrl} alt="" className="w-16 h-16 rounded-xl object-cover" crossOrigin="anonymous" />
             ) : (
               <span className="text-xl font-bold text-amber-600">{profile.fullName.charAt(0)}</span>
             )}

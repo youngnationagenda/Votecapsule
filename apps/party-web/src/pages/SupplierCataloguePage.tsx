@@ -81,6 +81,8 @@ function PriceTag({ price, currency = 'KES', bulkPrice, bulkMin }: {
 }
 
 // ── Image with Fallback ──────────────────────────────────────
+// crossOrigin="anonymous" is CRITICAL: ensures browser sends Origin header
+// so CloudFront returns ACAO header → images load in browser correctly.
 function ProductImage({ src, alt, code, className = '' }: {
   src: string | null;
   alt: string;
@@ -108,6 +110,7 @@ function ProductImage({ src, alt, code, className = '' }: {
       className={`object-cover ${className}`}
       onError={() => setError(true)}
       loading="lazy"
+      crossOrigin="anonymous"
     />
   );
 }
@@ -298,7 +301,7 @@ function ProductDetailModal({ product, onClose }: {
                         i === selectedImage ? 'border-violet-500 shadow-md' : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >
-                      <img src={img} alt="" className="w-full h-full object-cover" />
+                      <img src={img} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
                     </button>
                   ))}
                 </div>

@@ -3,7 +3,7 @@
 // FULL BUDGET MODULE — Party-wide overview, candidate budgets,
 // file upload, IEBC compliance, smart planner, insights
 // ============================================================
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useMemo, useRef, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -13,7 +13,7 @@ import {
   DollarSign, TrendingUp, AlertTriangle, Plus, X, CheckCircle,
   Upload, Users, MapPin, Target, Brain, Lightbulb, Calculator,
   ClipboardList, Eye, EyeOff, Shield, Zap, PieChart as PieIcon,
-  Download, FileSpreadsheet, FileText,
+  Download, FileSpreadsheet, FileText, ArrowUpRight,
 } from 'lucide-react';
 import { campaignApi } from '../api/campaignApi';
 import { PageErrorBoundary } from '../components/PageErrorBoundary';
@@ -28,11 +28,174 @@ const EXPENSE_CATEGORIES = [
   'office','security','miscellaneous',
 ];
 
+const PARTY_IEBC_LIMITS: Record<string, { name: string; limit: number }> = {
+  venues:          { name: 'Venues', limit: 375_052_688 },
+  publicity:       { name: 'Publicity Materials', limit: 1_066_714_464 },
+  advertising:     { name: 'Advertising & Media', limit: 2_517_509_489 },
+  personnel:       { name: 'Campaign Personnel', limit: 332_922_614 },
+  agents:          { name: 'Election Agents', limit: 2_081_162_296 },
+  transport:       { name: 'Transportation', limit: 16_126_632_035 },
+  communication:   { name: 'Communication', limit: 134_230_217 },
+  nomination_fees: { name: 'Nomination Fees', limit: 213_818_044 },
+  security:        { name: 'Security', limit: 285_090_725 },
+  accommodation:   { name: 'Accommodation', limit: 24_945_438 },
+  administrative:  { name: 'Administrative Cost', limit: 1_292_094_521 },
+};
+
+const PARTY_IEBC_TOTAL_LIMIT = Object.values(PARTY_IEBC_LIMITS).reduce((s, c) => s + c.limit, 0);
+
+const EXPENSE_TO_IEBC: Record<string, string> = {
+  transport: 'transport', fuel: 'transport', logistics: 'transport',
+  printing: 'publicity', branding: 'publicity',
+  digital_advertising: 'advertising', outdoor_advertising: 'advertising', media: 'advertising',
+  staff: 'personnel', volunteers: 'personnel',
+  events: 'venues', venues: 'venues',
+  communications: 'communication',
+  meals: 'accommodation', accommodation: 'accommodation',
+  office: 'administrative', equipment: 'administrative', miscellaneous: 'administrative',
+  security: 'security',
+};
+
 const fmt = (n: number) => n >= 1_000_000
   ? `KES ${(n/1_000_000).toFixed(1)}M`
   : n >= 1_000
   ? `KES ${(n/1_000).toFixed(0)}K`
   : `KES ${Number(n ?? 0).toLocaleString()}`;
+
+// ── Budget Warning Banner (Party — violet accent) ───────────
+function BudgetWarningBanner({
+  expenses,
+  backendWarnings,
+  dismissed,
+  onDismiss,
+}: {
+  expenses: any[];
+  backendWarnings?: any[];
+  dismissed: Set<string>;
+  onDismiss: (key: string) => void;
+}) {
+  const warnings = useMemo(() => {
+    // Use backend-computed warnings when available
+    if (backendWarnings && backendWarnings.length > 0) {
+      return backendWarnings.map((w: any) => ({
+        key:        w.code ?? w.category,
+        level:      w.level as 'yellow' | 'orange' | 'red',
+        category:   w.category,
+        pct:        Math.round(w.pct ?? 0),
+        message:    w.message,
+        suggestion: w.suggestion,
+      }));
+    }
+    // Aggregate expenses by IEBC category
+    const iebcSpend: Record<string, number> = {};
+    for (const exp of expenses) {
+      const code = (exp.categoryCode ?? '').toLowerCase();
+      const iebcCat = EXPENSE_TO_IEBC[code];
+      if (iebcCat) {
+        iebcSpend[iebcCat] = (iebcSpend[iebcCat] ?? 0) + Number(exp.amount ?? 0);
+      }
+    }
+
+    // Per-category status using fixed KES limits
+    const catStatus = Object.entries(PARTY_IEBC_LIMITS).map(([key, { name, limit }]) => {
+      const spent = iebcSpend[key] ?? 0;
+      const pct = limit > 0 ? (spent / limit) * 100 : 0;
+      return { key, name, limit, spent, pct };
+    });
+
+    // Underspent categories for reallocation suggestions
+    const underspent = catStatus
+      .filter(c => c.pct < 50 && c.limit > 0)
+      .sort((a, b) => a.pct - b.pct);
+
+    const result: Array<{
+      key: string;
+      level: 'yellow' | 'orange' | 'red';
+      category: string;
+      pct: number;
+      message: string;
+      suggestion?: string;
+    }> = [];
+
+    for (const cat of catStatus) {
+      if (cat.pct >= 100) {
+        const excess = cat.spent - cat.limit;
+        result.push({
+          key: cat.key, level: 'red', category: cat.name, pct: Math.round(cat.pct),
+          message: `${cat.name} has EXCEEDED the IEBC limit by ${fmt(excess)}. Reduce spending or file over-limit report per Section 18(7).`,
+          suggestion: underspent.length > 0
+            ? `Reallocate from ${underspent[0].name} (only ${underspent[0].pct.toFixed(0)}% used, ${fmt(underspent[0].limit - underspent[0].spent)} available)`
+            : undefined,
+        });
+      } else if (cat.pct >= 90) {
+        result.push({
+          key: cat.key, level: 'orange', category: cat.name, pct: Math.round(cat.pct),
+          message: `${cat.name} spending has reached ${Math.round(cat.pct)}% of the gazette limit (${fmt(cat.limit)}).`,
+          suggestion: underspent.length > 0
+            ? `Reallocate from ${underspent[0].name} (only ${underspent[0].pct.toFixed(0)}% used, ${fmt(underspent[0].limit - underspent[0].spent)} available)`
+            : undefined,
+        });
+      } else if (cat.pct >= 70) {
+        result.push({
+          key: cat.key, level: 'yellow', category: cat.name, pct: Math.round(cat.pct),
+          message: `${cat.name} is at ${Math.round(cat.pct)}% of the gazette limit (${fmt(cat.limit)}).`,
+        });
+      }
+    }
+
+    // Overall spending check
+    const totalSpent = expenses.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
+    const overallPct = (totalSpent / PARTY_IEBC_TOTAL_LIMIT) * 100;
+    if (overallPct >= 80) {
+      result.unshift({
+        key: '_overall',
+        level: overallPct >= 95 ? 'red' : 'orange',
+        category: 'Overall Party Budget',
+        pct: Math.round(overallPct),
+        message: `Total party spend is at ${Math.round(overallPct)}% of the IEBC legal limit (${fmt(PARTY_IEBC_TOTAL_LIMIT)}). ${
+          overallPct >= 95 ? 'Immediate action required.' : 'Plan remaining allocations carefully.'
+        }`,
+      });
+    }
+
+    return result;
+  }, [expenses]);
+
+  const visible = warnings.filter(w => !dismissed.has(w.key));
+  if (visible.length === 0) return null;
+
+  const borderColor = { yellow: 'border-l-amber-400', orange: 'border-l-orange-500', red: 'border-l-red-600' };
+  const bgColor = { yellow: 'bg-amber-50', orange: 'bg-orange-50', red: 'bg-red-50' };
+  const textColor = { yellow: 'text-amber-700', orange: 'text-orange-700', red: 'text-red-700' };
+  const iconColor = { yellow: 'text-amber-500', orange: 'text-orange-600', red: 'text-red-600' };
+  const labelText = { yellow: 'Approaching limit', orange: 'Near limit', red: 'OVER LIMIT' };
+
+  return (
+    <div className="space-y-2">
+      {visible.map((w) => (
+        <div key={w.key} className={`border border-l-4 ${borderColor[w.level]} ${bgColor[w.level]} rounded-lg p-3 flex items-start gap-3`}>
+          <AlertTriangle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${iconColor[w.level]}`} />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-bold uppercase ${textColor[w.level]}`}>{labelText[w.level]}</span>
+              <span className="text-xs font-semibold text-gray-900">{w.category} — {w.pct}%</span>
+            </div>
+            <p className={`text-xs mt-0.5 ${textColor[w.level]}`}>{w.message}</p>
+            {w.suggestion && (
+              <p className="text-xs mt-1 text-gray-600 flex items-center gap-1">
+                <ArrowUpRight className="w-3 h-3 text-violet-600" />
+                <span>Suggestion: {w.suggestion}</span>
+              </p>
+            )}
+          </div>
+          <button onClick={() => onDismiss(w.key)} className="p-0.5 text-gray-400 hover:text-gray-600 flex-shrink-0">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // ── IEBC Gauge ───────────────────────────────────────────────
 function IEBCGauge({ pct }: { pct: number }) {
@@ -300,6 +463,7 @@ function CampaignBudgetContent(): React.JSX.Element {
   const qc = useQueryClient();
   const [showExpense, setExpense] = useState(false);
   const [showUpload, setUpload] = useState(false);
+  const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
   const [tab, setTab] = useState<'summary' | 'detailed' | 'candidates' | 'insights'>('summary');
   const [expenseForm, setExpenseForm] = useState({ description: '', amount: '', categoryCode: 'events', paymentMethod: 'cash', wardCode: '' });
 
@@ -330,8 +494,18 @@ function CampaignBudgetContent(): React.JSX.Element {
     enabled: !!campaign?.id,
   });
 
+  // Backend IEBC breakdown (D1 — Priority 11)
+  const { data: iebcBreakdown } = useQuery({
+    queryKey: ['party-iebc-breakdown', campaign?.id],
+    queryFn: () => campaign
+      ? campaignApi.budget.getIebcBreakdown(campaign.id).then(r => r.data?.data ?? r.data)
+      : null,
+    enabled:   !!campaign?.id,
+    staleTime: 60_000,
+  });
+
   const expenseMut = useMutation({
-    mutationFn: (data: any) => campaignApi.budget.recordExpense(campaign.id, data),
+    mutationFn: (data: any) => campaign ? campaignApi.budget.recordExpense(campaign.id, data) : Promise.reject(new Error('no-campaign')),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['campaign-budget'] }); qc.invalidateQueries({ queryKey: ['campaign-expenses'] }); setExpense(false); },
   });
 
@@ -352,6 +526,12 @@ function CampaignBudgetContent(): React.JSX.Element {
 
   return (
     <div className="space-y-6">
+      {!campaign && (
+        <div className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-xl px-4 py-3">
+          <AlertTriangle className="w-5 h-5 text-violet-500 flex-shrink-0" />
+          <p className="text-sm text-violet-700">Create a campaign to start tracking your budget. <a href="/campaign/create" className="font-semibold underline hover:text-violet-900">Get started →</a></p>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -360,10 +540,10 @@ function CampaignBudgetContent(): React.JSX.Element {
         </div>
         <div className="flex items-center gap-2">
           <ExportDropdown campaign={campaign} budget={budget} iebc={iebcStatus} categories={categories} expenses={expenses} />
-          <button onClick={() => setUpload(true)} className="px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2">
+          <button onClick={() => setUpload(true)} disabled={!campaign} className={`px-3 py-2 text-sm font-medium border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 inline-flex items-center gap-2 ${!campaign ? 'opacity-50 cursor-not-allowed' : ''}`}>
             <Upload className="w-4 h-4" /> Import File
           </button>
-          <button onClick={() => setExpense(true)} className="vc-btn-primary inline-flex items-center gap-2 text-sm">
+          <button onClick={() => setExpense(true)} disabled={!campaign} className={`vc-btn-primary inline-flex items-center gap-2 text-sm ${!campaign ? 'opacity-50 cursor-not-allowed' : ''}`}>
             <Plus className="w-4 h-4" /> Log Expense
           </button>
         </div>
@@ -388,6 +568,14 @@ function CampaignBudgetContent(): React.JSX.Element {
               </div>
             ))}
           </div>
+
+          {/* IEBC Spending Limit Warnings — prefer backend breakdown */}
+          <BudgetWarningBanner
+            expenses={expenses}
+            backendWarnings={iebcBreakdown?.warnings}
+            dismissed={dismissedWarnings}
+            onDismiss={(key) => setDismissedWarnings(prev => new Set([...prev, key]))}
+          />
 
           {/* Tabs */}
           <div className="flex border-b border-gray-200 overflow-x-auto">
@@ -457,15 +645,33 @@ function CampaignBudgetContent(): React.JSX.Element {
                       const alloc = Number(cat.allocated ?? 0);
                       const spent = Number(cat.spent ?? 0);
                       const pct = alloc > 0 ? Math.min(Math.round((spent / alloc) * 100), 100) : 0;
+                      const catCode = (cat.categoryCode ?? cat.code ?? '').toLowerCase();
+                      const iebcKey = EXPENSE_TO_IEBC[catCode];
+                      const iebcCat = iebcKey ? PARTY_IEBC_LIMITS[iebcKey] : undefined;
+                      const iebcCatLimit = iebcCat?.limit ?? 0;
+                      const overIebc = iebcCatLimit > 0 && spent > iebcCatLimit;
+                      const barColor = overIebc ? '#ef4444' : CATEGORY_COLORS[i % CATEGORY_COLORS.length];
                       return (
                         <div key={cat.id ?? i} className="p-3.5">
                           <div className="flex items-center justify-between mb-1.5">
-                            <p className="text-sm font-medium text-gray-900 capitalize">{(cat.categoryCode ?? cat.code ?? '').replace(/_/g,' ')}</p>
+                            <div className="flex items-center gap-1.5">
+                              {overIebc && <AlertTriangle className="w-3.5 h-3.5 text-red-500" />}
+                              <p className={`text-sm font-medium capitalize ${overIebc ? 'text-red-700' : 'text-gray-900'}`}>{(cat.categoryCode ?? cat.code ?? '').replace(/_/g,' ')}</p>
+                            </div>
                             <p className="text-xs text-gray-500">{fmt(spent)} / {fmt(alloc)}</p>
                           </div>
                           <div className="w-full bg-gray-100 rounded-full h-1.5">
-                            <div className="h-1.5 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: CATEGORY_COLORS[i % CATEGORY_COLORS.length] }} />
+                            <div className="h-1.5 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
                           </div>
+                          {iebcCatLimit > 0 && (
+                            <div className="mt-1" title={`IEBC gazette limit for ${iebcCat!.name}: ${fmt(iebcCatLimit)}`}>
+                              <div className="w-full bg-gray-50 rounded-full h-0.5">
+                                <div className={`h-0.5 rounded-full ${overIebc ? 'bg-red-400' : 'bg-violet-300'}`}
+                                  style={{ width: `${Math.min((spent / iebcCatLimit) * 100, 100)}%` }} />
+                              </div>
+                              <p className="text-[9px] text-gray-400 mt-0.5">IEBC {iebcCat!.name}: {fmt(iebcCatLimit)}</p>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -541,6 +747,68 @@ function CampaignBudgetContent(): React.JSX.Element {
                   </table>
                 </div>
               )}
+
+              {/* IEBC Category Breakdown — Fifth Schedule gazette limits */}
+              {(() => {
+                const iebcAgg: Record<string, number> = {};
+                for (const exp of expenses) {
+                  const code = (exp.categoryCode ?? '').toLowerCase();
+                  const iebcKey = EXPENSE_TO_IEBC[code];
+                  if (iebcKey) iebcAgg[iebcKey] = (iebcAgg[iebcKey] ?? 0) + Number(exp.amount ?? 0);
+                }
+                const catRows = Object.entries(PARTY_IEBC_LIMITS).map(([key, { name, limit }]) => {
+                  const spent = iebcAgg[key] ?? 0;
+                  const pctVal = limit > 0 ? (spent / limit) * 100 : 0;
+                  return { key, name, limit, spent, pctVal };
+                });
+                const underCats = catRows.filter(c => c.pctVal < 50 && c.limit > 0).sort((a, b) => a.pctVal - b.pctVal);
+                return (
+                  <div className="vc-card p-0 overflow-hidden">
+                    <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+                      <h3 className="text-sm font-semibold text-gray-900">IEBC Category Breakdown</h3>
+                      <p className="text-xs text-gray-500 mt-0.5">Fifth Schedule · Kenya Gazette Notice GN 12251 — party spending limits by category</p>
+                    </div>
+                    <div className="divide-y divide-gray-50">
+                      {catRows.map((cat, i) => {
+                        const status = cat.pctVal >= 100 ? 'OVER' : cat.pctVal >= 70 ? 'WATCH' : 'OK';
+                        const statusBg = status === 'OVER' ? 'bg-red-100 text-red-700' : status === 'WATCH' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700';
+                        const barColor = status === 'OVER' ? 'bg-red-500' : status === 'WATCH' ? 'bg-amber-500' : 'bg-violet-500';
+                        return (
+                          <div key={cat.key} className="px-4 py-3 hover:bg-gray-50">
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center gap-2">
+                                <div className="w-5 h-5 rounded-full bg-violet-50 flex items-center justify-center flex-shrink-0">
+                                  <span className="text-[9px] font-bold text-violet-500">{i + 1}</span>
+                                </div>
+                                <p className="text-sm font-medium text-gray-900">{cat.name}</p>
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${statusBg}`}>{status}</span>
+                              </div>
+                              <div className="flex items-center gap-3 text-xs flex-shrink-0">
+                                <span className="font-semibold text-gray-700">{fmt(cat.spent)}</span>
+                                <span className="text-gray-400">/ {fmt(cat.limit)}</span>
+                              </div>
+                            </div>
+                            {cat.limit > 0 && (
+                              <div className="ml-7 w-[calc(100%-1.75rem)]">
+                                <div className="w-full bg-gray-100 rounded-full h-1.5">
+                                  <div className={`h-1.5 rounded-full transition-all ${barColor}`}
+                                    style={{ width: `${Math.min(cat.pctVal, 100)}%` }} />
+                                </div>
+                              </div>
+                            )}
+                            {status === 'OVER' && underCats.length > 0 && (
+                              <p className="ml-7 text-xs text-red-600 mt-1 flex items-center gap-1">
+                                <ArrowUpRight className="w-3 h-3" />
+                                Over by {fmt(cat.spent - cat.limit)} — consider shifting to {underCats[0].name} ({underCats[0].pctVal.toFixed(0)}% used, {fmt(underCats[0].limit - underCats[0].spent)} headroom)
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 

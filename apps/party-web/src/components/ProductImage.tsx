@@ -1,6 +1,13 @@
 // ============================================================
 // VoteCapsule™ — Product Image with Smart Fallback (Party Portal)
-// Handles S3 images, loading states, broken links gracefully.
+// Handles S3/CloudFront images, loading states, broken links.
+//
+// FIX (2026-09-01): Added crossOrigin="anonymous" to both the
+// preload Image() object and the rendered <img> tag.
+// Without this, the browser pre-fetches the image without an
+// Origin header, poisoning the CloudFront cache with a non-CORS
+// response. Subsequent browser requests (which DO have Origin)
+// then get served the cached CORS-free response → images blocked.
 // ============================================================
 import React, { useState, useEffect } from 'react';
 import { ImageOff } from 'lucide-react';
@@ -22,28 +29,50 @@ export function ProductImage({ src, alt, code, className = '', iconSize = 48, sh
     if (!src) { setStatus('error'); return; }
     setStatus('loading');
     const img = new Image();
-    img.onload = () => setStatus('loaded');
+    // ── CRITICAL: crossOrigin="anonymous" ensures the preload request
+    //    includes the Origin header so CloudFront returns CORS headers.
+    //    Without this, the cache is poisoned with CORS-free responses.
+    img.crossOrigin = 'anonymous';
+    img.onload  = () => setStatus('loaded');
     img.onerror = () => setStatus('error');
     img.src = src;
     return () => { img.onload = null; img.onerror = null; };
   }, [src]);
 
   if (status === 'loading' && showLoading) {
-    return (<div className={`flex items-center justify-center bg-gray-50 animate-pulse ${className}`}><div className="w-8 h-8 rounded-full border-2 border-gray-200 border-t-gray-400 animate-spin" /></div>);
+    return (
+      <div className={`flex items-center justify-center bg-gray-50 animate-pulse ${className}`}>
+        <div className="w-8 h-8 rounded-full border-2 border-gray-200 border-t-gray-400 animate-spin" />
+      </div>
+    );
   }
 
   if (status === 'error' || !src) {
-    return (<div className={`flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 ${className}`}>{code ? <CampaignMaterialIcon code={code} size={iconSize} /> : <ImageOff className="w-8 h-8 text-gray-300" />}</div>);
+    return (
+      <div className={`flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 ${className}`}>
+        {code ? <CampaignMaterialIcon code={code} size={iconSize} /> : <ImageOff className="w-8 h-8 text-gray-300" />}
+      </div>
+    );
   }
 
-  return <img src={src} alt={alt} className={`object-cover ${className}`} loading="lazy" onError={() => setStatus('error')} />;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={`object-cover ${className}`}
+      loading="lazy"
+      crossOrigin="anonymous"
+      onError={() => setStatus('error')}
+    />
+  );
 }
 
 export function checkImageAccessible(url: string): Promise<boolean> {
   return new Promise((resolve) => {
     if (!url) { resolve(false); return; }
     const img = new Image();
-    img.onload = () => resolve(true);
+    img.crossOrigin = 'anonymous';
+    img.onload  = () => resolve(true);
     img.onerror = () => resolve(false);
     img.src = url;
     setTimeout(() => resolve(false), 5000);
@@ -51,5 +80,5 @@ export function checkImageAccessible(url: string): Promise<boolean> {
 }
 
 export function getS3ImageUrl(code: string, format: 'svg' | 'jpg' | 'png' = 'svg'): string {
-  return `https://s3.amazonaws.com/votecapsule-campaign-assets/suppliers/me-advertising/images/${code.toUpperCase()}.${format}`;
+  return `https://d1campaign.votecapsule.yna.co.ke/suppliers/me-advertising/images/${code.toLowerCase()}.${format}`;
 }

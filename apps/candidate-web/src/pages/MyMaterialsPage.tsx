@@ -36,7 +36,7 @@ function ProductImage({ src, alt, code, className = '' }: {
       </div>
     );
   }
-  return <img src={src} alt={alt} className={`object-cover ${className}`} onError={() => setError(true)} loading="lazy" />;
+  return <img src={src} alt={alt} className={`object-cover ${className}`} onError={() => setError(true)} loading="lazy" crossOrigin="anonymous" />;
 }
 
 // ── Quantity Selector ────────────────────────────────────────
@@ -514,14 +514,11 @@ function MyMaterialsContent(): React.JSX.Element {
         </div>
       )}
 
-      {/* No campaign warning */}
+      {/* No campaign banner */}
       {!campaign && (
-        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="text-sm text-amber-800">No active campaign found.</p>
-            <a href="/campaign" className="text-sm text-amber-600 hover:underline font-medium">Create your campaign →</a>
-          </div>
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+          <p className="text-sm text-amber-700">Create a campaign to place material orders. <a href="/campaign" className="font-semibold underline hover:text-amber-900">Get started →</a></p>
         </div>
       )}
 

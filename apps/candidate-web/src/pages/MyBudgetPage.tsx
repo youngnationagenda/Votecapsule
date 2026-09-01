@@ -39,11 +39,178 @@ const EXPENSE_CATEGORIES = [
   'office','security','miscellaneous',
 ];
 
+const IEBC_SPENDING_SHARES: Record<string, { name: string; share: number }> = {
+  venues:          { name: 'Venues', share: 1.5 },
+  publicity:       { name: 'Publicity Materials', share: 4.4 },
+  advertising:     { name: 'Advertising & Media', share: 10.3 },
+  personnel:       { name: 'Campaign Personnel', share: 1.4 },
+  agents:          { name: 'Election Agents', share: 8.5 },
+  transport:       { name: 'Transportation', share: 66.0 },
+  communication:   { name: 'Communication', share: 0.5 },
+  nomination_fees: { name: 'Nomination Fees', share: 0.9 },
+  security:        { name: 'Security', share: 1.2 },
+  accommodation:   { name: 'Accommodation', share: 0.1 },
+  administrative:  { name: 'Administrative Cost', share: 5.3 },
+};
+
+const EXPENSE_TO_IEBC: Record<string, string> = {
+  transport: 'transport', fuel: 'transport', logistics: 'transport',
+  printing: 'publicity', branding: 'publicity',
+  digital_advertising: 'advertising', outdoor_advertising: 'advertising', media: 'advertising',
+  staff: 'personnel', volunteers: 'personnel',
+  events: 'venues', venues: 'venues',
+  communications: 'communication',
+  meals: 'accommodation', accommodation: 'accommodation',
+  office: 'administrative', equipment: 'administrative', miscellaneous: 'administrative',
+  security: 'security',
+};
+
 const fmt = (n: number) => n >= 1_000_000
   ? `KES ${(n/1_000_000).toFixed(1)}M`
   : n >= 1_000
   ? `KES ${(n/1_000).toFixed(0)}K`
   : `KES ${n.toLocaleString()}`;
+
+// ── Budget Warning Banner ────────────────────────────────────
+function BudgetWarningBanner({
+  expenses,
+  iebcLimitAmount,
+  backendWarnings,
+  dismissed,
+  onDismiss,
+}: {
+  expenses: any[];
+  iebcLimitAmount: number;
+  backendWarnings?: any[];
+  dismissed: Set<string>;
+  onDismiss: (key: string) => void;
+}) {
+  const warnings = useMemo(() => {
+    // Use backend-computed warnings if available (more accurate — uses exact DB expense mapping)
+    if (backendWarnings && backendWarnings.length > 0) {
+      return backendWarnings.map((w: any) => ({
+        key:        w.code ?? w.category,
+        level:      w.level as 'yellow' | 'orange' | 'red',
+        category:   w.category,
+        pct:        Math.round(w.pct ?? 0),
+        message:    w.message,
+        suggestion: w.suggestion,
+      }));
+    }
+
+    if (iebcLimitAmount <= 0) return [];
+
+    // Aggregate expenses by IEBC category
+    const iebcSpend: Record<string, number> = {};
+    for (const exp of expenses) {
+      const code = (exp.categoryCode ?? '').toLowerCase();
+      const iebcCat = EXPENSE_TO_IEBC[code];
+      if (iebcCat) {
+        iebcSpend[iebcCat] = (iebcSpend[iebcCat] ?? 0) + Number(exp.amount ?? 0);
+      }
+    }
+
+    // Per-category status
+    const catStatus = Object.entries(IEBC_SPENDING_SHARES).map(([key, { name, share }]) => {
+      const limit = iebcLimitAmount * (share / 100);
+      const spent = iebcSpend[key] ?? 0;
+      const pct = limit > 0 ? (spent / limit) * 100 : 0;
+      return { key, name, share, limit, spent, pct };
+    });
+
+    // Underspent categories for reallocation suggestions
+    const underspent = catStatus
+      .filter(c => c.pct < 50 && c.limit > 0)
+      .sort((a, b) => a.pct - b.pct);
+
+    const result: Array<{
+      key: string;
+      level: 'yellow' | 'orange' | 'red';
+      category: string;
+      pct: number;
+      message: string;
+      suggestion?: string;
+    }> = [];
+
+    for (const cat of catStatus) {
+      if (cat.pct >= 100) {
+        const excess = cat.spent - cat.limit;
+        result.push({
+          key: cat.key, level: 'red', category: cat.name, pct: Math.round(cat.pct),
+          message: `${cat.name} has EXCEEDED the IEBC limit by ${fmt(excess)}. Reduce spending or file over-limit report per Section 18(7).`,
+          suggestion: underspent.length > 0
+            ? `Reallocate from ${underspent[0].name} (only ${underspent[0].pct.toFixed(0)}% used, ${fmt(underspent[0].limit - underspent[0].spent)} available)`
+            : undefined,
+        });
+      } else if (cat.pct >= 90) {
+        result.push({
+          key: cat.key, level: 'orange', category: cat.name, pct: Math.round(cat.pct),
+          message: `${cat.name} spending has reached ${Math.round(cat.pct)}% of the IEBC ${cat.share}% allocation.`,
+          suggestion: underspent.length > 0
+            ? `Reallocate from ${underspent[0].name} (only ${underspent[0].pct.toFixed(0)}% used, ${fmt(underspent[0].limit - underspent[0].spent)} available)`
+            : undefined,
+        });
+      } else if (cat.pct >= 70) {
+        result.push({
+          key: cat.key, level: 'yellow', category: cat.name, pct: Math.round(cat.pct),
+          message: `${cat.name} is at ${Math.round(cat.pct)}% of the IEBC ${cat.share}% allocation.`,
+        });
+      }
+    }
+
+    // Overall spending check
+    const totalSpent = expenses.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
+    const overallPct = (totalSpent / iebcLimitAmount) * 100;
+    if (overallPct >= 80) {
+      result.unshift({
+        key: '_overall',
+        level: overallPct >= 95 ? 'red' : 'orange',
+        category: 'Overall Budget',
+        pct: Math.round(overallPct),
+        message: `Total campaign spend is at ${Math.round(overallPct)}% of the IEBC legal limit (${fmt(iebcLimitAmount)}). ${
+          overallPct >= 95 ? 'Immediate action required.' : 'Plan remaining spend carefully.'
+        }`,
+      });
+    }
+
+    return result;
+  }, [expenses, iebcLimitAmount]);
+
+  const visible = warnings.filter(w => !dismissed.has(w.key));
+  if (visible.length === 0) return null;
+
+  const borderColor = { yellow: 'border-l-amber-400', orange: 'border-l-orange-500', red: 'border-l-red-600' };
+  const bgColor = { yellow: 'bg-amber-50', orange: 'bg-orange-50', red: 'bg-red-50' };
+  const textColor = { yellow: 'text-amber-700', orange: 'text-orange-700', red: 'text-red-700' };
+  const iconColor = { yellow: 'text-amber-500', orange: 'text-orange-600', red: 'text-red-600' };
+  const labelText = { yellow: 'Approaching limit', orange: 'Near limit', red: 'OVER LIMIT' };
+
+  return (
+    <div className="space-y-2">
+      {visible.map((w) => (
+        <div key={w.key} className={`border border-l-4 ${borderColor[w.level]} ${bgColor[w.level]} rounded-lg p-3 flex items-start gap-3`}>
+          <AlertTriangle className={`w-4 h-4 mt-0.5 flex-shrink-0 ${iconColor[w.level]}`} />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-bold uppercase ${textColor[w.level]}`}>{labelText[w.level]}</span>
+              <span className="text-xs font-semibold text-gray-900">{w.category} — {w.pct}%</span>
+            </div>
+            <p className={`text-xs mt-0.5 ${textColor[w.level]}`}>{w.message}</p>
+            {w.suggestion && (
+              <p className="text-xs mt-1 text-gray-600 flex items-center gap-1">
+                <ArrowUpRight className="w-3 h-3 text-emerald-600" />
+                <span>Suggestion: {w.suggestion}</span>
+              </p>
+            )}
+          </div>
+          <button onClick={() => onDismiss(w.key)} className="p-0.5 text-gray-400 hover:text-gray-600 flex-shrink-0">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // ── IEBC Gauge ───────────────────────────────────────────────
 function IEBCGauge({ pct, limitAmount }: { pct: number; limitAmount?: number }) {
@@ -698,6 +865,7 @@ function MyBudgetContent(): React.JSX.Element {
   const [showUpload, setUpload] = useState(false);
   const [tab, setTab] = useState<'summary' | 'ledger' | 'detailed' | 'planner' | 'insights'>('summary');
   const [showContrib, setContrib] = useState(false);
+  const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
   const [contribForm, setContribForm] = useState({
     contributorName: '', contributorType: 'individual', amount: '',
     contributionDate: new Date().toISOString().split('T')[0],
@@ -751,6 +919,18 @@ function MyBudgetContent(): React.JSX.Element {
     staleTime: 24 * 60 * 60 * 1000, // gazette data doesn't change daily
   });
 
+  // Backend IEBC category breakdown (D1 — Priority 11)
+  // Provides server-computed spend-per-category + warnings + reallocation suggestions.
+  // Falls back to client-side computation in BudgetWarningBanner if this fails.
+  const { data: iebcBreakdown } = useQuery({
+    queryKey: ['iebc-breakdown', campaign?.id],
+    queryFn: () => campaign
+      ? campaignApi.budget.getIebcBreakdown(campaign.id).then((r) => r.data?.data ?? r.data)
+      : null,
+    enabled:   !!campaign?.id,
+    staleTime: 60_000, // refresh every minute
+  });
+
   // Ledger computations
   const totalMoneyIn  = contributions.reduce((s: number, c: any) => s + Number(c.amount ?? 0), 0);
   const totalMoneyOut = expenses.filter((e: any) => e.status !== 'rejected').reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
@@ -775,16 +955,14 @@ function MyBudgetContent(): React.JSX.Element {
     fill: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
   }));
 
-  if (!campaign) return (
-    <div className="vc-card text-center py-16">
-      <DollarSign className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-      <p className="text-gray-500">No active campaign found.</p>
-      <a href="/campaign" className="inline-block mt-3 text-sm text-amber-600 hover:underline font-medium">Create your campaign →</a>
-    </div>
-  );
-
   return (
     <div className="space-y-5">
+      {!campaign && (
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <DollarSign className="w-5 h-5 text-amber-500 flex-shrink-0" />
+          <p className="text-sm text-amber-700">Create a campaign to start tracking your budget. <a href="/campaign" className="font-semibold underline hover:text-amber-900">Get started →</a></p>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -792,14 +970,14 @@ function MyBudgetContent(): React.JSX.Element {
             <DollarSign className="w-6 h-6 text-amber-500" />
             Campaign Budget
           </h2>
-          <p className="text-sm text-gray-500 mt-1">{campaign.name}</p>
+          <p className="text-sm text-gray-500 mt-1">{campaign?.name ?? ''}</p>
         </div>
         <div className="flex items-center gap-2">
           <ExportDropdown campaign={campaign} budget={budget} iebc={iebc} categories={categories} expenses={expenses} />
-          <button onClick={() => setUpload(true)} className="vc-btn-secondary inline-flex items-center gap-2 text-sm">
+          <button onClick={() => setUpload(true)} disabled={!campaign} className={`vc-btn-secondary inline-flex items-center gap-2 text-sm ${!campaign ? 'opacity-50 cursor-not-allowed' : ''}`}>
             <Upload className="w-4 h-4" /> Import File
           </button>
-          <button onClick={() => setExpense(true)} className="vc-btn-primary inline-flex items-center gap-2 text-sm">
+          <button onClick={() => setExpense(true)} disabled={!campaign} className={`vc-btn-primary inline-flex items-center gap-2 text-sm ${!campaign ? 'opacity-50 cursor-not-allowed' : ''}`}>
             <Plus className="w-4 h-4" /> Record Expense
           </button>
         </div>
@@ -820,6 +998,17 @@ function MyBudgetContent(): React.JSX.Element {
           </div>
         ))}
       </div>
+
+      {/* IEBC Spending Limit Warnings — prefer backend breakdown, fall back to client-side */}
+      {iebcLimitAmount > 0 && (
+        <BudgetWarningBanner
+          expenses={expenses}
+          iebcLimitAmount={iebcLimitAmount}
+          backendWarnings={iebcBreakdown?.warnings}
+          dismissed={dismissedWarnings}
+          onDismiss={(key) => setDismissedWarnings(prev => new Set([...prev, key]))}
+        />
+      )}
 
       {/* Tab navigation */}
       <div className="flex border-b border-gray-200 overflow-x-auto">
@@ -897,16 +1086,36 @@ function MyBudgetContent(): React.JSX.Element {
               </div>
               <div className="divide-y divide-gray-50">
                 {categories.map((cat: any, i: number) => {
-                  const pct = cat.allocated > 0 ? Math.min(Math.round((Number(cat.spent || 0) / Number(cat.allocated)) * 100), 100) : 0;
+                  const spent = Number(cat.spent ?? 0);
+                  const alloc = Number(cat.allocated ?? 0);
+                  const pct = alloc > 0 ? Math.min(Math.round((spent / alloc) * 100), 100) : 0;
+                  const catCode = (cat.categoryCode ?? cat.code ?? '').toLowerCase();
+                  const iebcKey = EXPENSE_TO_IEBC[catCode];
+                  const iebcCat = iebcKey ? IEBC_SPENDING_SHARES[iebcKey] : undefined;
+                  const iebcCatLimit = iebcCat && iebcLimitAmount > 0 ? iebcLimitAmount * (iebcCat.share / 100) : 0;
+                  const overIebc = iebcCatLimit > 0 && spent > iebcCatLimit;
+                  const barColor = overIebc ? '#ef4444' : CATEGORY_COLORS[i % CATEGORY_COLORS.length];
                   return (
                     <div key={cat.id ?? i} className="p-3.5">
                       <div className="flex items-center justify-between mb-1.5">
-                        <p className="text-sm font-medium text-gray-900 capitalize">{(cat.categoryName ?? cat.code ?? '').replace(/_/g,' ')}</p>
-                        <p className="text-xs text-gray-500">{fmt(Number(cat.spent ?? 0))} / {fmt(Number(cat.allocated ?? 0))}</p>
+                        <div className="flex items-center gap-1.5">
+                          {overIebc && <AlertTriangle className="w-3.5 h-3.5 text-red-500" />}
+                          <p className={`text-sm font-medium capitalize ${overIebc ? 'text-red-700' : 'text-gray-900'}`}>{(cat.categoryName ?? cat.code ?? '').replace(/_/g,' ')}</p>
+                        </div>
+                        <p className="text-xs text-gray-500">{fmt(spent)} / {fmt(alloc)}</p>
                       </div>
                       <div className="w-full bg-gray-100 rounded-full h-1.5">
-                        <div className="h-1.5 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: CATEGORY_COLORS[i % CATEGORY_COLORS.length] }} />
+                        <div className="h-1.5 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: barColor }} />
                       </div>
+                      {iebcCatLimit > 0 && (
+                        <div className="mt-1" title={`IEBC limit for ${iebcCat!.name}: ${fmt(iebcCatLimit)} (${iebcCat!.share}%)`}>
+                          <div className="w-full bg-gray-50 rounded-full h-0.5">
+                            <div className={`h-0.5 rounded-full ${overIebc ? 'bg-red-400' : 'bg-blue-300'}`}
+                              style={{ width: `${Math.min((spent / iebcCatLimit) * 100, 100)}%` }} />
+                          </div>
+                          <p className="text-[9px] text-gray-400 mt-0.5">IEBC {iebcCat!.name}: {fmt(iebcCatLimit)} ({iebcCat!.share}%)</p>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1089,58 +1298,70 @@ function MyBudgetContent(): React.JSX.Element {
             </div>
           )}
 
-          {/* IEBC 11 Authorized Spending Categories reference */}
-          <div className="vc-card p-0 overflow-hidden">
-            <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
-              <h3 className="text-sm font-semibold text-gray-900">IEBC Authorized Spending Categories</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Section (a)–(f) Election Campaign Financing Act, 2013 · Fifth Schedule</p>
-            </div>
-            <div className="divide-y divide-gray-50">
-              {[
-                { code: 'venues',          name: 'Venues',                      share: '1.5%' },
-                { code: 'publicity',       name: 'Publicity Materials',          share: '4.4%' },
-                { code: 'advertising',     name: 'Advertising & Media',          share: '10.3%' },
-                { code: 'personnel',       name: 'Campaign Personnel',           share: '1.4%' },
-                { code: 'agents',          name: 'Election Agents',              share: '8.5%' },
-                { code: 'transport',       name: 'Transportation',               share: '66.0%' },
-                { code: 'communication',   name: 'Communication',                share: '0.5%' },
-                { code: 'nomination_fees', name: 'Nomination Fees & Charges',    share: '0.9%' },
-                { code: 'security',        name: 'Security',                     share: '1.2%' },
-                { code: 'accommodation',   name: 'Accommodation',                share: '0.1%' },
-                { code: 'administrative',  name: 'Administrative Cost',          share: '5.3%' },
-              ].map((cat, i) => {
-                const catExpenses = expenses.filter((e: any) =>
-                  (e.categoryCode ?? e.iebcCategory ?? '').toLowerCase().includes(cat.code)
-                );
-                const catTotal = catExpenses.reduce((s: number, e: any) => s + Number(e.amount ?? 0), 0);
-                const catLimit = iebcLimitAmount > 0 ? iebcLimitAmount * (parseFloat(cat.share) / 100) : 0;
-                const catPct   = catLimit > 0 ? Math.min(Math.round((catTotal / catLimit) * 100), 100) : 0;
-                return (
-                  <div key={cat.code} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50">
-                    <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                      <span className="text-[9px] font-bold text-gray-500">{i + 1}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm text-gray-900">{cat.name}</p>
-                        <div className="flex items-center gap-3 flex-shrink-0">
-                          <span className="text-xs text-gray-400">{cat.share} of limit</span>
-                          {catTotal > 0 && <span className="text-xs font-semibold text-red-600">{fmt(catTotal)} spent</span>}
-                          {catLimit > 0 && <span className="text-xs text-gray-400">max {fmt(catLimit)}</span>}
+          {/* IEBC Category Breakdown — with status badges & reallocation suggestions */}
+          {(() => {
+            // Aggregate expenses by IEBC category using the mapping
+            const iebcAgg: Record<string, number> = {};
+            for (const exp of expenses) {
+              const code = (exp.categoryCode ?? '').toLowerCase();
+              const iebcKey = EXPENSE_TO_IEBC[code];
+              if (iebcKey) iebcAgg[iebcKey] = (iebcAgg[iebcKey] ?? 0) + Number(exp.amount ?? 0);
+            }
+            const catRows = Object.entries(IEBC_SPENDING_SHARES).map(([key, { name, share }]) => {
+              const limit = iebcLimitAmount > 0 ? iebcLimitAmount * (share / 100) : 0;
+              const spent = iebcAgg[key] ?? 0;
+              const pctVal = limit > 0 ? (spent / limit) * 100 : 0;
+              return { key, name, share, limit, spent, pctVal };
+            });
+            const underCats = catRows.filter(c => c.pctVal < 50 && c.limit > 0).sort((a, b) => a.pctVal - b.pctVal);
+            return (
+              <div className="vc-card p-0 overflow-hidden">
+                <div className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+                  <h3 className="text-sm font-semibold text-gray-900">IEBC Category Breakdown</h3>
+                  <p className="text-xs text-gray-500 mt-0.5">Fifth Schedule · Election Campaign Financing Act, 2013 — proportional limits from gazette</p>
+                </div>
+                <div className="divide-y divide-gray-50">
+                  {catRows.map((cat, i) => {
+                    const status = cat.pctVal >= 100 ? 'OVER' : cat.pctVal >= 70 ? 'WATCH' : 'OK';
+                    const statusBg = status === 'OVER' ? 'bg-red-100 text-red-700' : status === 'WATCH' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700';
+                    const barColor = status === 'OVER' ? 'bg-red-500' : status === 'WATCH' ? 'bg-amber-500' : 'bg-emerald-500';
+                    return (
+                      <div key={cat.key} className="px-4 py-3 hover:bg-gray-50">
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                              <span className="text-[9px] font-bold text-gray-500">{i + 1}</span>
+                            </div>
+                            <p className="text-sm font-medium text-gray-900">{cat.name}</p>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${statusBg}`}>{status}</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs flex-shrink-0">
+                            <span className="text-gray-400">{cat.share}%</span>
+                            <span className="font-semibold text-gray-700">{fmt(cat.spent)}</span>
+                            <span className="text-gray-400">/ {fmt(cat.limit)}</span>
+                          </div>
                         </div>
+                        {cat.limit > 0 && (
+                          <div className="ml-7 w-[calc(100%-1.75rem)]">
+                            <div className="w-full bg-gray-100 rounded-full h-1.5">
+                              <div className={`h-1.5 rounded-full transition-all ${barColor}`}
+                                style={{ width: `${Math.min(cat.pctVal, 100)}%` }} />
+                            </div>
+                          </div>
+                        )}
+                        {status === 'OVER' && underCats.length > 0 && (
+                          <p className="ml-7 text-xs text-red-600 mt-1 flex items-center gap-1">
+                            <ArrowUpRight className="w-3 h-3" />
+                            Over by {fmt(cat.spent - cat.limit)} — consider shifting to {underCats[0].name} ({underCats[0].pctVal.toFixed(0)}% used, {fmt(underCats[0].limit - underCats[0].spent)} headroom)
+                          </p>
+                        )}
                       </div>
-                      {catLimit > 0 && (
-                        <div className="w-full bg-gray-100 rounded-full h-1 mt-1">
-                          <div className={`h-1 rounded-full ${catPct >= 90 ? 'bg-red-500' : catPct >= 70 ? 'bg-amber-500' : 'bg-emerald-500'}`}
-                            style={{ width: `${catPct}%` }} />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Full Ledger Table — debit + credit chronological */}
           <div className="vc-card p-0 overflow-hidden">
@@ -1352,8 +1573,8 @@ function MyBudgetContent(): React.JSX.Element {
       {tab === 'insights' && <CampaignInsights campaign={campaign} budget={budget} categories={categories} expenses={expenses} />}
 
       {/* Modals */}
-      {showExpense && <AddExpenseModal campaignId={campaign.id} onClose={() => setExpense(false)} />}
-      {showUpload && (
+      {showExpense && campaign && <AddExpenseModal campaignId={campaign.id} onClose={() => setExpense(false)} />}
+      {showUpload && campaign && (
         <BudgetUploadModal
           campaignId={campaign.id}
           onClose={() => setUpload(false)}

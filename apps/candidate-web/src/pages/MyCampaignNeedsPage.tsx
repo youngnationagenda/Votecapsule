@@ -509,19 +509,17 @@ function DesignTab({ campaign }: { campaign: any }) {
     enabled: !!campaign?.id,
   });
 
-  if (!campaign) return (
-    <div className="bg-white border border-gray-200 rounded-2xl text-center py-16">
-      <Palette className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-      <p className="text-gray-500 text-sm mb-2">Create a campaign to request AI-generated designs.</p>
-      <a href="/campaign" className="inline-block mt-1 text-sm text-amber-600 hover:underline font-medium">Create your campaign →</a>
-    </div>
-  );
-
   return (
     <div className="space-y-4">
+      {!campaign && (
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+          <p className="text-sm text-amber-700">Create a campaign to request designs and generate AI mockups. <a href="/campaign" className="font-semibold underline hover:text-amber-900">Get started →</a></p>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <p className="text-sm text-gray-500">{designs.length} design request{designs.length !== 1 ? 's' : ''}</p>
-        <button onClick={() => setDesignModal(true)} className="vc-btn-primary inline-flex items-center gap-2 text-sm">
+        <button onClick={() => setDesignModal(true)} disabled={!campaign} className={`vc-btn-primary inline-flex items-center gap-2 text-sm ${!campaign ? 'opacity-50 cursor-not-allowed' : ''}`}>
           <Sparkles className="w-4 h-4" /> New Design
         </button>
       </div>
@@ -544,7 +542,7 @@ function DesignTab({ campaign }: { campaign: any }) {
             <div key={d.id} className="bg-white border border-gray-200 rounded-xl p-0 overflow-hidden hover:shadow-md transition-shadow">
               <div className="h-32 bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center">
                 {d.previewUrl ? (
-                  <img src={d.previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                  <img src={d.previewUrl} alt="Preview" className="w-full h-full object-cover" crossOrigin="anonymous" />
                 ) : (
                   <FileImage className="w-10 h-10 text-gray-300" />
                 )}
@@ -568,7 +566,7 @@ function DesignTab({ campaign }: { campaign: any }) {
         </div>
       )}
 
-      {showDesignModal && <CreateDesignModal campaignId={campaign.id} onClose={() => setDesignModal(false)} />}
+      {showDesignModal && campaign && <CreateDesignModal campaignId={campaign.id} onClose={() => setDesignModal(false)} />}
     </div>
   );
 }
@@ -581,50 +579,50 @@ function OrdersTab({ campaign }: { campaign: any }) {
     enabled: !!campaign?.id,
   });
 
-  if (!campaign) return (
-    <div className="bg-white border border-gray-200 rounded-2xl text-center py-16">
-      <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-      <p className="text-gray-500 text-sm">Create a campaign to track orders.</p>
-      <a href="/campaign" className="inline-block mt-2 text-sm text-amber-600 hover:underline font-medium">Create your campaign →</a>
-    </div>
-  );
-
-  if (orders.length === 0) return (
-    <div className="bg-white border border-gray-200 rounded-2xl text-center py-12">
-      <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-      <p className="text-gray-500 text-sm mb-2">No orders placed yet.</p>
-      <p className="text-xs text-gray-400 max-w-sm mx-auto">
-        Orders placed from the Supplier Catalogue or through design approvals will appear here for tracking.
-      </p>
-      <a href="/campaign/suppliers" className="inline-block mt-3 text-sm text-amber-600 hover:underline font-medium">Browse Supplier Catalogue →</a>
-    </div>
-  );
-
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-50">
-      {orders.map((o: any) => (
-        <div key={o.id} className="flex items-center gap-3 p-4 hover:bg-gray-50">
-          <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
-            <Package className="w-5 h-5 text-amber-600" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900">{o.materialName ?? o.orderNumber ?? `Order #${o.id?.slice(0,8)}`}</p>
-            <div className="flex items-center gap-3 mt-0.5">
-              <span className="text-xs text-gray-500">Qty: {o.quantity}</span>
-              {o.supplierName && <span className="text-xs text-gray-500">{o.supplierName}</span>}
-              {o.targetDeliveryDate && (
-                <span className="text-xs text-gray-500 flex items-center gap-1">
-                  <Truck className="w-3 h-3" /> {new Date(o.targetDeliveryDate).toLocaleDateString()}
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="text-right flex-shrink-0">
-            {o.totalCost && <p className="text-sm font-bold text-gray-900">KES {Number(o.totalCost).toLocaleString()}</p>}
-          </div>
-          <StatusBadge status={o.productionStatus ?? o.status} />
+    <div className="space-y-4">
+      {!campaign && (
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+          <p className="text-sm text-amber-700">Create a campaign to track your material orders. <a href="/campaign" className="font-semibold underline hover:text-amber-900">Get started →</a></p>
         </div>
-      ))}
+      )}
+      {orders.length === 0 ? (
+        <div className="bg-white border border-gray-200 rounded-2xl text-center py-12">
+          <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+          <p className="text-gray-500 text-sm mb-2">No orders placed yet.</p>
+          <p className="text-xs text-gray-400 max-w-sm mx-auto">
+            Orders placed from the Supplier Catalogue or through design approvals will appear here for tracking.
+          </p>
+          <a href="/campaign/suppliers" className="inline-block mt-3 text-sm text-amber-600 hover:underline font-medium">Browse Supplier Catalogue →</a>
+        </div>
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden divide-y divide-gray-50">
+          {orders.map((o: any) => (
+            <div key={o.id} className="flex items-center gap-3 p-4 hover:bg-gray-50">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center flex-shrink-0">
+                <Package className="w-5 h-5 text-amber-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900">{o.materialName ?? o.orderNumber ?? `Order #${o.id?.slice(0,8)}`}</p>
+                <div className="flex items-center gap-3 mt-0.5">
+                  <span className="text-xs text-gray-500">Qty: {o.quantity}</span>
+                  {o.supplierName && <span className="text-xs text-gray-500">{o.supplierName}</span>}
+                  {o.targetDeliveryDate && (
+                    <span className="text-xs text-gray-500 flex items-center gap-1">
+                      <Truck className="w-3 h-3" /> {new Date(o.targetDeliveryDate).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="text-right flex-shrink-0">
+                {o.totalCost && <p className="text-sm font-bold text-gray-900">KES {Number(o.totalCost).toLocaleString()}</p>}
+              </div>
+              <StatusBadge status={o.productionStatus ?? o.status} />
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

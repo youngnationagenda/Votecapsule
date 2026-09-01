@@ -1,0 +1,146 @@
+"No active campaign found.
+Create a campaign to access IEBC compliance tools.
+[Create your campaign](https://candidate.votecapsule.yna.co.ke/campaign)" sms "No active campaign found.
+[Create your campaign →](https://candidate.votecapsule.yna.co.ke/campaign)  budget "No active campaign found.
+[Create your campaign →](https://candidate.votecapsule.yna.co.ke/campaign), AI generator "AI Image Generator
+Generate campaign posters, banners and branded assets with Stability AI
+Bedrock · Stability AI
+No active campaign found. Create a campaign first to generate and save images."  Campaign Media Library
+Upload and manage your campaign photos, logos, designs, and brand assets
+Upload Files
+No active campaign found. Create a campaign first to upload media."   "Add Campaign Need
+CategoryAll categories
+Material Type *
+Failed to load materials. Check that Campaign service is running."   Why are we creating this rule of you have to create a campaign for you to access the portals and service. Remove this rule such that party admin can see the system without having to create campaign first and so is the candidate admin etc
+
+
+CTO
+
+Good catch — that's a UX anti-pattern. Let me find every page that blocks content behind the campaign gate and fix them all.That's a lot of pages. Let me understand the gating pattern first — how each page checks for campaign.Let me look at the exact blocking patterns in a few key pages to understand how to fix them.I see the pattern — every page has `if (!campaign) return (<full page block>)`. The fix: remove the blocking return, replace with a subtle inline banner, and let the full UI show with empty data. Let me fix both portals in parallel.Remove the "No active campaign" full-page blocking pattern from ALL campaign pages in the candidate portal. Users should see the full UI even without a campaign — show empty data states instead of a wall.
+
+## The Problem
+
+Every campaign page in `D:\Votecapsule\vote-capsule\apps\candidate-web\src\pages\` has code like this that BLOCKS the entire page:
+
+```tsx
+if (!campaign) return (
+  &lt;div className="vc-card text-center py-16"&gt;
+    &lt;Icon className="w-12 h-12 text-gray-300 mx-auto mb-3" /&gt;
+    &lt;p className="text-gray-500"&gt;No active campaign found.&lt;/p&gt;
+    &lt;a href="/campaign" ...&gt;Create your campaign →&lt;/a&gt;
+  &lt;/div&gt;
+);
+```
+
+Some pages also have inline `{!campaign && (` warnings that block sections.
+
+## The Fix
+
+For each page:
+
+1. **Remove the `if (!campaign) return (...)` early return block** — delete the entire block
+2. **Add a subtle inline info banner** inside the main `return (...)` JSX, at the TOP of the `<div className="space-y-5">` (or whatever the outermost wrapper is), BEFORE the header/tabs. This banner appears only when `!campaign`:
+
+```tsx
+{!campaign && (
+  <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+    <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+    <p className="text-sm text-amber-700">Create a campaign to start entering data. <a href="/campaign" className="font-semibold underline hover:text-amber-900">Get started →</a></p>
+  </div>
+)}
+```
+
+3. **Make `campaign.name` references safe** — change `campaign.name` → `campaign?.name ?? ''` anywhere it's used as display text
+4. **Make `campaign.id` safe in header/subtitle** — `campaign?.id` (already done in most places for queries)
+5. **Keep `enabled: !!campaign?.id` on queries** — they already handle no-campaign gracefully by not fetching
+6. **For action buttons that POST data**, add `disabled={!campaign}` and `opacity-50 cursor-not-allowed` when disabled. But ONLY on the primary action buttons (like "Send SMS", "Upload", "Add Event" etc.), NOT on tabs or navigation within the page.
+7. **For inline `{!campaign && (` warning blocks**, remove them entirely if they duplicate what the banner says. If they're inside specific sections (like inside a modal or a form), keep them but make them subtle info text, not big amber warning boxes.
+
+## Files to Fix
+
+Search each file for the blocking pattern and fix it. The affected files are:
+
+### Full-page blockers (these have `if (!campaign) return` patterns):
+1. **MyBudgetPage.tsx** (~line 932) — `if (!campaign) return (...)` before the main return
+2. **MySMSPage.tsx** (~line 71) — `if (!campaign) return (...)`
+3. **MyCampaignCalendarPage.tsx** (~line 240) — `if (!campaign) return (...)`
+4. **MyCampaignTeamPage.tsx** (~line 339) — `if (!campaign) return (...)`
+5. **MyIncidentsPage.tsx** (~line 136) — `if (!campaign) return (...)`
+6. **MyCampaignCompliancePage.tsx** (~line 1776) — `if (!campaign) return (...)`
+7. **MyPrintingDesignPage.tsx** (~line 194) — `if (!campaign) return (...)`
+
+### Inline warning blockers (these have `{!campaign && (` patterns that show big amber warnings):
+8. **MyAIImageGeneratorPage.tsx** (~line 273) — `{!campaign && (` warning block. Remove the warning block. Also fix line 210 where it throws if `!campaign?.id` — instead of throwing, just return early from the generate function with a toast/no-op.
+9. **MyCampaignMediaPage.tsx** (~line 349) — `{!campaign && (` warning block. Remove it.
+10. **MyMaterialsPage.tsx** (~line 518) — `{!campaign && (` warning block. Remove it.
+11. **MyCampaignNeedsPage.tsx** (~lines 515 and 587) — TWO `{!campaign && (` sections. Remove both.
+12. **MySupplierCataloguePage.tsx** (~line 700) — inline campaign link. Remove it.
+
+## Important Notes
+
+- **AlertTriangle** is already imported in most pages. If it's not, add it to the lucide-react import.
+- The candidate portal uses **amber** accent color.
+- Do NOT touch `MyCampaignDashboard.tsx` — that page correctly shows a `<CreateCampaignForm />` component when there are no campaigns, which is the right behavior for the campaign overview page.
+- Read each file first to find the exact blocking pattern, then use targeted Edit operations. Don't rewrite entire files.
+- The `vc-card` class already applies basic card styling, so the banner doesn't need a card wrapper.Remove the "No active campaign" full-page blocking pattern from ALL campaign pages in the party portal. Users should see the full UI even without a campaign — show empty data states instead of a wall.
+
+## The Problem
+
+Every campaign page in `D:\Votecapsule\vote-capsule\apps\party-web\src\pages\` has code that BLOCKS the entire page when there's no campaign (either via `if (!campaign) return` early returns, or big inline warning blocks).
+
+## The Fix
+
+For each page:
+
+1. **Remove the `if (!campaign) return (...)` or `if (!campaignId) return (...)` early return block** — delete the entire block
+2. **Add a subtle inline info banner** inside the main `return (...)` JSX, at the TOP of the outermost wrapper, BEFORE the header/tabs. This banner appears only when `!campaign` (or `!campaignId` for pages that destructure early):
+
+```tsx
+{!campaign && (
+  <div className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-xl px-4 py-3">
+    <AlertTriangle className="w-5 h-5 text-violet-500 flex-shrink-0" />
+    <p className="text-sm text-violet-700">Create a campaign to start entering data. <a href="/campaign/create" className="font-semibold underline hover:text-violet-900">Get started →</a></p>
+  </div>
+)}
+```
+
+Note: party portal uses `/campaign/create` path and **violet** accent color.
+
+3. **Make `campaign.name` references safe** — `campaign?.name ?? ''`
+4. **Keep `enabled: !!campaign?.id` on queries** — already handles no-campaign
+5. **For action buttons that POST data**, add `disabled={!campaign}` and `opacity-50 cursor-not-allowed`
+6. **Remove inline `{!campaign && (` amber warning blocks** entirely
+
+## Files to Fix
+
+Search each file for blocking patterns and fix them. The affected files are:
+
+### Pages with blocking patterns:
+1. **CampaignCompliancePage.tsx** — has a `!campaignId` check that shows "Create a campaign first to access IEBC compliance tracking." Find and fix it.
+2. **CampaignCalendarPage.tsx** (~line 215) — blocks "Add Event" button and shows warning. Remove the blocking, keep the button but disable it when no campaign.
+3. **AIImageGeneratorPage.tsx** (~line 273) — `{!campaign && (` amber warning block. Remove it. Also fix line 210 where it throws if `!campaign?.id` — instead of throwing, return early from the generate function gracefully.
+4. **CampaignMediaLibraryPage.tsx** (~line 349) — `{!campaign && (` amber warning block. Remove it.
+5. **CoordinatorsPage.tsx** (~line 97) — "No active campaign found. Create a campaign first to assign coordinators." Remove the blocking text.
+6. **MaterialsCataloguePage.tsx** (~line 222-226) — "No active campaign" warning block. Remove it.
+7. **CampaignBudgetPage.tsx** — check for any full-page blocking pattern and fix it.
+8. **CampaignTeamsPage.tsx** — check for any blocking pattern and fix it.
+9. **CampaignTasksPage.tsx** — check for any blocking pattern and fix it.
+10. **CampaignSMSPage.tsx** — check for any blocking pattern and fix it.
+
+## Important Notes
+
+- **AlertTriangle** may need to be added to lucide-react imports if not already present.
+- Party portal uses **violet** accent color (bg-violet-50, border-violet-200, text-violet-700, etc.).
+- Party portal campaign creation link is `/campaign/create` (not `/campaign` like candidate).
+- Do NOT touch `CampaignDashboardPage.tsx` — that's the campaign overview page and should keep its create flow.
+- Read each file first to find the exact blocking pattern, then use targeted Edit operations. Don't rewrite entire files.
+- Some party pages use `campaignId` variable instead of `campaign` — handle both patterns.
+
+
+Removing campaign gates (candidate)
+22
+Removing campaign gates (party)
+23
+Removing campaign gates
+
+limit reached

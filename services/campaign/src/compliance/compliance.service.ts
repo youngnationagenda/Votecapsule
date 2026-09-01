@@ -6,11 +6,22 @@
 import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { CampaignAuthorizedPerson }     from './entities/campaign-authorized-person.entity';
-import { CampaignBankAccount }          from './entities/campaign-bank-account.entity';
-import { CampaignSupportingOrg }        from './entities/campaign-supporting-org.entity';
-import { CampaignComplianceReport }     from './entities/campaign-compliance-report.entity';
+import { CampaignAuthorizedPerson }      from './entities/campaign-authorized-person.entity';
+import { CampaignBankAccount }           from './entities/campaign-bank-account.entity';
+import { CampaignSupportingOrg }         from './entities/campaign-supporting-org.entity';
+import { CampaignComplianceReport }      from './entities/campaign-compliance-report.entity';
 import { CampaignComplianceCertificate } from './entities/campaign-compliance-certificate.entity';
+import { CampaignComplianceDocument }    from './entities/campaign-compliance-document.entity';
+
+// ── Required doc codes for compliance score check 7 ──────────
+const CANDIDATE_REQUIRED_CODES = [
+  'ecf1', 'ecf2', 'id_copies', 'bank_statement', 'bank_opening',
+  'ecf5', 'ecf6_prelim', 'ecf6_final', 'receipts',
+];
+const PARTY_REQUIRED_CODES = [
+  'ecf1', 'ecf2', 'ecf3', 'id_copies', 'bank_statement', 'bank_opening',
+  'expenditure_committee', 'ecf5', 'ecf6_prelim', 'ecf6_final', 'receipts',
+];
 
 @Injectable()
 export class ComplianceService {
@@ -32,10 +43,20 @@ export class ComplianceService {
     @InjectRepository(CampaignComplianceCertificate)
     private readonly certRepo: Repository<CampaignComplianceCertificate>,
 
+    @InjectRepository(CampaignComplianceDocument)
+    private readonly docRepo: Repository<CampaignComplianceDocument>,
+
     private readonly dataSource: DataSource,
   ) {}
 
-  // ── Compliance Status (computed score) ───────────────────────
+  // ── Compliance Status (computed score — 7 checks, 100 pts) ───
+  // Check 1: ≥1 authorized person  → +15 pts  (was 17)
+  // Check 2: Bank account           → +15 pts  (was 17)
+  // Check 3: Contributions logged   → +15 pts  (was 17)
+  // Check 4: Spend ≤ IEBC limit     → +15 pts  (was 17)
+  // Check 5: No contributor > 20%   → +14 pts  (was 16)
+  // Check 6: ≥1 report submitted    → +12 pts  (was 16)
+  // Check 7: Required docs uploaded → +14 pts  (NEW — Migration 170)
 
   async getStatus(campaignId: string, tenantId: string): Promise<{
     score: number;
@@ -45,10 +66,12 @@ export class ComplianceService {
     expenditureWithinLimits: boolean;
     singleSourceCompliant: boolean;
     reportsFiledOnTime: boolean;
+    documentsUploaded: boolean;
+    documentsPct: number;
     checklist: Array<{ key: string; label: string; description: string; status: 'complete' | 'pending' | 'overdue' }>;
   }> {
-    // Parallel data fetch
-    const [persons, bank, reports, contribRow, expenseRow] = await Promise.all([
+    // ── Parallel data fetch ─────────────────────────────────────
+    const [persons, bank, reports, contribRow, expenseRow, docs] = await Promise.all([
       this.personRepo.count({ where: { campaignId, tenantId, status: 'active' } }),
       this.bankRepo.findOne({ where: { campaignId, tenantId } }),
       this.reportRepo.find({ where: { campaignId, tenantId } }),
@@ -60,47 +83,113 @@ export class ComplianceService {
         `SELECT COALESCE(SUM(amount),0) AS total FROM campaign_expenses WHERE campaign_id=$1 AND tenant_id=$2`,
         [campaignId, tenantId],
       ).catch(() => [{ total: '0' }]),
+      this.docRepo.find({
+        where: { campaignId, tenantId },
+        select: ['docCode'],
+      }).catch(() => [] as CampaignComplianceDocument[]),
     ]);
 
-    const hasPersons    = persons > 0;
-    const hasBank       = bank?.registered ?? false;
-    const hasContribs   = parseInt(contribRow[0]?.count ?? '0') > 0;
-    const totalSpent    = parseFloat(expenseRow[0]?.total ?? '0');
+    const hasPersons  = persons > 0;
+    const hasBank     = bank?.registered ?? false;
+    const hasContribs = parseInt(contribRow[0]?.count ?? '0') > 0;
+    const totalSpent  = parseFloat(expenseRow[0]?.total ?? '0');
 
-    // Get IEBC limit from budget table
+    // ── IEBC spending limit ─────────────────────────────────────
     const budgetRow = await this.dataSource.query(
       `SELECT iebc_spending_limit FROM campaign_budgets WHERE campaign_id=$1 AND tenant_id=$2 LIMIT 1`,
       [campaignId, tenantId],
     ).catch(() => []);
-    const iebcLimit = parseFloat(budgetRow[0]?.iebc_spending_limit ?? '0');
+    const iebcLimit    = parseFloat(budgetRow[0]?.iebc_spending_limit ?? '0');
     const withinLimits = iebcLimit > 0 ? totalSpent <= iebcLimit : true;
 
-    // Single-source cap: no contributor > 20% of total contributions
+    // ── Single-source 20% cap ───────────────────────────────────
     const contribTotals = await this.dataSource.query(
       `SELECT contributor_name, SUM(amount) AS total FROM campaign_contributions WHERE campaign_id=$1 AND tenant_id=$2 GROUP BY contributor_name`,
       [campaignId, tenantId],
     ).catch(() => []);
-    const totalContribs = contribTotals.reduce((s: number, r: any) => s + parseFloat(r.total ?? 0), 0);
-    const maxSingle     = contribTotals.reduce((m: number, r: any) => Math.max(m, parseFloat(r.total ?? 0)), 0);
+    const totalContribs  = contribTotals.reduce((s: number, r: any) => s + parseFloat(r.total ?? 0), 0);
+    const maxSingle      = contribTotals.reduce((m: number, r: any) => Math.max(m, parseFloat(r.total ?? 0)), 0);
     const singleSourceOk = totalContribs === 0 || (maxSingle / totalContribs) <= 0.20;
 
-    // Reports: at least one submitted
+    // ── Reports ─────────────────────────────────────────────────
     const reportsOk = reports.some((r) => ['submitted', 'compliant', 'under_review'].includes(r.status));
 
-    const checks   = [hasPersons, hasBank, hasContribs, withinLimits, singleSourceOk, reportsOk];
-    const passed   = checks.filter(Boolean).length;
-    const score    = Math.round((passed / checks.length) * 100);
+    // ── Check 7: Required compliance documents ──────────────────
+    const uploadedSet        = new Set((docs as CampaignComplianceDocument[]).map((d) => d.docCode));
+    const requiredCodes      = CANDIDATE_REQUIRED_CODES; // default to candidate; party also passes here
+    const uploadedRequired   = requiredCodes.filter((c) => uploadedSet.has(c)).length;
+    const docPct             = Math.round((uploadedRequired / requiredCodes.length) * 100);
+    const docsOk             = uploadedRequired === requiredCodes.length;
+
+    // ── Weighted scoring (7 checks × adjusted pts = 100) ────────
+    const weightedScore =
+      (hasPersons    ? 15 : 0) +
+      (hasBank       ? 15 : 0) +
+      (hasContribs   ? 15 : 0) +
+      (withinLimits  ? 15 : 0) +
+      (singleSourceOk ? 14 : 0) +
+      (reportsOk     ? 12 : 0) +
+      Math.round(docPct * 0.14); // 14 pts × document completion ratio
+
+    const score = Math.min(weightedScore, 100);
 
     const checklist = [
-      { key: 'authorized_persons', label: 'Authorized Person(s) Registered', description: 'At least one authorized person registered with IEBC (Form ECF 1)', status: (hasPersons ? 'complete' : 'pending') as 'complete' | 'pending' },
-      { key: 'bank_account',       label: 'Campaign Financing Account Opened', description: 'Dedicated bank account registered per Regulation 11', status: (hasBank ? 'complete' : 'pending') as 'complete' | 'pending' },
-      { key: 'contributions',      label: 'Contribution Records Updated', description: 'All contributions logged and receipted per Regulation 12', status: (hasContribs ? 'complete' : 'pending') as 'complete' | 'pending' },
-      { key: 'spending_limit',     label: 'Expenditure Within IEBC Limit', description: `${totalSpent.toLocaleString()} KES spent of ${iebcLimit.toLocaleString()} KES limit`, status: (withinLimits ? 'complete' : 'overdue') as 'complete' | 'overdue' },
-      { key: 'single_source',      label: 'Single-Source Cap Compliant (20%)', description: 'No single contributor exceeds 20% of total contributions (Section 12(2))', status: (singleSourceOk ? 'complete' : 'overdue') as 'complete' | 'overdue' },
-      { key: 'reports',            label: 'Reports Filed on Time', description: 'Preliminary & Final reports submitted (Form ECF 6)', status: (reportsOk ? 'complete' : 'pending') as 'complete' | 'pending' },
+      {
+        key:         'authorized_persons',
+        label:       'Authorized Person(s) Registered',
+        description: 'At least one authorized person registered with IEBC (Form ECF 1)',
+        status:      (hasPersons ? 'complete' : 'pending') as 'complete' | 'pending',
+      },
+      {
+        key:         'bank_account',
+        label:       'Campaign Financing Account Opened',
+        description: 'Dedicated bank account registered per Regulation 11',
+        status:      (hasBank ? 'complete' : 'pending') as 'complete' | 'pending',
+      },
+      {
+        key:         'contributions',
+        label:       'Contribution Records Updated',
+        description: 'All contributions logged and receipted per Regulation 12',
+        status:      (hasContribs ? 'complete' : 'pending') as 'complete' | 'pending',
+      },
+      {
+        key:         'spending_limit',
+        label:       'Expenditure Within IEBC Limit',
+        description: `KES ${totalSpent.toLocaleString()} spent of KES ${iebcLimit.toLocaleString()} limit`,
+        status:      (withinLimits ? 'complete' : 'overdue') as 'complete' | 'overdue',
+      },
+      {
+        key:         'single_source',
+        label:       'Single-Source Cap Compliant (20%)',
+        description: 'No single contributor exceeds 20% of total contributions (Section 12(2))',
+        status:      (singleSourceOk ? 'complete' : 'overdue') as 'complete' | 'overdue',
+      },
+      {
+        key:         'reports',
+        label:       'Reports Filed on Time',
+        description: 'Preliminary & Final reports submitted (Form ECF 6)',
+        status:      (reportsOk ? 'complete' : 'pending') as 'complete' | 'pending',
+      },
+      {
+        key:         'documents',
+        label:       'Required Compliance Documents Uploaded',
+        description: `${uploadedRequired} of ${requiredCodes.length} required documents uploaded (${docPct}%)`,
+        status:      (docsOk ? 'complete' : 'pending') as 'complete' | 'pending',
+      },
     ];
 
-    return { score, authorizedPersons: hasPersons, bankAccountOpened: hasBank, contributionsUpdated: hasContribs, expenditureWithinLimits: withinLimits, singleSourceCompliant: singleSourceOk, reportsFiledOnTime: reportsOk, checklist };
+    return {
+      score,
+      authorizedPersons:       hasPersons,
+      bankAccountOpened:       hasBank,
+      contributionsUpdated:    hasContribs,
+      expenditureWithinLimits: withinLimits,
+      singleSourceCompliant:   singleSourceOk,
+      reportsFiledOnTime:      reportsOk,
+      documentsUploaded:       docsOk,
+      documentsPct:            docPct,
+      checklist,
+    };
   }
 
   // ── Authorized Persons ────────────────────────────────────────

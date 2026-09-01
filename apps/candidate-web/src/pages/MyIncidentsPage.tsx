@@ -131,22 +131,20 @@ function MyIncidentsContent(): React.JSX.Element {
   const filtered = filter === 'all' ? incidents : incidents.filter((i: any) => i.status === filter || i.severity === filter);
   const openCount = incidents.filter((i: any) => !['resolved','closed'].includes(i.status)).length;
 
-  if (!campaign) return (
-    <div className="vc-card text-center py-16">
-      <Flag className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-      <p className="text-gray-500">No active campaign found.</p>
-      <a href="/campaign" className="inline-block mt-3 text-sm text-amber-600 hover:underline font-medium">Create your campaign →</a>
-    </div>
-  );
-
   return (
     <div className="space-y-5">
+      {!campaign && (
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+          <p className="text-sm text-amber-700">Create a campaign to start reporting incidents. <a href="/campaign" className="font-semibold underline hover:text-amber-900">Get started →</a></p>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Campaign Incidents</h2>
           <p className="text-sm text-gray-500 mt-1">{openCount > 0 ? `${openCount} open incident${openCount !== 1 ? 's' : ''}` : 'No open incidents'}</p>
         </div>
-        <button onClick={() => setModal(true)} className="vc-btn-primary inline-flex items-center gap-2 text-sm">
+        <button onClick={() => setModal(true)} disabled={!campaign} className={`vc-btn-primary inline-flex items-center gap-2 text-sm ${!campaign ? 'opacity-50 cursor-not-allowed' : ''}`}>
           <Plus className="w-4 h-4" /> Report
         </button>
       </div>
@@ -234,7 +232,7 @@ function MyIncidentsContent(): React.JSX.Element {
         </div>
       )}
 
-      {showModal && <ReportIncidentModal campaignId={campaign.id} onClose={() => setModal(false)} />}
+      {showModal && campaign && <ReportIncidentModal campaignId={campaign.id} onClose={() => setModal(false)} />}
     </div>
   );
 }

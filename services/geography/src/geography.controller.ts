@@ -6,7 +6,7 @@ import {
   Controller, Get, Param, Query, HttpCode, BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam, ApiQuery } from '@nestjs/swagger';
-import { GeographyService, GeographyStats } from './geography.service';
+import { GeographyService, GeographyStats, CountySummary, ConstituencySummary, WardSummary } from './geography.service';
 import { StationType } from './entities/polling-station.entity';
 
 @ApiTags('NEC Geography')
@@ -29,6 +29,17 @@ export class GeographyController {
   @ApiQuery({ name: 'includeSpecial', required: false, type: Boolean })
   getCounties(@Query('includeSpecial') includeSpecial?: string) {
     return this.geo.getCounties(includeSpecial === 'true');
+  }
+
+  /**
+   * GET /geography/counties/summary
+   * All 47 counties with constituency_count, ward_count, polling_station_count,
+   * and registered_voters (bottom-up synced from polling stations — migration 172).
+   */
+  @Get('counties/summary')
+  @ApiOperation({ summary: 'All 47 counties with constituency, ward & PS counts + voters' })
+  getCountySummary(): Promise<CountySummary[]> {
+    return this.geo.getCountyStats();
   }
 
   @Get('counties/:code')
@@ -54,6 +65,18 @@ export class GeographyController {
     return this.geo.getConstituencies(countyCode);
   }
 
+  /**
+   * GET /geography/constituencies/summary
+   * All 290 constituencies with ward_count, polling_station_count, registered_voters,
+   * and parent county info. Optionally filter by countyCode.
+   */
+  @Get('constituencies/summary')
+  @ApiOperation({ summary: 'All 290 constituencies with ward & PS counts + voters' })
+  @ApiQuery({ name: 'countyCode', required: false })
+  getConstituencySummary(@Query('countyCode') countyCode?: string): Promise<ConstituencySummary[]> {
+    return this.geo.getConstituencySummaries(countyCode);
+  }
+
   @Get('constituencies/:code')
   @ApiOperation({ summary: 'Get constituency by IEBC code (e.g. 001)' })
   @ApiParam({ name: 'code', example: '001' })
@@ -75,6 +98,23 @@ export class GeographyController {
   @ApiQuery({ name: 'constituencyCode', required: false })
   getWards(@Query('constituencyCode') constituencyCode?: string) {
     return this.geo.getWards(constituencyCode);
+  }
+
+  /**
+   * GET /geography/wards/summary
+   * All 1,447 wards with polling_station_count, registration_centre_count,
+   * registered_voters, and parent constituency+county. Filter by
+   * constituencyCode or countyCode.
+   */
+  @Get('wards/summary')
+  @ApiOperation({ summary: 'All wards with PS & RC counts + voters, with parent info' })
+  @ApiQuery({ name: 'constituencyCode', required: false })
+  @ApiQuery({ name: 'countyCode', required: false })
+  getWardSummary(
+    @Query('constituencyCode') constituencyCode?: string,
+    @Query('countyCode')       countyCode?: string,
+  ): Promise<WardSummary[]> {
+    return this.geo.getWardSummaries(constituencyCode, countyCode);
   }
 
   @Get('wards/:code')

@@ -117,7 +117,7 @@ function UploadZone({
       >
         {preview ? (
           <div className="space-y-2">
-            <img src={preview} alt={label} className="mx-auto max-h-32 rounded-lg object-contain" />
+            <img src={preview} alt={label} className="mx-auto max-h-32 rounded-lg object-contain" crossOrigin="anonymous" />
             <p className="text-xs text-gray-500">Click or drop to replace</p>
           </div>
         ) : (
@@ -330,7 +330,7 @@ function PartyProfilePageContent(): React.JSX.Element {
           style={{ background: `linear-gradient(135deg, ${branding.primaryColor}, ${branding.secondaryColor})` }}
         >
           {branding.logoUrl ? (
-            <img src={branding.logoUrl} alt="Logo" className="w-12 h-12 rounded-lg object-contain bg-white/20 p-1" />
+            <img src={branding.logoUrl} alt="Logo" className="w-12 h-12 rounded-lg object-contain bg-white/20 p-1" crossOrigin="anonymous" />
           ) : (
             <div className="w-12 h-12 rounded-lg bg-white/20 flex items-center justify-center">
               <Building2 className="w-6 h-6 text-white/80" />

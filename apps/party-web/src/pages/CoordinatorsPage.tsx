@@ -91,11 +91,9 @@ function CoordinatorsPageContent(): React.JSX.Element {
       </div>
 
       {!activeCampaign && (
-        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <MapPin className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-          <p className="text-sm text-amber-800">
-            No active campaign found. Create a campaign first to assign coordinators.
-          </p>
+        <div className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-xl px-4 py-3">
+          <MapPin className="w-5 h-5 text-violet-500 flex-shrink-0" />
+          <p className="text-sm text-violet-700">Create a campaign to assign and manage coordinators. <a href="/campaign/create" className="font-semibold underline hover:text-violet-900">Get started →</a></p>
         </div>
       )}
 

@@ -3,14 +3,20 @@
 // Endpoints for IEBC Campaign Financing compliance tracking
 // ============================================================
 import {
-  Controller, Get, Post, Delete, Param, Body, Headers,
+  Controller, Get, Post, Delete, Patch, Param, Body, Headers,
   HttpCode, HttpStatus, BadRequestException, ParseUUIDPipe,
+  UseInterceptors, UploadedFile, Query,
 } from '@nestjs/common';
-import { ComplianceService } from './compliance.service';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ComplianceService }         from './compliance.service';
+import { ComplianceDocumentService } from './compliance-document.service';
 
 @Controller('campaigns/:campaignId/compliance')
 export class ComplianceController {
-  constructor(private readonly service: ComplianceService) {}
+  constructor(
+    private readonly service:     ComplianceService,
+    private readonly docService:  ComplianceDocumentService,
+  ) {}
 
   // ── GET /campaigns/:id/compliance ────────────────────────────
   // Returns computed compliance score + checklist
@@ -181,5 +187,128 @@ export class ComplianceController {
   ) {
     if (!tid) throw new BadRequestException('X-Tenant-Id required');
     return this.service.getCandidateCompliance(cid, tid);
+  }
+
+  // ── Compliance Documents (Priority 11 — S1/S2) ───────────────
+
+  /**
+   * GET /campaigns/:id/compliance/documents
+   * List all uploaded compliance documents with signed GET URLs.
+   */
+  @Get('documents')
+  listDocuments(
+    @Param('campaignId', ParseUUIDPipe) cid: string,
+    @Headers('x-tenant-id') tid: string,
+  ) {
+    if (!tid) throw new BadRequestException('X-Tenant-Id required');
+    return this.docService.listDocuments(cid, tid).then((data) => ({ data }));
+  }
+
+  /**
+   * POST /campaigns/:id/compliance/documents
+   * Upload a compliance document (multipart/form-data).
+   * Fields: file (required), docCode (required).
+   */
+  @Post('documents')
+  @HttpCode(HttpStatus.CREATED)
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadDocument(
+    @Param('campaignId', ParseUUIDPipe) cid: string,
+    @Body() body: any,
+    @Headers('x-tenant-id') tid: string,
+    @Headers('x-user-id')   uid: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    @UploadedFile()         file: any,
+  ) {
+    if (!tid || !uid) throw new BadRequestException('X-Tenant-Id and X-User-Id required');
+    if (!file)       throw new BadRequestException('file is required');
+
+    const docCode = body.docCode || body.doc_code;
+    if (!docCode)    throw new BadRequestException('docCode is required');
+
+    const result = await this.docService.uploadDocument(
+      cid, tid, uid,
+      docCode,
+      file.originalname,
+      file.mimetype,
+      file.buffer,
+    );
+    return { data: result };
+  }
+
+  /**
+   * GET /campaigns/:id/compliance/documents/:docCode/url
+   * Get a signed download URL for a specific compliance document.
+   */
+  @Get('documents/:docCode/url')
+  async getDocumentUrl(
+    @Param('campaignId', ParseUUIDPipe) cid: string,
+    @Param('docCode')                   docCode: string,
+    @Headers('x-tenant-id')             tid: string,
+  ) {
+    if (!tid) throw new BadRequestException('X-Tenant-Id required');
+    const result = await this.docService.getDocumentUrl(cid, tid, docCode);
+    return { data: result };
+  }
+
+  /**
+   * DELETE /campaigns/:id/compliance/documents/:docCode
+   * Delete a compliance document.
+   */
+  @Delete('documents/:docCode')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteDocument(
+    @Param('campaignId', ParseUUIDPipe) cid: string,
+    @Param('docCode')                   docCode: string,
+    @Headers('x-tenant-id')             tid: string,
+  ) {
+    if (!tid) throw new BadRequestException('X-Tenant-Id required');
+    await this.docService.deleteDocument(cid, tid, docCode);
+  }
+
+  /**
+   * PATCH /campaigns/:id/compliance/documents/:docCode/review
+   * Authority/admin endpoint — verify or reject a compliance document.
+   * Body: { status: 'verified' | 'rejected', notes?: string }
+   * Updates compliance score (verified docs count fully; rejected reset to pending).
+   */
+  @Patch('documents/:docCode/review')
+  async reviewDocument(
+    @Param('campaignId', ParseUUIDPipe) cid: string,
+    @Param('docCode')                   docCode: string,
+    @Body()                             dto: any,
+    @Headers('x-tenant-id')             tid: string,
+    @Headers('x-user-id')               uid: string,
+  ) {
+    if (!tid) throw new BadRequestException('X-Tenant-Id required');
+    if (!dto.status || !['verified', 'rejected', 'pending'].includes(dto.status)) {
+      throw new BadRequestException('status must be: verified | rejected | pending');
+    }
+    const result = await this.docService.reviewDocument(cid, tid, docCode, dto.status, dto.notes ?? null, uid);
+    return { data: result };
+  }
+
+  /**
+   * GET /compliance/documents/pending
+   * Tenant-level: list all pending compliance documents across ALL campaigns.
+   * Used by Authority portal reviewer page.
+   * Query: status (default: 'pending'), page, limit
+   */
+  @Get('documents/pending')
+  async listPendingDocuments(
+    @Param('campaignId', ParseUUIDPipe) cid: string,
+    @Headers('x-tenant-id')             tid: string,
+    @Query('status')                    status?: string,
+    @Query('page')                      page?: string,
+    @Query('limit')                     limit?: string,
+  ) {
+    if (!tid) throw new BadRequestException('X-Tenant-Id required');
+    const result = await this.docService.listAllDocumentsForTenant(
+      tid,
+      status ?? 'pending',
+      parseInt(page ?? '1', 10),
+      parseInt(limit ?? '50', 10),
+    );
+    return result;
   }
 }

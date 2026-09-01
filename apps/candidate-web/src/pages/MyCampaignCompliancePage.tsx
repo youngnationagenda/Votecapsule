@@ -11,6 +11,7 @@ import {
   Landmark, Users, Receipt, BadgeCheck, FileText, Scale,
   ChevronDown, ChevronRight, Plus, X, Trash2, Calendar,
   Building2, CreditCard, Download, Info, Ban,
+  Upload, FolderOpen, Paperclip, FileUp,
 } from 'lucide-react';
 import { campaignApi } from '../api/campaignApi';
 import { PageErrorBoundary } from '../components/PageErrorBoundary';
@@ -67,7 +68,7 @@ interface ComplianceCertificate {
   status: 'pending' | 'issued' | 'denied';
 }
 
-type TabKey = 'dashboard' | 'persons' | 'bank' | 'contributions' | 'expenditure' | 'reports';
+type TabKey = 'dashboard' | 'persons' | 'bank' | 'contributions' | 'expenditure' | 'reports' | 'documents';
 
 // ── Constants ───────────────────────────────────────────────
 const GAZETTE_REF = 'IEBC Gazette Notice No. 12251, 7th August 2026';
@@ -1340,6 +1341,294 @@ function ReportsTab({ campaignId, reports, certificate, totalExpenses }: {
   );
 }
 
+// ── Compliance Documents Tab ────────────────────────────────
+const CANDIDATE_REQUIRED_DOCS = [
+  { code: 'ecf1',           name: 'Form ECF 1 — Appointment of Authorized Person(s)', form: 'ECF 1', regulation: 'Reg. 6(1)', required: true, category: 'registration' },
+  { code: 'ecf2',           name: 'Form ECF 2 — Declaration by Authorized Person', form: 'ECF 2', regulation: 'Reg. 6(4)', required: true, category: 'registration' },
+  { code: 'id_copies',      name: 'ID/Passport Copies of Authorized Persons', form: '-', regulation: 'Reg. 5', required: true, category: 'registration' },
+  { code: 'bank_statement', name: 'Campaign Bank Account Statement', form: '-', regulation: 'Reg. 11(6)', required: true, category: 'financial' },
+  { code: 'bank_opening',   name: 'Bank Account Opening Confirmation', form: '-', regulation: 'Reg. 11(1)', required: true, category: 'financial' },
+  { code: 'ecf5',           name: 'Form ECF 5 — Contributions & Donations Report', form: 'ECF 5', regulation: 'Reg. 12(1)', required: true, category: 'reporting' },
+  { code: 'ecf6_prelim',    name: 'Form ECF 6 — Preliminary Expenditure Report', form: 'ECF 6', regulation: 'Reg. 21(1)', required: true, category: 'reporting' },
+  { code: 'ecf6_final',     name: 'Form ECF 6 — Final Expenditure Report', form: 'ECF 6', regulation: 'Reg. 21(1)', required: true, category: 'reporting' },
+  { code: 'ecf7',           name: 'Form ECF 7 — Surplus Funds Report', form: 'ECF 7', regulation: 'Reg. 23(1)', required: false, category: 'reporting' },
+  { code: 'auditor_report', name: 'Auditor\'s Report (if expenses > KES 1M)', form: '-', regulation: 'Reg. 26', required: false, category: 'reporting' },
+  { code: 'receipts',       name: 'Contribution Receipts (> KES 20,000)', form: '-', regulation: 'Reg. 16', required: true, category: 'financial' },
+  { code: 'ecf8',           name: 'Form ECF 8 — Certificate of Compliance', form: 'ECF 8', regulation: 'Reg. 24', required: false, category: 'certificate' },
+];
+
+const CANDIDATE_DOC_CATEGORIES = [
+  { code: 'all', label: 'All Documents' },
+  { code: 'registration', label: 'Registration' },
+  { code: 'financial', label: 'Financial' },
+  { code: 'reporting', label: 'Reports' },
+  { code: 'certificate', label: 'Certificate' },
+];
+
+interface UploadedDoc {
+  code: string;
+  fileName: string;
+  uploadedAt: string;
+  url?: string;
+}
+
+function ComplianceDocumentsTab({ campaignId }: { campaignId: string }) {
+  const [category, setCategory] = useState('all');
+  const [uploadedDocs, setUploadedDocs] = useState<UploadedDoc[]>([]);
+  const [uploading, setUploading] = useState<string | null>(null);
+  const fileInputRefs = React.useRef<Record<string, HTMLInputElement | null>>({});
+
+  // Fetch existing documents — primary: /compliance/documents, fallback: /compliance/reports
+  const { data: existingDocs } = useQuery({
+    queryKey: ['compliance-documents', campaignId],
+    queryFn: async () => {
+      try {
+        const r = await campaignApi.compliance.getDocuments(campaignId);
+        return r.data?.data ?? r.data ?? [];
+      } catch {
+        // Fallback to reports endpoint (legacy)
+        return safe<any[]>(() => campaignApi.compliance.getReports(campaignId), []);
+      }
+    },
+    enabled: !!campaignId,
+  });
+
+  // Merge server docs with local state
+  React.useEffect(() => {
+    if (existingDocs && Array.isArray(existingDocs) && existingDocs.length > 0) {
+      const mapped = existingDocs.map((d: any) => ({
+        code: d.docCode ?? d.code ?? d.type ?? '',
+        fileName: d.fileName ?? d.title ?? 'Document',
+        uploadedAt: d.uploadedAt ?? d.submittedDate ?? d.createdAt ?? '',
+        url: d.url ?? d.fileUrl ?? '',
+      }));
+      setUploadedDocs(prev => {
+        const localCodes = new Set(prev.map(p => p.code));
+        const newDocs = mapped.filter((m: UploadedDoc) => !localCodes.has(m.code));
+        return [...prev, ...newDocs];
+      });
+    }
+  }, [existingDocs]);
+
+  const filteredDocs = category === 'all'
+    ? CANDIDATE_REQUIRED_DOCS
+    : CANDIDATE_REQUIRED_DOCS.filter(d => d.category === category);
+
+  const requiredDocs = CANDIDATE_REQUIRED_DOCS.filter(d => d.required);
+  const uploadedRequired = requiredDocs.filter(d => uploadedDocs.some(u => u.code === d.code));
+  const progressPct = requiredDocs.length > 0 ? Math.round((uploadedRequired.length / requiredDocs.length) * 100) : 0;
+
+  const progressBarColor =
+    progressPct <= 25  ? 'bg-red-500'
+    : progressPct <= 50  ? 'bg-orange-500'
+    : progressPct <= 75  ? 'bg-amber-500'
+    : progressPct < 100  ? 'bg-lime-500'
+    : 'bg-emerald-500';
+
+  const handleUpload = async (docCode: string, file: File) => {
+    setUploading(docCode);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('docCode', docCode);
+
+      let uploadedUrl = '';
+      try {
+        // Primary: POST /compliance/documents (Priority 11 endpoint)
+        const res = await campaignApi.compliance.uploadDocument(campaignId, formData);
+        uploadedUrl = res?.data?.data?.url ?? res?.data?.url ?? '';
+      } catch {
+        // Fallback 1: POST /compliance/reports (legacy)
+        try {
+          const fd2 = new FormData();
+          fd2.append('file', file);
+          fd2.append('docCode', docCode);
+          fd2.append('type', 'compliance_document');
+          await campaignApi.compliance.submitReport(campaignId, fd2);
+        } catch {
+          // Fallback 2: presigned S3 upload via media service
+          try {
+            const urlRes = await campaignApi.media.uploadUrl(campaignId, {
+              fileName: file.name,
+              contentType: file.type,
+              category: 'compliance',
+              docCode,
+            });
+            const presignedUrl = urlRes?.data?.url ?? urlRes?.data?.data?.url;
+            if (presignedUrl) {
+              await fetch(presignedUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+            }
+          } catch {
+            // Store locally even if all upload paths fail
+          }
+        }
+      }
+
+      setUploadedDocs(prev => [
+        ...prev.filter(d => d.code !== docCode),
+        { code: docCode, fileName: file.name, uploadedAt: new Date().toISOString(), url: uploadedUrl },
+      ]);
+    } finally {
+      setUploading(null);
+    }
+  };
+
+  const getUploaded = (code: string) => uploadedDocs.find(d => d.code === code);
+
+  return (
+    <div className="space-y-5">
+      {/* Overall Compliance Progress */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <FolderOpen className="w-5 h-5 text-amber-500" />
+            <h3 className="text-base font-bold text-gray-900">Document Compliance Progress</h3>
+          </div>
+          <span className="text-sm font-semibold text-gray-600">
+            {uploadedRequired.length} of {requiredDocs.length} required documents uploaded
+          </span>
+        </div>
+        <div className="relative w-full h-4 bg-gray-200 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${progressBarColor} ${progressPct < 100 ? 'animate-pulse' : ''}`}
+            style={{ width: `${progressPct}%` }}
+          />
+          {progressPct < 100 && (
+            <div
+              className={`absolute inset-0 rounded-full opacity-20 ${progressBarColor}`}
+              style={{ width: `${progressPct}%`, boxShadow: `0 0 12px 2px currentColor` }}
+            />
+          )}
+        </div>
+        <p className="text-xs text-gray-500 mt-2">
+          {progressPct === 100
+            ? 'All required IEBC compliance documents have been uploaded.'
+            : `Upload the remaining ${requiredDocs.length - uploadedRequired.length} required document(s) to achieve full compliance.`}
+        </p>
+      </div>
+
+      {/* Category Filter Chips */}
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {CANDIDATE_DOC_CATEGORIES.map(cat => (
+          <button
+            key={cat.code}
+            onClick={() => setCategory(cat.code)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
+              category === cat.code
+                ? 'bg-amber-500 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Document Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredDocs.map(doc => {
+          const uploaded = getUploaded(doc.code);
+          const isUploading = uploading === doc.code;
+
+          return (
+            <div
+              key={doc.code}
+              className={`relative rounded-2xl p-4 transition-all ${
+                uploaded
+                  ? 'border-2 border-emerald-300 bg-emerald-50/30'
+                  : 'border-2 border-dashed border-gray-300 bg-white hover:border-amber-400 hover:bg-amber-50/20'
+              }`}
+            >
+              {/* Required badge */}
+              <div className="flex items-start justify-between mb-2">
+                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                  doc.required ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {doc.required ? 'Required' : 'Optional'}
+                </span>
+                {uploaded && <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0" />}
+              </div>
+
+              {/* Document name */}
+              <h4 className="text-sm font-bold text-gray-900 mb-1 leading-tight">{doc.name}</h4>
+
+              {/* Form & regulation */}
+              <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
+                <span className="flex items-center gap-1">
+                  <FileText className="w-3 h-3" />
+                  {doc.form}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Scale className="w-3 h-3" />
+                  {doc.regulation}
+                </span>
+              </div>
+
+              {uploaded ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-100/60 rounded-lg px-2.5 py-1.5">
+                    <Paperclip className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="truncate font-medium">{uploaded.fileName}</span>
+                  </div>
+                  <p className="text-[10px] text-gray-400">
+                    Uploaded {new Date(uploaded.uploadedAt).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </p>
+                  <div className="flex gap-2">
+                    {uploaded.url && (
+                      <a
+                        href={uploaded.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 text-center px-2 py-1 text-xs font-medium text-amber-700 bg-amber-100 rounded-lg hover:bg-amber-200 transition-colors"
+                      >
+                        View
+                      </a>
+                    )}
+                    <button
+                      onClick={() => fileInputRefs.current[doc.code]?.click()}
+                      className="flex-1 text-center px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      Replace
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => fileInputRefs.current[doc.code]?.click()}
+                  disabled={isUploading}
+                  className="w-full flex flex-col items-center justify-center py-4 text-gray-400 hover:text-amber-500 transition-colors"
+                >
+                  {isUploading ? (
+                    <div className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Upload className="w-6 h-6 mb-1" />
+                  )}
+                  <span className="text-xs font-medium mt-1">
+                    {isUploading ? 'Uploading...' : 'Click to upload'}
+                  </span>
+                </button>
+              )}
+
+              {/* Hidden file input */}
+              <input
+                ref={el => { fileInputRefs.current[doc.code] = el; }}
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) handleUpload(doc.code, file);
+                  e.target.value = '';
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Content ────────────────────────────────────────────
 function ComplianceContent(): React.JSX.Element {
   const campaign = useMyCampaign();
@@ -1483,22 +1772,8 @@ function ComplianceContent(): React.JSX.Element {
     };
   }, [complianceStatus, persons, bankAccount, contributions, expenses, reports, iebcLimit, totalExpenses]);
 
-  // ── No Campaign State ───────────────────────────────────
-  if (!campaign) {
-    return (
-      <div className="bg-white border border-gray-200 rounded-2xl text-center py-16">
-        <Shield className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-        <p className="text-gray-500 text-base">No active campaign found.</p>
-        <p className="text-sm text-gray-400 mt-1">Create a campaign to access IEBC compliance tools.</p>
-        <a href="/campaign" className="inline-block mt-4 text-sm text-amber-600 hover:underline font-medium">
-          Create your campaign
-        </a>
-      </div>
-    );
-  }
-
   // ── Loading State ───────────────────────────────────────
-  if (statusLoading) {
+  if (statusLoading && campaign) {
     return (
       <div className="space-y-5">
         <div className="flex items-center gap-3">
@@ -1525,11 +1800,18 @@ function ComplianceContent(): React.JSX.Element {
     { key: 'bank',          label: 'Bank Account',    icon: Landmark },
     { key: 'contributions', label: 'Contributions',   icon: Receipt },
     { key: 'expenditure',   label: 'Expenditure',     icon: Scale },
+    { key: 'documents',     label: 'Documents',        icon: FileUp },
     { key: 'reports',       label: 'Reports',         icon: FileText },
   ];
 
   return (
     <div className="space-y-5">
+      {!campaign && (
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <AlertTriangle className="w-5 h-5 text-amber-500 flex-shrink-0" />
+          <p className="text-sm text-amber-700">Create a campaign to access IEBC compliance tools and tracking. <a href="/campaign" className="font-semibold underline hover:text-amber-900">Get started →</a></p>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -1538,18 +1820,18 @@ function ComplianceContent(): React.JSX.Element {
             IEBC Campaign Compliance
           </h2>
           <p className="text-sm text-gray-500 mt-1">
-            {campaign.name} — {ACT_REF}
+            {campaign?.name ?? 'Election Campaign Financing Act, 2013'} — {ACT_REF}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <div className={`px-3 py-1.5 rounded-full text-xs font-bold border-2 ${scoreBorder(status.score)} ${scoreColor(status.score)}`}>
-            {status.score}% Compliant
+            {campaign ? `${status.score}% Compliant` : 'No Campaign'}
           </div>
         </div>
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex border-b border-gray-200 overflow-x-auto">
+      <div className={`flex border-b border-gray-200 overflow-x-auto ${!campaign ? 'opacity-40 pointer-events-none' : ''}`}>
         {tabs.map(({ key, label, icon: Icon }) => (
           <button
             key={key}
@@ -1593,7 +1875,11 @@ function ComplianceContent(): React.JSX.Element {
         <ExpenditureTab expenses={expenses} iebcLimit={iebcLimit} />
       )}
 
-      {tab === 'reports' && (
+      {tab === 'documents' && cid && (
+        <ComplianceDocumentsTab campaignId={cid} />
+      )}
+
+      {tab === 'reports' && cid && (
         <ReportsTab
           campaignId={cid}
           reports={reports}

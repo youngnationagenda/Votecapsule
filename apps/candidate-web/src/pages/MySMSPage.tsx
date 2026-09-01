@@ -68,16 +68,14 @@ function MySMSContent(): React.JSX.Element {
     { value: 'ward_team',         label: 'Specific Ward Team' },
   ];
 
-  if (!campaign) return (
-    <div className="vc-card text-center py-16">
-      <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-      <p className="text-gray-500">No active campaign found.</p>
-      <a href="/campaign" className="inline-block mt-3 text-sm text-amber-600 hover:underline font-medium">Create your campaign →</a>
-    </div>
-  );
-
   return (
     <div className="space-y-5">
+      {!campaign && (
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+          <MessageSquare className="w-5 h-5 text-amber-500 flex-shrink-0" />
+          <p className="text-sm text-amber-700">Create a campaign to start sending messages. <a href="/campaign" className="font-semibold underline hover:text-amber-900">Get started →</a></p>
+        </div>
+      )}
       {/* Header */}
       <div>
         <h2 className="text-xl font-bold text-gray-900">Campaign SMS</h2>
@@ -215,8 +213,8 @@ function MySMSContent(): React.JSX.Element {
                     : { audience_type: compose.audienceType },
                 });
               }}
-              disabled={sendMut.isPending || !compose.messageContent.trim()}
-              className="w-full vc-btn-primary flex items-center justify-center gap-2"
+              disabled={sendMut.isPending || !compose.messageContent.trim() || !campaign}
+              className={`w-full vc-btn-primary flex items-center justify-center gap-2 ${!campaign ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               <Send className="w-4 h-4" />
               {sendMut.isPending ? 'Sending…' : 'Send Message'}

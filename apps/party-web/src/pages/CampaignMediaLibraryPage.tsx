@@ -203,7 +203,7 @@ function MediaCard({
           onClick={() => getUrl().then((u) => { if (u) { setUrl(u); setPreview(true); } })}
         >
           {(item.thumbnailUrl ?? url) ? (
-            <img
+            <img crossOrigin="anonymous"
               src={item.thumbnailUrl ?? url}
               alt={item.fileName ?? item.description ?? 'media'}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
@@ -269,7 +269,7 @@ function MediaCard({
             <button onClick={() => setPreview(false)} className="absolute -top-10 right-0 text-white opacity-70 hover:opacity-100">
               <X className="w-6 h-6" />
             </button>
-            <img src={url} alt={item.fileName ?? 'preview'} className="w-full rounded-2xl shadow-2xl max-h-[80vh] object-contain bg-gray-900" />
+            <img src={url} alt={item.fileName ?? 'preview'} className="w-full rounded-2xl shadow-2xl max-h-[80vh] object-contain bg-gray-900" crossOrigin="anonymous" />
             <div className="mt-3 flex items-center justify-between">
               <p className="text-white/70 text-sm">{item.fileName ?? 'Untitled'}</p>
               <div className="flex gap-2">
@@ -331,7 +331,8 @@ function CampaignMediaLibraryContent(): React.JSX.Element {
         </div>
         <button
           onClick={() => setUpload(!showUpload)}
-          className="vc-btn-primary inline-flex items-center gap-2 text-sm"
+          disabled={!campaign}
+          className={`vc-btn-primary inline-flex items-center gap-2 text-sm ${!campaign ? 'opacity-50 cursor-not-allowed' : ''}`}
         >
           <Plus className="w-4 h-4" /> Upload Files
         </button>
@@ -347,9 +348,9 @@ function CampaignMediaLibraryContent(): React.JSX.Element {
       )}
 
       {!campaign && (
-        <div className="bg-violet-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-violet-600 mt-0.5 flex-shrink-0" />
-          <p className="text-sm text-amber-800">No active campaign found. Create a campaign first to upload media.</p>
+        <div className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-xl px-4 py-3">
+          <AlertTriangle className="w-5 h-5 text-violet-500 flex-shrink-0" />
+          <p className="text-sm text-violet-700">Create a campaign to upload and organise your media library. <a href="/campaign/create" className="font-semibold underline hover:text-violet-900">Get started →</a></p>
         </div>
       )}
 

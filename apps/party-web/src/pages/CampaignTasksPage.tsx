@@ -36,12 +36,12 @@ function CampaignTasksContent(): React.JSX.Element {
   });
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => campaignApi.tasks.create(campaign.id, data),
+    mutationFn: (data: any) => campaign ? campaignApi.tasks.create(campaign.id, data) : Promise.reject(new Error('no-campaign')),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['campaign-tasks'] }); setCreate(false); },
   });
 
   const statusMutation = useMutation({
-    mutationFn: ({ id, status }: any) => campaignApi.tasks.updateStatus(campaign.id, id, status),
+    mutationFn: ({ id, status }: any) => campaign ? campaignApi.tasks.updateStatus(campaign.id, id, status) : Promise.reject(new Error('no-campaign')),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['campaign-tasks'] }),
   });
 
@@ -52,12 +52,18 @@ function CampaignTasksContent(): React.JSX.Element {
 
   return (
     <div className="space-y-6">
+      {!campaign && (
+        <div className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-xl px-4 py-3">
+          <AlertTriangle className="w-5 h-5 text-violet-500 flex-shrink-0" />
+          <p className="text-sm text-violet-700">Create a campaign to start managing tasks. <a href="/campaign/create" className="font-semibold underline hover:text-violet-900">Get started →</a></p>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Campaign Tasks</h2>
           <p className="text-sm text-gray-500 mt-1">Track and assign campaign activities</p>
         </div>
-        <button onClick={() => setCreate(true)} className="vc-btn-primary inline-flex items-center gap-2 text-sm">
+        <button onClick={() => setCreate(true)} disabled={!campaign} className={`vc-btn-primary inline-flex items-center gap-2 text-sm ${!campaign ? 'opacity-50 cursor-not-allowed' : ''}`}>
           <Plus className="w-4 h-4" /> Add Task
         </button>
       </div>

@@ -11,16 +11,20 @@ import { CampaignService }      from './campaign.service';
 import { CreateCampaignDto }    from './dto/create-campaign.dto';
 import { UpdateCampaignDto }    from './dto/update-campaign.dto';
 import { CampaignStatus }       from './entities/campaign.entity';
+import { BudgetAutoService }    from '../budget/budget-auto.service';
 
 @Controller('campaigns')
 export class CampaignController {
-  constructor(private readonly service: CampaignService) {}
+  constructor(
+    private readonly service:     CampaignService,
+    private readonly budgetAuto:  BudgetAutoService,
+  ) {}
 
   // ── Create ────────────────────────────────────────────────────
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  create(
+  async create(
     @Body() dto: CreateCampaignDto,
     @Headers('x-tenant-id')      tenantId: string,
     @Headers('x-user-id')        userId: string,
@@ -47,11 +51,20 @@ export class CampaignController {
       (CANDIDATE_ROLES.includes((userRole || '').toUpperCase()) ? userId : null) ||
       null;
 
-    return this.service.create({
+    const campaign = await this.service.create({
       ...dto,
       tenantId:    effectiveTenantId,
       candidateId: effectiveCandidateId ?? undefined,
     }, userId);
+
+    // Auto-turbulate budget: non-blocking — resolve IEBC limit + seed categories
+    // Fires after response is returned so campaign creation is never delayed
+    setImmediate(() => {
+      this.budgetAuto.turbulateForCampaign(campaign.id, effectiveTenantId)
+        .catch(() => { /* non-fatal — budget can be turbulated manually */ });
+    });
+
+    return campaign;
   }
 
   // ── List All ──────────────────────────────────────────────────
@@ -104,17 +117,27 @@ export class CampaignController {
   // ── Update ────────────────────────────────────────────────────
 
   @Put(':id')
-  update(
+  async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateCampaignDto,
     @Headers('x-tenant-id')      tenantId: string,
     @Headers('x-platform-admin') platformAdmin: string,
   ) {
     if (platformAdmin === 'true') {
-      return this.service.updateGlobal(id, dto);
+      const updated = await this.service.updateGlobal(id, dto);
+      setImmediate(() => {
+        this.budgetAuto.turbulateForCampaign(updated.id, updated.tenantId)
+          .catch(() => {});
+      });
+      return updated;
     }
     if (!tenantId) throw new BadRequestException('X-Tenant-Id required');
-    return this.service.update(id, tenantId, dto);
+    const updated = await this.service.update(id, tenantId, dto);
+    setImmediate(() => {
+      this.budgetAuto.turbulateForCampaign(updated.id, tenantId)
+        .catch(() => {});
+    });
+    return updated;
   }
 
   // ── Update Status ─────────────────────────────────────────────

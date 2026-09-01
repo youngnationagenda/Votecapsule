@@ -128,6 +128,7 @@ export function MaterialColorModal({
                     src={material.thumbnailUrl}
                     alt={material.name}
                     className="w-full h-full object-cover"
+                    crossOrigin="anonymous"
                   />
                   {/* Colour overlay using CSS blend mode */}
                   <div

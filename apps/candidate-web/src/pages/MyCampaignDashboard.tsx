@@ -24,6 +24,7 @@ function CreateCampaignForm(): React.JSX.Element {
   const [countyCode, setCountyCode]   = useState('');
   const [constituencyCode, setConstituencyCode] = useState('');
   const [wardCode, setWardCode]       = useState('');
+  const [targetPosition, setTargetPosition] = useState('MP');
   const [error, setError]             = useState<string | null>(null);
 
   // Fetch active election for auto-population
@@ -67,6 +68,40 @@ function CreateCampaignForm(): React.JSX.Element {
   const [selectedElectionId, setSelectedElectionId] = useState('');
   const electionId = activeElection?.id ?? selectedElectionId;
 
+  // Determine required geo fields from position
+  const needsConstituency = ['MP'].includes(targetPosition);
+  const needsWard         = targetPosition === 'MCA';
+  const needsCounty       = ['GOVERNOR','SENATOR','WOMEN_REP','MP','MCA'].includes(targetPosition);
+
+  // IEBC limit preview
+  const canPreview = (
+    targetPosition === 'PRESIDENT' ||
+    (['GOVERNOR','SENATOR','WOMEN_REP'].includes(targetPosition) && !!countyCode) ||
+    (targetPosition === 'MP' && !!constituencyCode) ||
+    (targetPosition === 'MCA' && !!wardCode)
+  );
+
+  const { data: iebcPreview } = useQuery({
+    queryKey: ['candidate-iebc-preview', targetPosition, countyCode, constituencyCode, wardCode],
+    queryFn: () =>
+      campaignApi.budget.previewIebcLimit(
+        '00000000-0000-0000-0000-000000000001',
+        {
+          position: targetPosition,
+          countyCode:       countyCode || undefined,
+          constituencyCode: constituencyCode || undefined,
+          wardCode:         wardCode || undefined,
+        }
+      ).then(r => r.data?.data ?? r.data),
+    enabled: canPreview,
+    staleTime: 5 * 60_000,
+  });
+
+  const fmtKes = (n: number) =>
+    n >= 1_000_000_000 ? `KES ${(n/1_000_000_000).toFixed(2)}B`
+    : n >= 1_000_000 ? `KES ${(n/1_000_000).toFixed(1)}M`
+    : `KES ${n.toLocaleString()}`;
+
   const createMutation = useMutation({
     mutationFn: (payload: Parameters<typeof campaignApi.create>[0]) => campaignApi.create(payload),
     onSuccess: () => {
@@ -83,14 +118,20 @@ function CreateCampaignForm(): React.JSX.Element {
     if (!name.trim()) { setError('Campaign name is required'); return; }
     if (!electionId) { setError('Please select an election'); return; }
     createMutation.mutate({
-      // candidateId injected from x-candidate-id or x-user-id header by backend
-      // when user role is CANDIDATE — no need to send it explicitly
       electionId,
       name: name.trim(),
       description: description.trim() || undefined,
-      countyCode:        countyCode.trim() || undefined,
-      constituencyCode:  constituencyCode.trim() || undefined,
-      wardCode:          wardCode.trim() || undefined,
+      countyCode:       countyCode.trim() || undefined,
+      constituencyCode: constituencyCode.trim() || undefined,
+      wardCode:         wardCode.trim() || undefined,
+      goals: {
+        targetPosition,
+        iebcSpendingLimit: iebcPreview?.spendingLimitKes ?? null,
+        iebcSchedule:      iebcPreview?.schedule ?? null,
+        registeredVoters:  iebcPreview?.registeredVoters ?? null,
+        wardCount:         iebcPreview?.wardCount ?? null,
+        pollingStations:   iebcPreview?.pollingStations ?? null,
+      },
     });
   };
 
@@ -139,6 +180,28 @@ function CreateCampaignForm(): React.JSX.Element {
             />
           </div>
 
+          {/* Position selector */}
+          <div>
+            <label className="vc-label">Target Position *</label>
+            <select
+              className="vc-input"
+              value={targetPosition}
+              onChange={(e) => {
+                setTargetPosition(e.target.value);
+                setCountyCode(''); setConstituencyCode(''); setWardCode('');
+              }}
+            >
+              {[
+                { value: 'PRESIDENT', label: 'President (National)' },
+                { value: 'GOVERNOR',  label: 'Governor (County)' },
+                { value: 'SENATOR',   label: 'Senator (County)' },
+                { value: 'WOMEN_REP', label: 'Women Representative (County)' },
+                { value: 'MP',        label: 'Member of Parliament (Constituency)' },
+                { value: 'MCA',       label: 'Member of County Assembly (Ward)' },
+              ].map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+            </select>
+          </div>
+
           {activeElection ? (
             <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
               <p className="text-xs text-emerald-600 font-medium">Active Election</p>
@@ -160,20 +223,48 @@ function CreateCampaignForm(): React.JSX.Element {
             </div>
           )}
 
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="vc-label">County Code</label>
-              <input className="vc-input" placeholder="e.g. 022" value={countyCode} onChange={(e) => setCountyCode(e.target.value)} maxLength={3} />
+          {/* Geography inputs — show relevant fields based on position */}
+          {targetPosition !== 'PRESIDENT' && (
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label className="vc-label">County Code {needsCounty && '*'}</label>
+                <input className="vc-input" placeholder="e.g. 022" value={countyCode}
+                  onChange={(e) => { setCountyCode(e.target.value); setConstituencyCode(''); setWardCode(''); }}
+                  maxLength={3} required={needsCounty} />
+              </div>
+              <div>
+                <label className="vc-label">Constituency {needsConstituency && '*'}</label>
+                <input className="vc-input" placeholder="e.g. 110" value={constituencyCode}
+                  onChange={(e) => { setConstituencyCode(e.target.value); setWardCode(''); }}
+                  maxLength={3} required={needsConstituency} />
+              </div>
+              <div>
+                <label className="vc-label">Ward {needsWard && '*'}</label>
+                <input className="vc-input" placeholder="e.g. 0550" value={wardCode}
+                  onChange={(e) => setWardCode(e.target.value)} maxLength={4} required={needsWard} />
+              </div>
             </div>
-            <div>
-              <label className="vc-label">Constituency</label>
-              <input className="vc-input" placeholder="e.g. 110" value={constituencyCode} onChange={(e) => setConstituencyCode(e.target.value)} maxLength={3} />
+          )}
+
+          {/* IEBC limit preview badge */}
+          {iebcPreview && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Target className="w-5 h-5 text-amber-600" />
+                <div>
+                  <p className="text-xs font-semibold text-amber-800">IEBC Spending Limit — Auto-detected</p>
+                  <p className="text-xs text-amber-600 mt-0.5">{iebcPreview.schedule} · {iebcPreview.gazetteRef}</p>
+                </div>
+              </div>
+              <p className="text-lg font-bold text-amber-800">{fmtKes(iebcPreview.spendingLimitKes)}</p>
             </div>
-            <div>
-              <label className="vc-label">Ward</label>
-              <input className="vc-input" placeholder="e.g. 0550" value={wardCode} onChange={(e) => setWardCode(e.target.value)} maxLength={4} />
+          )}
+          {canPreview && !iebcPreview && (
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 flex items-center gap-2">
+              <div className="w-4 h-4 border-2 border-amber-300 border-t-amber-600 rounded-full animate-spin" />
+              <p className="text-xs text-gray-500">Loading IEBC limit…</p>
             </div>
-          </div>
+          )}
 
           <button
             type="submit"

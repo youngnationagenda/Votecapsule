@@ -82,6 +82,15 @@ export const campaignApi = {
     allocate:        (cid: string, data: any)       => apiClient.post(`${BASE}/campaigns/${cid}/budget/allocate`, data),
     geography:       (cid: string)                  => apiClient.get(`${BASE}/campaigns/${cid}/geography`),
     allCandidates:   (params?: any)                 => apiClient.get(`${BASE}/budgets/candidates`, { params }),
+    // IEBC category breakdown (D1 — Priority 11)
+    getIebcBreakdown: (cid: string) => apiClient.get(`${BASE}/campaigns/${cid}/budget/iebc-breakdown`),
+    getIEBCGazetteLimit: (position: string, countyCode: string, constituencyCode?: string) =>
+      apiClient.get('/election/iebc-limits', { params: { position, countyCode, constituencyCode } }),
+    // Auto-turbulate: recompute IEBC limit + seed categories
+    turbulate: (cid: string) => apiClient.post(`${BASE}/campaigns/${cid}/budget/turbulate`, {}),
+    // Preview IEBC limit for position+geography (no DB write)
+    previewIebcLimit: (params: { position?: string; countyCode?: string; constituencyCode?: string; wardCode?: string; isParty?: boolean }) =>
+      apiClient.get(`${BASE}/campaigns/00000000-0000-0000-0000-000000000001/budget/iebc-preview`, { params }),
   },
 
   // SMS
@@ -254,5 +263,12 @@ export const campaignApi = {
     submitReport:           (cid: string, data: any) => apiClient.post(`${BASE}/campaigns/${cid}/compliance/reports`, data),
     getCandidateCompliance: (cid: string) => apiClient.get(`${BASE}/campaigns/${cid}/compliance/candidates`),
     getCertificate:         (cid: string) => apiClient.get(`${BASE}/campaigns/${cid}/compliance/certificate`),
+    // ── Compliance Documents (Priority 11) ──────────────────
+    getDocuments:           (cid: string) => apiClient.get(`${BASE}/campaigns/${cid}/compliance/documents`),
+    uploadDocument:         (cid: string, fd: FormData) => apiClient.post(`${BASE}/campaigns/${cid}/compliance/documents`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }),
+    getDocumentUrl:         (cid: string, docCode: string) => apiClient.get(`${BASE}/campaigns/${cid}/compliance/documents/${docCode}/url`),
+    deleteDocument:         (cid: string, docCode: string) => apiClient.delete(`${BASE}/campaigns/${cid}/compliance/documents/${docCode}`),
+    reviewDocument:         (cid: string, docCode: string, data: { status: string; notes?: string }) => apiClient.patch(`${BASE}/campaigns/${cid}/compliance/documents/${docCode}/review`, data),
+    listPendingDocuments:   (cid: string, params?: { status?: string; page?: number; limit?: number }) => apiClient.get(`${BASE}/campaigns/${cid}/compliance/documents/pending`, { params }),
   },
 };

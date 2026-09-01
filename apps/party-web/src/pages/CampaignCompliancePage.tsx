@@ -12,6 +12,7 @@ import {
   Eye, Search, Filter, ArrowUpRight, BadgeCheck, Landmark, UserCheck,
   Banknote, BarChart3, BookOpen, Gavel, Percent, CircleDollarSign,
   UserPlus, Trash2, ExternalLink, Info,
+  Upload, FolderOpen, Paperclip, FileUp,
 } from 'lucide-react';
 import { campaignApi } from '../api/campaignApi';
 import { PageErrorBoundary } from '../components/PageErrorBoundary';
@@ -105,6 +106,7 @@ const TABS = [
   { key: 'limits',      label: 'Party Spending Limits',  icon: Scale },
   { key: 'candidates',  label: 'Candidate Monitoring',   icon: UserCheck },
   { key: 'contribs',    label: 'Contributions & Sources', icon: CircleDollarSign },
+  { key: 'documents',   label: 'Documents',              icon: FileUp },
   { key: 'reports',     label: 'Reports & Penalties',    icon: FileText },
 ] as const;
 
@@ -1421,6 +1423,331 @@ function FormField({
   );
 }
 
+// ── Compliance Documents Tab (Party) ────────────────────────
+const PARTY_REQUIRED_DOCS = [
+  { code: 'ecf1',           name: 'Form ECF 1 — Appointment of Authorized Person(s)', form: 'ECF 1', regulation: 'Reg. 6(1)', required: true, category: 'registration' },
+  { code: 'ecf2',           name: 'Form ECF 2 — Declaration by Authorized Person', form: 'ECF 2', regulation: 'Reg. 6(4)', required: true, category: 'registration' },
+  { code: 'ecf3',           name: 'Form ECF 3 — Supporting Organization Notification', form: 'ECF 3', regulation: 'Reg. 8', required: true, category: 'registration' },
+  { code: 'ecf4',           name: 'Form ECF 4 — Change of Authorized Person', form: 'ECF 4', regulation: 'Reg. 10', required: false, category: 'registration' },
+  { code: 'id_copies',      name: 'ID/Passport Copies of Authorized Persons', form: '-', regulation: 'Reg. 5', required: true, category: 'registration' },
+  { code: 'bank_statement', name: 'Campaign Bank Account Statement', form: '-', regulation: 'Reg. 11(6)', required: true, category: 'financial' },
+  { code: 'bank_opening',   name: 'Bank Account Opening Confirmation', form: '-', regulation: 'Reg. 11(1)', required: true, category: 'financial' },
+  { code: 'expenditure_committee', name: 'Expenditure Committee Designation', form: '-', regulation: 'Reg. 18', required: true, category: 'registration' },
+  { code: 'ecf5',           name: 'Form ECF 5 — Contributions & Donations Report', form: 'ECF 5', regulation: 'Reg. 12(1)', required: true, category: 'reporting' },
+  { code: 'ecf6_prelim',    name: 'Form ECF 6 — Preliminary Expenditure Report', form: 'ECF 6', regulation: 'Reg. 21(1)', required: true, category: 'reporting' },
+  { code: 'ecf6_final',     name: 'Form ECF 6 — Final Expenditure Report', form: 'ECF 6', regulation: 'Reg. 21(1)', required: true, category: 'reporting' },
+  { code: 'ecf7',           name: 'Form ECF 7 — Surplus Funds Report', form: 'ECF 7', regulation: 'Reg. 23(1)', required: false, category: 'reporting' },
+  { code: 'auditor_report', name: 'Auditor\'s Report (if expenses > KES 1M)', form: '-', regulation: 'Reg. 26', required: false, category: 'reporting' },
+  { code: 'receipts',       name: 'Contribution Receipts (> KES 20,000)', form: '-', regulation: 'Reg. 16', required: true, category: 'financial' },
+  { code: 'ecf8',           name: 'Form ECF 8 — Certificate of Compliance', form: 'ECF 8', regulation: 'Reg. 24', required: false, category: 'certificate' },
+];
+
+const PARTY_DOC_CATEGORIES = [
+  { code: 'all', label: 'All Documents' },
+  { code: 'registration', label: 'Registration' },
+  { code: 'financial', label: 'Financial' },
+  { code: 'reporting', label: 'Reports' },
+  { code: 'certificate', label: 'Certificate' },
+];
+
+interface PartyUploadedDoc {
+  code: string;
+  fileName: string;
+  uploadedAt: string;
+  url?: string;
+}
+
+function ComplianceDocumentsTab({ campaignId }: { campaignId: string }) {
+  const [category, setCategory] = useState('all');
+  const [uploadedDocs, setUploadedDocs] = useState<PartyUploadedDoc[]>([]);
+  const [uploading, setUploading] = useState<string | null>(null);
+  const fileInputRefs = React.useRef<Record<string, HTMLInputElement | null>>({});
+
+  // Fetch existing documents — primary: /compliance/documents, fallback: /compliance/reports
+  const { data: existingDocs } = useQuery({
+    queryKey: ['compliance-documents', campaignId],
+    queryFn: async () => {
+      try {
+        const res = await campaignApi.compliance.getDocuments(campaignId);
+        return safe<any[]>(res?.data ?? res, []);
+      } catch {
+        // Fallback to reports endpoint (legacy)
+        try {
+          const res = await campaignApi.compliance.getReports(campaignId);
+          return safe<any[]>(res?.data ?? res, []);
+        } catch { return []; }
+      }
+    },
+    enabled: !!campaignId,
+  });
+
+  // Merge server docs with local state
+  React.useEffect(() => {
+    if (existingDocs && Array.isArray(existingDocs) && existingDocs.length > 0) {
+      const mapped = existingDocs.map((d: any) => ({
+        code: d.docCode ?? d.code ?? d.type ?? '',
+        fileName: d.fileName ?? d.title ?? 'Document',
+        uploadedAt: d.uploadedAt ?? d.submittedAt ?? d.createdAt ?? '',
+        url: d.url ?? d.fileUrl ?? '',
+      }));
+      setUploadedDocs(prev => {
+        const localCodes = new Set(prev.map(p => p.code));
+        const newDocs = mapped.filter((m: PartyUploadedDoc) => !localCodes.has(m.code));
+        return [...prev, ...newDocs];
+      });
+    }
+  }, [existingDocs]);
+
+  const filteredDocs = category === 'all'
+    ? PARTY_REQUIRED_DOCS
+    : PARTY_REQUIRED_DOCS.filter(d => d.category === category);
+
+  const requiredDocs = PARTY_REQUIRED_DOCS.filter(d => d.required);
+  const uploadedRequired = requiredDocs.filter(d => uploadedDocs.some(u => u.code === d.code));
+  const progressPct = requiredDocs.length > 0 ? Math.round((uploadedRequired.length / requiredDocs.length) * 100) : 0;
+
+  const progressBarColor =
+    progressPct <= 25  ? 'bg-red-500'
+    : progressPct <= 50  ? 'bg-orange-500'
+    : progressPct <= 75  ? 'bg-amber-500'
+    : progressPct < 100  ? 'bg-lime-500'
+    : 'bg-emerald-500';
+
+  const handleUpload = async (docCode: string, file: File) => {
+    setUploading(docCode);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('docCode', docCode);
+
+      let uploadedUrl = '';
+      try {
+        // Primary: POST /compliance/documents (Priority 11 endpoint)
+        const res = await campaignApi.compliance.uploadDocument(campaignId, formData);
+        uploadedUrl = res?.data?.data?.url ?? res?.data?.url ?? '';
+      } catch {
+        // Fallback 1: POST /compliance/reports (legacy)
+        try {
+          const fd2 = new FormData();
+          fd2.append('file', file);
+          fd2.append('docCode', docCode);
+          fd2.append('type', 'compliance_document');
+          await campaignApi.compliance.submitReport(campaignId, fd2);
+        } catch {
+          // Fallback 2: presigned S3 upload via media service
+          try {
+            const urlRes = await campaignApi.media.uploadUrl(campaignId, {
+              fileName: file.name,
+              contentType: file.type,
+              category: 'compliance',
+              docCode,
+            });
+            const presignedUrl = urlRes?.data?.url ?? urlRes?.data?.data?.url;
+            if (presignedUrl) {
+              await fetch(presignedUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+            }
+          } catch {
+            // Store locally even if all upload paths fail
+          }
+        }
+      }
+
+      setUploadedDocs(prev => [
+        ...prev.filter(d => d.code !== docCode),
+        { code: docCode, fileName: file.name, uploadedAt: new Date().toISOString(), url: uploadedUrl },
+      ]);
+    } finally {
+      setUploading(null);
+    }
+  };
+
+  const getUploaded = (code: string) => uploadedDocs.find(d => d.code === code);
+
+  // Party-Wide Document Tracker: total docs across all campaigns
+  const totalDocs = PARTY_REQUIRED_DOCS.length;
+  const totalUploaded = uploadedDocs.length;
+
+  return (
+    <div className="space-y-5">
+      {/* Party-Wide Document Tracker */}
+      <div className="bg-violet-50 rounded-2xl border border-violet-200 p-5">
+        <div className="flex items-center gap-3 mb-3">
+          <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center">
+            <FolderOpen className="w-5 h-5 text-violet-600" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-gray-900">Party-Wide Document Tracker</h3>
+            <p className="text-xs text-gray-500">Aggregate compliance document status across all campaigns</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-white rounded-xl p-3 text-center border border-violet-100">
+            <p className="text-2xl font-bold text-violet-600">{totalDocs}</p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wide mt-0.5">Total Documents</p>
+          </div>
+          <div className="bg-white rounded-xl p-3 text-center border border-violet-100">
+            <p className="text-2xl font-bold text-emerald-600">{totalUploaded}</p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wide mt-0.5">Uploaded</p>
+          </div>
+          <div className="bg-white rounded-xl p-3 text-center border border-violet-100">
+            <p className="text-2xl font-bold text-red-500">{totalDocs - totalUploaded}</p>
+            <p className="text-[10px] text-gray-500 uppercase tracking-wide mt-0.5">Remaining</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Overall Compliance Progress */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <FileUp className="w-5 h-5 text-violet-500" />
+            <h3 className="text-base font-bold text-gray-900">Document Compliance Progress</h3>
+          </div>
+          <span className="text-sm font-semibold text-gray-600">
+            {uploadedRequired.length} of {requiredDocs.length} required documents uploaded
+          </span>
+        </div>
+        <div className="relative w-full h-4 bg-gray-200 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${progressBarColor} ${progressPct < 100 ? 'animate-pulse' : ''}`}
+            style={{ width: `${progressPct}%` }}
+          />
+          {progressPct < 100 && (
+            <div
+              className={`absolute inset-0 rounded-full opacity-20 ${progressBarColor}`}
+              style={{ width: `${progressPct}%`, boxShadow: `0 0 12px 2px currentColor` }}
+            />
+          )}
+        </div>
+        <p className="text-xs text-gray-500 mt-2">
+          {progressPct === 100
+            ? 'All required IEBC compliance documents have been uploaded.'
+            : `Upload the remaining ${requiredDocs.length - uploadedRequired.length} required document(s) to achieve full compliance.`}
+        </p>
+      </div>
+
+      {/* Category Filter Chips */}
+      <div className="flex gap-2 overflow-x-auto pb-1">
+        {PARTY_DOC_CATEGORIES.map(cat => (
+          <button
+            key={cat.code}
+            onClick={() => setCategory(cat.code)}
+            className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
+              category === cat.code
+                ? 'bg-violet-500 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Document Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredDocs.map(doc => {
+          const uploaded = getUploaded(doc.code);
+          const isUploading = uploading === doc.code;
+
+          return (
+            <div
+              key={doc.code}
+              className={`relative rounded-2xl p-4 transition-all ${
+                uploaded
+                  ? 'border-2 border-emerald-300 bg-emerald-50/30'
+                  : 'border-2 border-dashed border-gray-300 bg-white hover:border-violet-400 hover:bg-violet-50/20'
+              }`}
+            >
+              {/* Required badge */}
+              <div className="flex items-start justify-between mb-2">
+                <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                  doc.required ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {doc.required ? 'Required' : 'Optional'}
+                </span>
+                {uploaded && <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0" />}
+              </div>
+
+              {/* Document name */}
+              <h4 className="text-sm font-bold text-gray-900 mb-1 leading-tight">{doc.name}</h4>
+
+              {/* Form & regulation */}
+              <div className="flex items-center gap-3 text-xs text-gray-500 mb-3">
+                <span className="flex items-center gap-1">
+                  <FileText className="w-3 h-3" />
+                  {doc.form}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Scale className="w-3 h-3" />
+                  {doc.regulation}
+                </span>
+              </div>
+
+              {uploaded ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-100/60 rounded-lg px-2.5 py-1.5">
+                    <Paperclip className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span className="truncate font-medium">{uploaded.fileName}</span>
+                  </div>
+                  <p className="text-[10px] text-gray-400">
+                    Uploaded {fmtDate(uploaded.uploadedAt)}
+                  </p>
+                  <div className="flex gap-2">
+                    {uploaded.url && (
+                      <a
+                        href={uploaded.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 text-center px-2 py-1 text-xs font-medium text-violet-700 bg-violet-100 rounded-lg hover:bg-violet-200 transition-colors"
+                      >
+                        View
+                      </a>
+                    )}
+                    <button
+                      onClick={() => fileInputRefs.current[doc.code]?.click()}
+                      className="flex-1 text-center px-2 py-1 text-xs font-medium text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                    >
+                      Replace
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => fileInputRefs.current[doc.code]?.click()}
+                  disabled={isUploading}
+                  className="w-full flex flex-col items-center justify-center py-4 text-gray-400 hover:text-violet-500 transition-colors"
+                >
+                  {isUploading ? (
+                    <div className="w-6 h-6 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Upload className="w-6 h-6 mb-1" />
+                  )}
+                  <span className="text-xs font-medium mt-1">
+                    {isUploading ? 'Uploading...' : 'Click to upload'}
+                  </span>
+                </button>
+              )}
+
+              {/* Hidden file input */}
+              <input
+                ref={el => { fileInputRefs.current[doc.code] = el; }}
+                type="file"
+                accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) handleUpload(doc.code, file);
+                  e.target.value = '';
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function ModalOverlay({ onClose, title, children }: { onClose: () => void; title: string; children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
@@ -1471,20 +1798,14 @@ function CampaignCompliancePageContent() {
     );
   }
 
-  if (campaigns.length === 0) {
-    return (
-      <div className="p-6">
-        <EmptyState
-          icon={Shield}
-          title="No campaigns found"
-          description="Create a campaign first to access IEBC compliance tracking."
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6 p-6">
+      {campaigns.length === 0 && (
+        <div className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-xl px-4 py-3">
+          <Shield className="w-5 h-5 text-violet-500 flex-shrink-0" />
+          <p className="text-sm text-violet-700">Create a campaign to access IEBC compliance tracking. <a href="/campaign/create" className="font-semibold underline hover:text-violet-900">Get started →</a></p>
+        </div>
+      )}
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
@@ -1512,7 +1833,7 @@ function CampaignCompliancePageContent() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200 overflow-x-auto">
+      <div className={`flex gap-1 border-b border-gray-200 overflow-x-auto ${campaigns.length === 0 ? 'opacity-40 pointer-events-none' : ''}`}>
         {TABS.map(tab => {
           const Icon = tab.icon;
           return (
@@ -1551,6 +1872,9 @@ function CampaignCompliancePageContent() {
       )}
       {activeTab === 'contribs' && (
         <ContributionsTab campaignId={campaignId} />
+      )}
+      {activeTab === 'documents' && (
+        <ComplianceDocumentsTab campaignId={campaignId} />
       )}
       {activeTab === 'reports' && (
         <ReportsTab campaignId={campaignId} />

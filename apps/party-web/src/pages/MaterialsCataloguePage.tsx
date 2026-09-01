@@ -219,11 +219,11 @@ function MaterialsCatalogueContent(): React.JSX.Element {
         </div>
       )}
 
-      {/* No active campaign warning */}
+      {/* No campaign banner */}
       {!campaign && (
-        <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-          <p className="text-sm text-amber-800">No active campaign found. Create a campaign first to place material orders.</p>
+        <div className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-xl px-4 py-3">
+          <AlertTriangle className="w-5 h-5 text-violet-500 flex-shrink-0" />
+          <p className="text-sm text-violet-700">Create a campaign to place material orders for your candidates. <a href="/campaign/create" className="font-semibold underline hover:text-violet-900">Get started →</a></p>
         </div>
       )}
 
@@ -349,6 +349,7 @@ function MaterialCard({
   onSelect: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   return (
     <button
@@ -362,8 +363,15 @@ function MaterialCard({
     >
       {/* Icon / thumbnail */}
       <div className="w-full aspect-square rounded-xl overflow-hidden bg-gray-50 flex items-center justify-center relative">
-        {item.thumbnailUrl ? (
-          <img src={item.thumbnailUrl} alt={item.name} className="w-full h-full object-cover" />
+        {item.thumbnailUrl && !imgError ? (
+          <img
+            src={item.thumbnailUrl}
+            alt={item.name}
+            className="w-full h-full object-cover"
+            onError={() => setImgError(true)}
+            loading="lazy"
+            crossOrigin="anonymous"
+          />
         ) : (
           <CampaignMaterialIcon code={item.code} size={72} />
         )}

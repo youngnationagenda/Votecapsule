@@ -25,6 +25,7 @@ const ObserverCoordinationPage = lazy(() => import('./pages/ObserverCoordination
 const OfficialReportsPage     = lazy(() => import('./pages/OfficialReportsPage').then(m => ({ default: m.OfficialReportsPage })));
 const FormBEntryPage          = lazy(() => import('./pages/FormBEntryPage').then(m => ({ default: m.FormBEntryPage })));
 const FormCDeclarationPage    = lazy(() => import('./pages/FormCDeclarationPage').then(m => ({ default: m.FormCDeclarationPage })));
+const ComplianceReviewPage    = lazy(() => import('./pages/ComplianceReviewPage').then(m => ({ default: m.ComplianceReviewPage })));
 
 function PageLoader(): React.JSX.Element {
   return (
@@ -78,6 +79,9 @@ export default function App(): React.JSX.Element {
           } />
           <Route path="/form-c-declaration" element={
             <Suspense fallback={<PageLoader />}><FormCDeclarationPage /></Suspense>
+          } />
+          <Route path="/compliance-review" element={
+            <Suspense fallback={<PageLoader />}><ComplianceReviewPage /></Suspense>
           } />
         </Route>
       </Route>

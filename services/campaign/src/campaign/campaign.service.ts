@@ -34,15 +34,38 @@ export class CampaignService {
   // ── create ─────────────────────────────────────────────────
 
   async create(dto: CreateCampaignDto, userId: string): Promise<Campaign> {
+    // Merge goals — ensure targetPosition is preserved and normalised
+    const mergedGoals = { ...(dto.goals ?? {}) };
+
+    // Normalise targetPosition to uppercase
+    if (mergedGoals.targetPosition) {
+      mergedGoals.targetPosition = String(mergedGoals.targetPosition)
+        .toUpperCase()
+        .trim()
+        .replace(/[\s\-]+/g, '_');
+    }
+
+    // PRESIDENT campaigns are national scope — clear any stale geography if set
+    const pos = String(mergedGoals.targetPosition ?? '').toUpperCase();
+    if (pos === 'PRESIDENT' || pos === 'PARTY' || pos === 'PARTY_WIDE') {
+      // National scope — geography fields are optional/unused for limit resolution
+      // but we keep them if explicitly supplied (e.g., party HQ county)
+      mergedGoals.iebcIsNational = true;
+    }
+
     const entity = this.repo.create({
       ...dto,
       status:      CampaignStatus.CREATED,
       targetWards: dto.targetWards ?? [],
-      goals:       dto.goals ?? {},
+      goals:       mergedGoals,
       createdBy:   userId,
     });
     const saved = await this.repo.save(entity);
-    this.logger.log(`Campaign created: ${saved.id} for tenant ${saved.tenantId}`);
+    this.logger.log(
+      `Campaign created: ${saved.id} ` +
+      `pos=${mergedGoals.targetPosition ?? 'not-set'} ` +
+      `tenant=${saved.tenantId}`,
+    );
     return saved;
   }
 

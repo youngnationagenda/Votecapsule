@@ -28,17 +28,22 @@ export class BudgetService {
     const saved  = await this.budgetRepo.save(entity);
 
     // Seed default categories
-    const defaultCategories = [
-      { code: 'transport',       name: 'Transport & Fuel' },
-      { code: 'fuel',            name: 'Fuel' },
-      { code: 'printing',        name: 'Printing & Materials' },
-      { code: 'branding',        name: 'Branding & Outdoor' },
-      { code: 'events',          name: 'Events & Rallies' },
-      { code: 'communications',  name: 'Communications & SMS' },
-      { code: 'personnel',       name: 'Personnel & Allowances' },
-      { code: 'other',           name: 'Other' },
+    // Seed 11 IEBC gazette categories (Fifth Schedule, GN 12251)
+    // These match the budget-auto.service.ts categories exactly.
+    const iebcCategories = [
+      { code: 'venues',          name: 'Venues for Campaign Rallies'   },
+      { code: 'publicity',       name: 'Publicity Materials'           },
+      { code: 'advertising',     name: 'Advertising & Media'           },
+      { code: 'personnel',       name: 'Campaign Personnel'            },
+      { code: 'agents',          name: 'Election Agents'               },
+      { code: 'transport',       name: 'Transportation'                },
+      { code: 'communication',   name: 'Communication & Telephone'     },
+      { code: 'nomination_fees', name: 'Nomination Fees'               },
+      { code: 'security',        name: 'Security'                      },
+      { code: 'accommodation',   name: 'Accommodation & Travel'        },
+      { code: 'administrative',  name: 'Administrative Cost'           },
     ];
-    for (const cat of defaultCategories) {
+    for (const cat of iebcCategories) {
       await this.categoryRepo.save(this.categoryRepo.create({
         budgetId: saved.id, campaignId, tenantId,
         categoryCode: cat.code, categoryName: cat.name,
@@ -260,6 +265,152 @@ export class BudgetService {
     } finally {
       await qr.release();
     }
+  }
+
+  // ── IEBC Category Breakdown (D1 — Priority 11) ────────────────
+  // GET /campaigns/:id/budget/iebc-breakdown
+  // Aggregates expenses into 11 IEBC categories, computes spend/limit/pct,
+  // generates yellow/orange/red warnings + reallocation suggestions.
+
+  private static readonly IEBC_SHARES: Record<string, { name: string; share: number }> = {
+    venues:          { name: 'Venues for Campaign Rallies',   share: 1.5  },
+    publicity:       { name: 'Publicity Materials',           share: 4.4  },
+    advertising:     { name: 'Advertising & Media',           share: 10.3 },
+    personnel:       { name: 'Campaign Personnel',            share: 1.4  },
+    agents:          { name: 'Election Agents',               share: 8.5  },
+    transport:       { name: 'Transportation',                share: 66.0 },
+    communication:   { name: 'Communication & Telephone',     share: 0.5  },
+    nomination_fees: { name: 'Nomination Fees',               share: 0.9  },
+    security:        { name: 'Security',                      share: 1.2  },
+    accommodation:   { name: 'Accommodation & Travel',        share: 0.1  },
+    administrative:  { name: 'Administrative Cost',           share: 5.3  },
+  };
+
+  // Expense categoryCode → IEBC category key
+  private static readonly EXPENSE_TO_IEBC: Record<string, string> = {
+    transport:            'transport',
+    fuel:                 'transport',
+    logistics:            'transport',
+    printing:             'publicity',
+    branding:             'publicity',
+    digital_advertising:  'advertising',
+    outdoor_advertising:  'advertising',
+    media:                'advertising',
+    staff:                'personnel',
+    volunteers:           'personnel',
+    events:               'venues',
+    venues:               'venues',
+    communications:       'communication',
+    meals:                'accommodation',
+    accommodation:        'accommodation',
+    office:               'administrative',
+    equipment:            'administrative',
+    miscellaneous:        'administrative',
+    security:             'security',
+    agents:               'agents',
+    nomination:           'nomination_fees',
+    nomination_fees:      'nomination_fees',
+  };
+
+  async getIebcBreakdown(campaignId: string, tenantId: string): Promise<Record<string, unknown>> {
+    // ── 1. Get budget (for IEBC limit) ──────────────────────────
+    let iebcLimit = 0;
+    let schedule  = '';
+    let gazetteRef = 'IEBC Gazette Notice No. 12251, 7th August 2026';
+
+    try {
+      const budget = await this.budgetRepo.findOne({ where: { campaignId, tenantId } });
+      iebcLimit = Number(budget?.iebcSpendingLimit ?? 0);
+    } catch { /* use 0 */ }
+
+    // ── 2. Fetch all expenses ────────────────────────────────────
+    const expenses = await this.expenseRepo.find({
+      where: { campaignId, tenantId },
+      select: ['amount', 'categoryCode'] as any,
+    });
+
+    // ── 3. Aggregate spend by IEBC category ─────────────────────
+    const iebcAgg: Record<string, number> = {};
+    let totalSpent = 0;
+    for (const exp of expenses) {
+      const code     = ((exp as any).categoryCode ?? '').toLowerCase();
+      const iebcKey  = BudgetService.EXPENSE_TO_IEBC[code];
+      const amount   = Number((exp as any).amount ?? 0);
+      totalSpent += amount;
+      if (iebcKey) iebcAgg[iebcKey] = (iebcAgg[iebcKey] ?? 0) + amount;
+    }
+
+    // ── 4. Build per-category rows ───────────────────────────────
+    const categories = Object.entries(BudgetService.IEBC_SHARES).map(([key, { name, share }]) => {
+      const limit   = iebcLimit > 0 ? Math.round(iebcLimit * (share / 100)) : 0;
+      const spent   = iebcAgg[key] ?? 0;
+      const pct     = limit > 0 ? Math.round((spent / limit) * 100 * 10) / 10 : 0;
+      return { code: key, name, share, limit, spent, pct };
+    });
+
+    // ── 5. Generate warnings ─────────────────────────────────────
+    const underspent = categories
+      .filter(c => c.pct < 50 && c.limit > 0)
+      .sort((a, b) => a.pct - b.pct);
+
+    const warnings: Array<{ category: string; code: string; level: string; message: string; suggestion?: string }> = [];
+
+    // Overall check first
+    const overallPct = iebcLimit > 0 ? (totalSpent / iebcLimit) * 100 : 0;
+    if (overallPct >= 80) {
+      warnings.push({
+        category:  'Overall',
+        code:      '_overall',
+        level:     overallPct >= 95 ? 'red' : 'orange',
+        message:   `Total spend is at ${overallPct.toFixed(1)}% of the IEBC limit (KES ${iebcLimit.toLocaleString()}). ${overallPct >= 95 ? 'Critical — immediate action required.' : 'Plan remaining spend carefully.'}`,
+      });
+    }
+
+    // Per-category
+    for (const cat of categories) {
+      if (cat.pct >= 100) {
+        const excess = cat.spent - cat.limit;
+        warnings.push({
+          category:   cat.name,
+          code:       cat.code,
+          level:      'red',
+          message:    `${cat.name} has EXCEEDED the IEBC limit by KES ${excess.toLocaleString()}. File over-limit report per Section 18(7).`,
+          suggestion: underspent.length > 0
+            ? `Shift funds to ${underspent[0].name} (${underspent[0].pct.toFixed(0)}% used, KES ${(underspent[0].limit - underspent[0].spent).toLocaleString()} available)`
+            : undefined,
+        });
+      } else if (cat.pct >= 90) {
+        warnings.push({
+          category:   cat.name,
+          code:       cat.code,
+          level:      'orange',
+          message:    `${cat.name} is at ${cat.pct.toFixed(1)}% of the gazette allocation (${cat.share}% of limit).`,
+          suggestion: underspent.length > 0
+            ? `Consider shifting future spend to ${underspent[0].name} (${underspent[0].pct.toFixed(0)}% used)`
+            : undefined,
+        });
+      } else if (cat.pct >= 70) {
+        warnings.push({
+          category: cat.name,
+          code:     cat.code,
+          level:    'yellow',
+          message:  `${cat.name} is at ${cat.pct.toFixed(1)}% of its IEBC allocation. Monitor closely.`,
+        });
+      }
+    }
+
+    // ── 6. Return ────────────────────────────────────────────────
+    return {
+      data: {
+        limit:       iebcLimit,
+        totalSpent,
+        overallPct:  Math.round(overallPct * 10) / 10,
+        schedule:    schedule || 'Gazette Notice GN 12251 · 7 August 2026',
+        gazetteRef,
+        categories,
+        warnings,
+      },
+    };
   }
 
   // ── Campaign Geography ─────────────────────────────────────

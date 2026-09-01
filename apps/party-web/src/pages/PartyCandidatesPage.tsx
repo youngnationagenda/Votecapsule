@@ -525,7 +525,7 @@ function CandidateRow({ candidate, tenantId, userId }: { candidate: PartyCandida
       <div className="flex items-center gap-3 p-4 hover:bg-gray-50 cursor-pointer transition-colors" onClick={() => setExpanded(!expanded)}>
         <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0">
           {candidate.photographUrl
-            ? <img src={candidate.photographUrl} alt="" className="w-10 h-10 rounded-full object-cover" />
+            ? <img src={candidate.photographUrl} alt="" className="w-10 h-10 rounded-full object-cover" crossOrigin="anonymous" />
             : <span className="text-sm font-bold text-violet-600">{candidate.fullName.charAt(0)}</span>}
         </div>
         <div className="flex-1 min-w-0">

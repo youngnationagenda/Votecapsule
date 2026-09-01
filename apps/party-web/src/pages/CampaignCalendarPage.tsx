@@ -195,6 +195,12 @@ function CampaignCalendarContent(): React.JSX.Element {
 
   return (
     <div className="space-y-6">
+      {!campaign && (
+        <div className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-xl px-4 py-3">
+          <Calendar className="w-5 h-5 text-violet-500 flex-shrink-0" />
+          <p className="text-sm text-violet-700">Create a campaign to schedule and manage events. <a href="/campaign/create" className="font-semibold underline hover:text-violet-900">Get started →</a></p>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Campaign Calendar</h2>
@@ -206,15 +212,13 @@ function CampaignCalendarContent(): React.JSX.Element {
               <button key={v} onClick={() => setView(v)} className={`px-3 py-1.5 text-sm font-medium transition-colors capitalize ${view === v ? 'bg-violet-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>{v}</button>
             ))}
           </div>
-          {campaign ? (
-            <button onClick={() => setCreate(true)} className="vc-btn-primary inline-flex items-center gap-2 text-sm">
-              <Plus className="w-4 h-4" /> Add Event
-            </button>
-          ) : (
-            <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg">
-              Create a campaign first to add events
-            </span>
-          )}
+          <button
+            onClick={() => setCreate(true)}
+            disabled={!campaign}
+            className={`vc-btn-primary inline-flex items-center gap-2 text-sm ${!campaign ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            <Plus className="w-4 h-4" /> Add Event
+          </button>
         </div>
       </div>
 

@@ -307,17 +307,23 @@ function CampaignTeamsContent(): React.JSX.Element {
   });
 
   const createTeamMut = useMutation({
-    mutationFn: () => campaignApi.teams.create(campaign.id, teamForm),
+    mutationFn: () => campaign ? campaignApi.teams.create(campaign.id, teamForm) : Promise.reject(new Error('no-campaign')),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['campaign-teams'] }); setTeam(false); },
   });
 
   const registerVolMut = useMutation({
-    mutationFn: () => campaignApi.volunteers.register(campaign.id, { ...volForm, skills: volForm.skills.split(',').map((s) => s.trim()).filter(Boolean) }),
+    mutationFn: () => campaign ? campaignApi.volunteers.register(campaign.id, { ...volForm, skills: volForm.skills.split(',').map((s) => s.trim()).filter(Boolean) }) : Promise.reject(new Error('no-campaign')),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['campaign-volunteers'] }); setVol(false); },
   });
 
   return (
     <div className="space-y-6">
+      {!campaign && (
+        <div className="flex items-center gap-3 bg-violet-50 border border-violet-200 rounded-xl px-4 py-3">
+          <AlertTriangle className="w-5 h-5 text-violet-500 flex-shrink-0" />
+          <p className="text-sm text-violet-700">Create a campaign to manage teams and volunteers. <a href="/campaign/create" className="font-semibold underline hover:text-violet-900">Get started →</a></p>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-gray-900">Teams & Volunteers</h2>
@@ -325,12 +331,12 @@ function CampaignTeamsContent(): React.JSX.Element {
         </div>
         <div className="flex gap-2">
           {tab === 'teams' && (
-            <button onClick={() => setTeam(true)} className="vc-btn-primary inline-flex items-center gap-2 text-sm">
+            <button onClick={() => setTeam(true)} disabled={!campaign} className={`vc-btn-primary inline-flex items-center gap-2 text-sm ${!campaign ? 'opacity-50 cursor-not-allowed' : ''}`}>
               <Plus className="w-4 h-4" /> New Team
             </button>
           )}
           {tab === 'volunteers' && (
-            <button onClick={() => setVol(true)} className="vc-btn-primary inline-flex items-center gap-2 text-sm">
+            <button onClick={() => setVol(true)} disabled={!campaign} className={`vc-btn-primary inline-flex items-center gap-2 text-sm ${!campaign ? 'opacity-50 cursor-not-allowed' : ''}`}>
               <UserPlus className="w-4 h-4" /> Register Volunteer
             </button>
           )}
